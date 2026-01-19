@@ -1,10 +1,14 @@
 import requests
 import json
 import os
+import re
 import sys
+from dotenv import load_dotenv
 
-# --- CONFIGURACIÓN (Simulación de Variables de Entorno para la Tesis) ---
-# En producción, estas variables vendrían de tu orquestador CAS o un archivo .env
+# Cargar variables de entorno desde el archivo .env
+load_dotenv()
+
+# --- CONFIGURACIÓN (Variables de Entorno desde .env) ---
 CF_API_TOKEN = os.getenv("CF_API_TOKEN", "TU_TOKEN_AQUI")
 CF_ZONE_ID = os.getenv("CF_ZONE_ID", "TU_ZONE_ID_AQUI")
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "TU_ACCOUNT_ID_AQUI")
@@ -33,6 +37,44 @@ class CloudflareEdgeProtector:
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
+
+    def validate_domain(self, domain):
+        """
+        Valida que el dominio tenga un formato DNS válido (sin esquema ni ruta).
+        Permite subdominios, impide labels vacíos y guiones al inicio/fin.
+        """
+        pattern = re.compile(
+            r"^(?=.{1,253}$)(?!-)([A-Za-z0-9-]{1,63}(?<!-)\.)+[A-Za-z]{2,63}$"
+        )
+        return bool(pattern.match(domain))
+
+    def fetch_zone_nameservers(self):
+        """
+        Obtiene los nameservers asignados por Cloudflare para la zona.
+        Útil para generar instrucciones de delegación DNS.
+        """
+        res = self._request("GET", f"zones/{self.zone_id}")
+        if res and res.get("success"):
+            return res["result"].get("name_servers", [])
+        self._log("No se pudieron obtener los nameservers de la zona.", "WARN")
+        return []
+
+    def show_dns_delegation_instructions(self, domain):
+        """
+        Imprime instrucciones para que el usuario delegue su DNS hacia CAS/Cloudflare.
+        """
+        nameservers = self.fetch_zone_nameservers()
+        if nameservers:
+            print("\n[INFO] Instrucciones para delegar DNS a CAS/Cloudflare:")
+            print(f"  1) Ve al registrador del dominio '{domain}'.")
+            print("  2) Sustituye los nameservers actuales por los siguientes (modo autoritativo):")
+            for ns in nameservers:
+                print(f"     - {ns}")
+            print("  3) Guarda los cambios y espera la propagación (puede tardar minutos a horas).")
+            print("  4) Una vez propagado, ejecuta nuevamente este script si deseas reprovisionar.")
+        else:
+            print("\n[WARN] No se encontraron nameservers de la zona.")
+            print("Configura los NS autoritativos hacia los que asigne tu cuenta de Cloudflare/CAS.")
 
     def _log(self, message, level="INFO"):
         """Helper simple para logging."""
@@ -122,10 +164,7 @@ class CloudflareEdgeProtector:
         # 1. Activar WAF globalmente
         self._request("PATCH", f"zones/{self.zone_id}/settings/waf", {"value": "on"})
         
-        # 2. Browser Integrity Check (Defensa básica capa 7 contra bots malos)
-        self._request("PATCH", f"zones/{self.zone_id}/settings/browser_integrity_check", {"value": "on"})
-        
-        # 3. Security Level (Determina la sensibilidad del desafío CAPTCHA/DDoS)
+        # 2. Security Level (Determina la sensibilidad del desafío CAPTCHA/DDoS)
         # "high" es recomendado para sitios en producción bajo amenaza potencial.
         res = self._request("PATCH", f"zones/{self.zone_id}/settings/security_level", {"value": "high"})
         
@@ -187,6 +226,9 @@ class CloudflareEdgeProtector:
     def run_provisioning(self, dns_name, origin_ip):
         self._log("=== INICIANDO PROVISIÓN DE SEGURIDAD PERIMETRAL CAS ===")
         
+        # Instrucciones de delegación DNS para asegurar que el tráfico llegue a Cloudflare/CAS
+        self.show_dns_delegation_instructions(dns_name)
+
         # 1. Perímetro de Red (DNS + Proxy)
         self.configure_dns_proxy(dns_name, origin_ip)
         
@@ -224,6 +266,11 @@ if __name__ == "__main__":
     for url in TARGET_URLS:
         # Extraer el dominio de la URL (ej: https://app.midominio.com -> app.midominio.com)
         domain = url.replace("https://", "").replace("http://", "").split("/")[0]
+
+        # Validación de dominio antes de continuar
+        if not automator.validate_domain(domain):
+            print(f"[ERROR] Dominio inválido: {domain}. Use solo FQDN sin esquema ni ruta.")
+            continue
         
         # Por ahora usamos una IP genérica. En producción, esto debería venir de un DNS lookup o configuración
         ORIGIN_IP = "203.0.113.10"  # IP del servidor real (Origen)

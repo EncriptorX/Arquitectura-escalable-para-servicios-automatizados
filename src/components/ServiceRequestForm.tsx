@@ -77,17 +77,26 @@ export default function ServiceRequestForm({ onClose }: ServiceRequestFormProps)
         body: JSON.stringify({ urls: validUrls }),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error('Error al enviar la solicitud');
+        // Mostrar el mensaje de error del backend si está disponible
+        const errorMessage = result.message || 'Error al enviar la solicitud';
+        setError(errorMessage);
+        setIsSubmitting(false);
+        return;
       }
 
-      const result = await response.json();
       setSubmitSuccess(true);
       setTimeout(() => {
         onClose();
       }, 2000);
     } catch (err) {
-      setError('Error al enviar la solicitud. Por favor, intente nuevamente.');
+      // Error de red o conexión
+      const errorMessage = err instanceof Error 
+        ? `Error de conexión: ${err.message}` 
+        : 'Error al conectar con el servidor. Verifica que el backend Flask esté corriendo.';
+      setError(errorMessage);
       console.error('Error submitting request:', err);
       setIsSubmitting(false);
     }
