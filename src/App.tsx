@@ -1,9 +1,34 @@
 import { useState } from 'react';
 import { Shield, Zap, Lock, Globe, Activity, CheckCircle, Cloud, ShieldCheck, Eye, Server, BarChart3, Clock } from 'lucide-react';
 import ServiceRequestForm from './components/ServiceRequestForm';
+import ProcessInfoPage from './components/ProcessInfoPage';
+
+type ProcessInfo = {
+  urls: string[];
+  message: string;
+  output?: string;
+};
 
 function App() {
   const [showForm, setShowForm] = useState(false);
+  const [processInfo, setProcessInfo] = useState<ProcessInfo | null>(null);
+  const [showProcessPage, setShowProcessPage] = useState(false);
+
+  const handleSuccess = (payload: ProcessInfo) => {
+    setProcessInfo(payload);
+    setShowProcessPage(true);
+    setShowForm(false);
+  };
+
+  const handleBackHome = () => {
+    setShowProcessPage(false);
+    setProcessInfo(null);
+  };
+
+  const handleNewRequest = () => {
+    setShowProcessPage(false);
+    setShowForm(true);
+  };
 
   const features = [
     {
@@ -94,9 +119,26 @@ function App() {
     },
   ];
 
+  if (showProcessPage && processInfo) {
+    return (
+      <ProcessInfoPage
+        urls={processInfo.urls}
+        message={processInfo.message}
+        output={processInfo.output}
+        onBack={handleBackHome}
+        onNewRequest={handleNewRequest}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
-      {showForm && <ServiceRequestForm onClose={() => setShowForm(false)} />}
+      {showForm && (
+        <ServiceRequestForm
+          onClose={() => setShowForm(false)}
+          onSuccess={handleSuccess}
+        />
+      )}
 
       <header className="fixed w-full top-0 z-40 bg-black bg-opacity-90 backdrop-blur-sm border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">

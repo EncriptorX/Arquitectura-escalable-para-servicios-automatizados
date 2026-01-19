@@ -12,9 +12,14 @@ const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
 interface ServiceRequestFormProps {
   onClose: () => void;
+  onSuccess: (payload: {
+    message: string;
+    urls: string[];
+    output?: string;
+  }) => void;
 }
 
-export default function ServiceRequestForm({ onClose }: ServiceRequestFormProps) {
+export default function ServiceRequestForm({ onClose, onSuccess }: ServiceRequestFormProps) {
   const [formData, setFormData] = useState({
     company_name: '',
     contact_name: '',
@@ -24,7 +29,6 @@ export default function ServiceRequestForm({ onClose }: ServiceRequestFormProps)
   });
   const [urls, setUrls] = useState(['']);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
   const [error, setError] = useState('');
 
   // Estado para el token de Turnstile
@@ -124,10 +128,21 @@ export default function ServiceRequestForm({ onClose }: ServiceRequestFormProps)
         return;
       }
 
-      setSubmitSuccess(true);
-      setTimeout(() => {
-        onClose();
-      }, 2000);
+      setIsSubmitting(false);
+      onSuccess({
+        message: result.message || 'Protección perimetral en proceso',
+        urls: validUrls,
+        output: result.output,
+      });
+      setTurnstileToken(null);
+      setFormData({
+        company_name: '',
+        contact_name: '',
+        email: '',
+        phone: '',
+        comments: '',
+      });
+      setUrls(['']);
     } catch (err) {
       const errorMessage = err instanceof Error 
         ? `Error de conexión: ${err.message}` 
@@ -137,22 +152,6 @@ export default function ServiceRequestForm({ onClose }: ServiceRequestFormProps)
       setIsSubmitting(false);
     }
   };
-
-  if (submitSuccess) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-900 rounded-lg shadow-2xl max-w-md w-full p-8 text-center border border-cyan-500">
-          <div className="w-16 h-16 bg-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h3 className="text-2xl font-bold text-white mb-2">¡Solicitud Enviada!</h3>
-          <p className="text-gray-300">Nos pondremos en contacto pronto</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div 
