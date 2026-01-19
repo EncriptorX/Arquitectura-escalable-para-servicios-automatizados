@@ -1,5 +1,14 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { X, Plus, Loader2 } from 'lucide-react';
+
+// --- Declaración global para TypeScript ---
+declare global {
+  interface Window {
+    turnstile: any;
+  }
+}
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
 interface ServiceRequestFormProps {
   onClose: () => void;
@@ -17,6 +26,22 @@ export default function ServiceRequestForm({ onClose }: ServiceRequestFormProps)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [error, setError] = useState('');
+
+  // Estado para el token de Turnstile
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+
+  // Efecto para cargar el script de Cloudflare y asegurar que window.turnstile esté disponible
+  useEffect(() => {
+    const scriptId = 'cloudflare-turnstile-script';
+    if (!document.getElementById(scriptId)) {
+        const script = document.createElement('script');
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+        script.id = scriptId;
+        script.async = true;
+        script.defer = true;
+        document.body.appendChild(script);
+    }
+  }, []);
 
   const addUrlField = () => {
     setUrls([...urls, '']);
@@ -64,6 +89,12 @@ export default function ServiceRequestForm({ onClose }: ServiceRequestFormProps)
       return;
     }
 
+    // Validación de seguridad (Turnstile) antes de enviar
+    if (!turnstileToken) {
+      alert("Por favor, complete la verificación de seguridad.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     const validUrls = urls.filter(url => url.trim() !== '');
@@ -74,16 +105,22 @@ export default function ServiceRequestForm({ onClose }: ServiceRequestFormProps)
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ urls: validUrls }),
+        body: JSON.stringify({
+          company: formData.company_name,
+          email: formData.email,
+          urls: validUrls,
+          turnstileToken // Enviamos el token al backend
+        })
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        // Mostrar el mensaje de error del backend si está disponible
         const errorMessage = result.message || 'Error al enviar la solicitud';
         setError(errorMessage);
         setIsSubmitting(false);
+        setTurnstileToken(null); // Reseteamos el token si hay error
+        // Opcional: Aquí podrías forzar el reset del widget visualmente si tienes la ID del widget
         return;
       }
 
@@ -92,7 +129,6 @@ export default function ServiceRequestForm({ onClose }: ServiceRequestFormProps)
         onClose();
       }, 2000);
     } catch (err) {
-      // Error de red o conexión
       const errorMessage = err instanceof Error 
         ? `Error de conexión: ${err.message}` 
         : 'Error al conectar con el servidor. Verifica que el backend Flask esté corriendo.';
@@ -248,6 +284,28 @@ export default function ServiceRequestForm({ onClose }: ServiceRequestFormProps)
               onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
               className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors resize-none"
             />
+          </div>
+
+          {/* Widget de Turnstile */}
+          <div className="flex justify-center py-2">
+            <div
+              className="cf-turnstile"
+              data-sitekey={TURNSTILE_SITE_KEY}
+              data-theme="dark"
+              ref={(el) => {
+                 // Renderizado manual seguro gracias a la declaración global
+                 if (el && window.turnstile) {
+                     // Solo renderizamos si no tiene contenido (para evitar doble render en re-renders de React)
+                     if (el.innerHTML === "") {
+                        window.turnstile.render(el, {
+                            sitekey: TURNSTILE_SITE_KEY,
+                            theme: 'dark',
+                            callback: (token: string) => setTurnstileToken(token),
+                        });
+                     }
+                 }
+              }}
+            ></div>
           </div>
 
           <button
