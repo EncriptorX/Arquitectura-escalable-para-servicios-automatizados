@@ -17,8 +17,7 @@ def validate_turnstile(token, ip=None):
     secret_key = os.getenv("TURNSTILE_SECRET_KEY")
     
     if not secret_key:
-        print("Error: TURNSTILE_SECRET_KEY no está configurada en las variables de entorno.")
-        return False
+        return False, "TURNSTILE_SECRET_KEY no está configurada en el backend."
 
     data = {
         "secret": secret_key,
@@ -31,10 +30,17 @@ def validate_turnstile(token, ip=None):
     try:
         r = requests.post(url, data=data, timeout=5)
         result = r.json()
-        return result.get("success", False)
+        if result.get("success", False):
+            return True, None
+        # Cloudflare devuelve "error-codes" cuando falla
+        codes = result.get("error-codes") or result.get("error_codes") or []
+        msg = "Verificación Turnstile fallida."
+        if codes:
+            msg += f" Códigos: {', '.join(codes)}"
+        return False, msg
     except Exception as e:
         print(f"Error conectando con Cloudflare Turnstile: {e}")
-        return False
+        return False, "No se pudo validar Turnstile (error de conexión)."
 
 @app.route("/health", methods=["GET"])
 def health():
@@ -65,10 +71,17 @@ def solicitar_proteccion():
             }), 400
 
         # Validamos el token pasando la IP del cliente
-        if not validate_turnstile(token, request.remote_addr):
+        ok, err = validate_turnstile(token, request.remote_addr)
+        if not ok:
+            # Si falta configuración del backend, es 500 (reintentar no ayuda)
+            if err and "TURNSTILE_SECRET_KEY" in err:
+                return jsonify({
+                    "status": "error",
+                    "message": err
+                }), 500
             return jsonify({
-                "status": "error", 
-                "message": "Verificación de seguridad fallida (Captcha inválido)"
+                "status": "error",
+                "message": err or "Verificación de seguridad fallida (Captcha inválido)"
             }), 403
         # --- FIN VERIFICACIÓN TURNSTILE ---
 

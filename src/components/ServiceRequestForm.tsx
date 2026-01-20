@@ -170,12 +170,15 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
         const errorMessage = result.message || 'Error al enviar la solicitud';
         setError(errorMessage);
         setIsSubmitting(false);
-        setTurnstileToken(null); // Reseteamos el token si hay error
-        if (window.turnstile && turnstileWidgetIdRef.current != null) {
-          try {
-            window.turnstile.reset(turnstileWidgetIdRef.current);
-          } catch {
-            // ignore
+        // Solo reseteamos el captcha si el backend indica fallo de verificación (403)
+        if (response.status === 403) {
+          setTurnstileToken(null);
+          if (window.turnstile && turnstileWidgetIdRef.current != null) {
+            try {
+              window.turnstile.reset(turnstileWidgetIdRef.current);
+            } catch {
+              // ignore
+            }
           }
         }
         // Opcional: Aquí podrías forzar el reset del widget visualmente si tienes la ID del widget
