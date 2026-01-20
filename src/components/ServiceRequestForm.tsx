@@ -148,7 +148,7 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
     const validUrls = urls.filter(url => url.trim() !== '');
 
     try {
-      const response = await fetch('/solicitar-proteccion', {
+      const response = await fetch('http://127.0.0.1:5000/solicitar-proteccion', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -157,7 +157,7 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
           company: formData.company_name,
           email: formData.email,
           urls: validUrls,
-          turnstileToken // Enviamos el token al backend
+          turnstileToken
         })
       });
 
