@@ -148,10 +148,10 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
     const validUrls = urls.filter(url => url.trim() !== '');
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/solicitar-proteccion', {
+      const response = await fetch('/api/solicitar-proteccion', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           company: formData.company_name,

@@ -50,8 +50,9 @@ def health():
         "message": "Backend Flask funcionando correctamente"
     })
 
-@app.route("/solicitar-proteccion", methods=["POST"])
+@app.route('/solicitar-proteccion', methods=['POST'])
 def solicitar_proteccion():
+    print("Solicitud recibida")
     try:
         data = request.json
         
