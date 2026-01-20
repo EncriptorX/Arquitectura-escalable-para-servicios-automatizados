@@ -13,7 +13,7 @@ TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY")
 # ===============================
 # Utilidades
 # ===============================
-def response(status, body):
+def json_response(status, body):
     return {
         "statusCode": status,
         "headers": {
@@ -21,6 +21,7 @@ def response(status, body):
         },
         "body": json.dumps(body)
     }
+
 
 def validar_url(url):
     regex = re.compile(
@@ -34,88 +35,36 @@ def validar_url(url):
 def handler(request):
 
     if request.method != "POST":
-        return {
-            "statusCode": 405,
-            "body": json.dumps({"error": "Método no permitido"})
-        }
+        return json_response(405, {"error": "Método no permitido"})
 
-    data = request.get_json()
+    try:
+        data = request.get_json()
+    except Exception:
+        return json_response(400, {"error": "JSON inválido"})
 
-    company = data.get("company")
-    email = data.get("email")
-    urls = data.get("urls", [])
     token = data.get("turnstileToken")
 
-    if not company or not email or not urls or not token:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "Datos incompletos"})
-        }
+    if not token:
+        return json_response(400, {"error": "Token Turnstile faltante"})
 
-    return {
-        "statusCode": 200,
-        "body": json.dumps({
-            "message": "API serverless funcionando correctamente"
-        })
-    }
-
-    # -------- Validar URLs --------
-    for url in urls:
-        if not validar_url(url):
-            return response(400, {"error": f"URL inválida: {url}"})
-
-    # ===============================
-    # Validación Turnstile
-    # ===============================
-    ts_response = requests.post(
+    # 🔐 Validación Turnstile
+    ts_verify = requests.post(
         "https://challenges.cloudflare.com/turnstile/v0/siteverify",
         data={
             "secret": TURNSTILE_SECRET_KEY,
-            "response": turnstile_token
+            "response": token
         },
         timeout=10
     )
 
-    ts_result = ts_response.json()
+    result = ts_verify.json()
 
-    if not ts_result.get("success"):
-        return response(403, {
+    if not result.get("success"):
+        return json_response(403, {
             "error": "Captcha inválido",
-            "details": ts_result
+            "details": result
         })
 
-    # ===============================
-    # Cloudflare API (ejemplo básico)
-    # ===============================
-    headers = {
-        "Authorization": f"Bearer {CF_API_TOKEN}",
-        "Content-Type": "application/json"
-    }
-
-    protegidos = []
-
-    for url in urls:
-        dominio = url.replace("https://", "").replace("http://", "").split("/")[0]
-
-        # ⚠ Aquí SOLO simulamos la protección
-        # En producción:
-        # - Crear zona
-        # - Activar proxy
-        # - Activar WAF
-        # - Forzar HTTPS
-        # - Reglas firewall
-
-        protegidos.append({
-            "dominio": dominio,
-            "estado": "Protección perimetral iniciada"
-        })
-
-    # ===============================
-    # Respuesta final
-    # ===============================
-    return response(200, {
-        "message": "Solicitud procesada correctamente",
-        "empresa": company,
-        "email": email,
-        "sitios": protegidos
+    return json_response(200, {
+        "message": "Turnstile validado correctamente"
     })
