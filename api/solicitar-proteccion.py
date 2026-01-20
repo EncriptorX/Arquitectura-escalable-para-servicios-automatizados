@@ -24,9 +24,7 @@ def response(status, body):
 
 def validar_url(url):
     regex = re.compile(
-        r'^(https?:\/\/)?'      # http o https
-        r'(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})'
-        r'(\/.*)?$'
+        r'^(https?:\/\/)?(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(\/.*)?$'
     )
     return re.match(regex, url)
 
@@ -35,23 +33,31 @@ def validar_url(url):
 # ===============================
 def handler(request):
 
-    # -------- Método --------
     if request.method != "POST":
-        return response(405, {"error": "Método no permitido"})
+        return {
+            "statusCode": 405,
+            "body": json.dumps({"error": "Método no permitido"})
+        }
 
-    # -------- Body --------
-    try:
-        data = json.loads(request.body)
-    except Exception:
-        return response(400, {"error": "JSON inválido"})
+    data = request.get_json()
 
     company = data.get("company")
     email = data.get("email")
     urls = data.get("urls", [])
-    turnstile_token = data.get("turnstileToken")
+    token = data.get("turnstileToken")
 
-    if not company or not email or not urls or not turnstile_token:
-        return response(400, {"error": "Datos incompletos"})
+    if not company or not email or not urls or not token:
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"error": "Datos incompletos"})
+        }
+
+    return {
+        "statusCode": 200,
+        "body": json.dumps({
+            "message": "API serverless funcionando correctamente"
+        })
+    }
 
     # -------- Validar URLs --------
     for url in urls:
