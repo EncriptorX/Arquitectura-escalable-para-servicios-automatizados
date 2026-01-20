@@ -1,4 +1,4 @@
-import { useState, FormEvent, useEffect } from 'react';
+import { useRef, useState, FormEvent, useEffect } from 'react';
 import { X, Plus, Loader2 } from 'lucide-react';
 
 // --- Declaración global para TypeScript ---
@@ -33,6 +33,9 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
 
   // Estado para el token de Turnstile
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [isTurnstileReady, setIsTurnstileReady] = useState(false);
+  const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
+  const turnstileWidgetIdRef = useRef<string | number | null>(null);
 
   // Efecto para cargar el script de Cloudflare y asegurar que window.turnstile esté disponible
   useEffect(() => {
@@ -43,9 +46,50 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
         script.id = scriptId;
         script.async = true;
         script.defer = true;
+        script.onload = () => setIsTurnstileReady(true);
         document.body.appendChild(script);
+    } else {
+        // Si el script ya existe, esperamos a que turnstile esté disponible
+        if (window.turnstile) setIsTurnstileReady(true);
+        else {
+          const interval = window.setInterval(() => {
+            if (window.turnstile) {
+              setIsTurnstileReady(true);
+              window.clearInterval(interval);
+            }
+          }, 50);
+          return () => window.clearInterval(interval);
+        }
     }
   }, []);
+
+  // Renderizar Turnstile solo cuando el script haya cargado y el contenedor exista
+  useEffect(() => {
+    const el = turnstileContainerRef.current;
+    if (!el) return;
+    if (!isTurnstileReady) return;
+    if (!window.turnstile) return;
+    if (!TURNSTILE_SITE_KEY) {
+      setError('Falta configurar VITE_TURNSTILE_SITE_KEY en el frontend.');
+      return;
+    }
+
+    if (turnstileWidgetIdRef.current != null) return;
+
+    try {
+      const widgetId = window.turnstile.render(el, {
+        sitekey: TURNSTILE_SITE_KEY,
+        theme: 'dark',
+        callback: (token: string) => setTurnstileToken(token),
+        'expired-callback': () => setTurnstileToken(null),
+        'error-callback': () => setTurnstileToken(null),
+      });
+      turnstileWidgetIdRef.current = widgetId;
+    } catch (e) {
+      console.error('Error renderizando Turnstile:', e);
+      setError('No se pudo cargar la verificación de seguridad. Recargue la página.');
+    }
+  }, [isTurnstileReady]);
 
   const addUrlField = () => {
     setUrls([...urls, '']);
@@ -117,13 +161,23 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
         })
       });
 
-      const result = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      const result = contentType.includes('application/json')
+        ? await response.json()
+        : { message: await response.text() };
 
       if (!response.ok) {
         const errorMessage = result.message || 'Error al enviar la solicitud';
         setError(errorMessage);
         setIsSubmitting(false);
         setTurnstileToken(null); // Reseteamos el token si hay error
+        if (window.turnstile && turnstileWidgetIdRef.current != null) {
+          try {
+            window.turnstile.reset(turnstileWidgetIdRef.current);
+          } catch {
+            // ignore
+          }
+        }
         // Opcional: Aquí podrías forzar el reset del widget visualmente si tienes la ID del widget
         return;
       }
@@ -132,6 +186,13 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
       
       // Limpiar el formulario
       setTurnstileToken(null);
+      if (window.turnstile && turnstileWidgetIdRef.current != null) {
+        try {
+          window.turnstile.reset(turnstileWidgetIdRef.current);
+        } catch {
+          // ignore
+        }
+      }
       setFormData({
         company_name: '',
         contact_name: '',
@@ -295,19 +356,7 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
               className="cf-turnstile"
               data-sitekey={TURNSTILE_SITE_KEY}
               data-theme="dark"
-              ref={(el) => {
-                 // Renderizado manual seguro gracias a la declaración global
-                 if (el && window.turnstile) {
-                     // Solo renderizamos si no tiene contenido (para evitar doble render en re-renders de React)
-                     if (el.innerHTML === "") {
-                        window.turnstile.render(el, {
-                            sitekey: TURNSTILE_SITE_KEY,
-                            theme: 'dark',
-                            callback: (token: string) => setTurnstileToken(token),
-                        });
-                     }
-                 }
-              }}
+              ref={turnstileContainerRef}
             ></div>
           </div>
 
