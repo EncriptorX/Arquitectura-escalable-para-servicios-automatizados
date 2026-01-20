@@ -129,11 +129,8 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
       }
 
       setIsSubmitting(false);
-      onSuccess({
-        message: result.message || 'Protección perimetral en proceso',
-        urls: validUrls,
-        output: result.output,
-      });
+      
+      // Limpiar el formulario
       setTurnstileToken(null);
       setFormData({
         company_name: '',
@@ -143,6 +140,13 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
         comments: '',
       });
       setUrls(['']);
+      
+      // Llamar a onSuccess que manejará el cierre del modal y mostrará la página de proceso
+      onSuccess({
+        message: result.message || 'Protección perimetral en proceso',
+        urls: validUrls,
+        output: result.output,
+      });
     } catch (err) {
       const errorMessage = err instanceof Error 
         ? `Error de conexión: ${err.message}` 

@@ -133,7 +133,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {showForm && (
+      {showForm && !showProcessPage && (
         <ServiceRequestForm
           onClose={() => setShowForm(false)}
           onSuccess={handleSuccess}
