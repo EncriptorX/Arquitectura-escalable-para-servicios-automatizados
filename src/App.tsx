@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Shield, Zap, Lock, Globe, Activity, CheckCircle, Cloud, ShieldCheck, Eye, Server, BarChart3, Clock } from 'lucide-react';
 import ServiceRequestForm from './components/ServiceRequestForm';
 import ProcessInfoPage from './components/ProcessInfoPage';
@@ -14,18 +14,28 @@ function App() {
   const [processInfo, setProcessInfo] = useState<ProcessInfo | null>(null);
   const [showProcessPage, setShowProcessPage] = useState(false);
 
+  // Sincronizar showProcessPage con processInfo
+  useEffect(() => {
+    if (processInfo) {
+      setShowProcessPage(true);
+      setShowForm(false);
+    } else {
+      setShowProcessPage(false);
+    }
+  }, [processInfo]);
+
   const handleSuccess = (payload: ProcessInfo) => {
     setProcessInfo(payload);
-    setShowProcessPage(true);
-    setShowForm(false);
   };
 
   const handleBackHome = () => {
-    setShowProcessPage(false);
     setProcessInfo(null);
+    setShowProcessPage(false);
+    setShowForm(false);
   };
 
   const handleNewRequest = () => {
+    setProcessInfo(null);
     setShowProcessPage(false);
     setShowForm(true);
   };
@@ -119,7 +129,8 @@ function App() {
     },
   ];
 
-  if (showProcessPage && processInfo) {
+  // Mostrar la página de proceso si hay información del proceso
+  if (processInfo) {
     return (
       <ProcessInfoPage
         urls={processInfo.urls}
