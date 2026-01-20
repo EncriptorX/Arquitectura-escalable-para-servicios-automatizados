@@ -68,3 +68,64 @@ def handler(request):
     return json_response(200, {
         "message": "Turnstile validado correctamente"
     })
+
+    # -------- Validar URLs --------
+    for url in urls:
+        if not validar_url(url):
+            return response(400, {"error": f"URL inválida: {url}"})
+
+    # ===============================
+    # Validación Turnstile
+    # ===============================
+    ts_response = requests.post(
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        data={
+            "secret": TURNSTILE_SECRET_KEY,
+            "response": turnstile_token
+        },
+        timeout=10
+    )
+
+    ts_result = ts_response.json()
+
+    if not ts_result.get("success"):
+        return response(403, {
+            "error": "Captcha inválido",
+            "details": ts_result
+        })
+
+    # ===============================
+    # Cloudflare API (ejemplo básico)
+    # ===============================
+    headers = {
+        "Authorization": f"Bearer {CF_API_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    protegidos = []
+
+    for url in urls:
+        dominio = url.replace("https://", "").replace("http://", "").split("/")[0]
+
+        # ⚠ Aquí SOLO simulamos la protección
+        # En producción:
+        # - Crear zona
+        # - Activar proxy
+        # - Activar WAF
+        # - Forzar HTTPS
+        # - Reglas firewall
+
+        protegidos.append({
+            "dominio": dominio,
+            "estado": "Protección perimetral iniciada"
+        })
+
+    # ===============================
+    # Respuesta final
+    # ===============================
+    return response(200, {
+        "message": "Solicitud procesada correctamente",
+        "empresa": company,
+        "email": email,
+        "sitios": protegidos
+    })
