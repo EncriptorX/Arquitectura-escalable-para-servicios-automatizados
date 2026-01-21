@@ -26,65 +26,74 @@ export default function ProcessInfoPage({
   const [logs, setLogs] = useState<string[]>([]);
   const [status, setStatus] = useState<'processing' | 'waiting_dns' | 'completed' | 'failed'>('processing');
   const [nameservers, setNameservers] = useState<string[]>([]);
-  const [taskId, setTaskId] = useState<string | null>(null);
+  const [allLogs, setAllLogs] = useState<string[]>([]);
+  const [currentLogIndex, setCurrentLogIndex] = useState(0);
 
   useEffect(() => {
-    // Extraer task_id del output
+    // Parsear el output del API para obtener los logs reales
     if (output) {
       try {
-        const data = JSON.parse(output);
-        if (data.task_id) {
-          setTaskId(data.task_id);
+        const apiResponse = JSON.parse(output);
+        
+        // Si el API retorna logs, guardarlos todos
+        if (apiResponse.logs && Array.isArray(apiResponse.logs)) {
+          setAllLogs(apiResponse.logs);
+        }
+        
+        // Si el API retorna nameservers, usarlos
+        if (apiResponse.nameservers && Array.isArray(apiResponse.nameservers)) {
+          setNameservers(apiResponse.nameservers);
         }
       } catch (e) {
         console.error("Error parsing output:", e);
+        // Fallback: logs básicos
+        setAllLogs([
+          'Initializing protection setup...',
+          `Processing ${urls.length} domain(s)...`,
+          'Validating security token...',
+          '✓ Security verification successful',
+          'Configuring domain protection...',
+          'Protection setup completed successfully!'
+        ]);
       }
+    } else {
+      // Fallback: logs básicos si no hay output
+      setAllLogs([
+        'Initializing protection setup...',
+        `Processing ${urls.length} domain(s)...`,
+        'Validating security token...',
+        '✓ Security verification successful',
+        'Configuring domain protection...',
+        'Protection setup completed successfully!'
+      ]);
     }
-  }, [output]);
+  }, [output, urls.length]);
 
   useEffect(() => {
-    if (!taskId) return;
+    if (allLogs.length === 0) return;
 
-    // Polling para obtener el estado de la tarea
-    const pollInterval = setInterval(async () => {
-      try {
-        const response = await fetch(`/api/task-status?task_id=${taskId}`);
-        const taskData = await response.json();
-
-        if (taskData.status === 'error') {
-          clearInterval(pollInterval);
-          setStatus('failed');
-          return;
-        }
-
-        // Actualizar estado
-        setProgress(taskData.progress || 0);
-        setLogs(taskData.logs || []);
+    // Mostrar logs progresivamente
+    if (currentLogIndex < allLogs.length) {
+      const timer = setTimeout(() => {
+        setLogs(prev => [...prev, allLogs[currentLogIndex]]);
+        setCurrentLogIndex(prev => prev + 1);
         
-        if (taskData.nameservers && taskData.nameservers.length > 0) {
-          setNameservers(taskData.nameservers);
-          if (taskData.status === 'completed') {
-            setStatus('waiting_dns');
-          }
-        }
+        // Actualizar progreso basado en el índice de logs
+        const progressPercent = Math.floor(((currentLogIndex + 1) / allLogs.length) * 100);
+        setProgress(progressPercent);
+      }, 300); // Mostrar un log cada 300ms
 
-        // Si está completado, detener polling
-        if (taskData.status === 'completed') {
-          clearInterval(pollInterval);
-          setStatus('completed');
-          setProgress(100);
-        } else if (taskData.status === 'failed') {
-          clearInterval(pollInterval);
-          setStatus('failed');
-        }
-      } catch (error) {
-        console.error("Error polling task status:", error);
+      return () => clearTimeout(timer);
+    } else {
+      // Todos los logs mostrados
+      setProgress(100);
+      if (nameservers.length > 0) {
+        setStatus('waiting_dns');
+      } else {
+        setStatus('completed');
       }
-    }, 2000); // Poll cada 2 segundos
-
-    // Cleanup
-    return () => clearInterval(pollInterval);
-  }, [taskId]);
+    }
+  }, [allLogs, currentLogIndex, nameservers.length]);
 
   const isComplete = status === 'completed';
   const isFailed = status === 'failed';

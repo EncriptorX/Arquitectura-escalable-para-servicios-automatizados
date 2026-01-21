@@ -205,11 +205,11 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
       });
       setUrls(['']);
       
-      // Llamar a onSuccess con el task_id para polling
+      // Llamar a onSuccess con toda la respuesta del API
       onSuccess({
         message: result.message || 'Protección perimetral en proceso',
         urls: validUrls,
-        output: JSON.stringify({ task_id: result.task_id }), // Pasar task_id para polling
+        output: JSON.stringify(result), // Pasar toda la respuesta
       });
     } catch (err) {
       const errorMessage = err instanceof Error 
