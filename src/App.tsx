@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Shield, Zap, Lock, Globe, Activity, CheckCircle, Cloud, ShieldCheck, Eye, Server, BarChart3, Clock, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ServiceRequestForm from './components/ServiceRequestForm';
@@ -13,30 +13,19 @@ type ProcessInfo = {
 function App() {
   const [showForm, setShowForm] = useState(false);
   const [processInfo, setProcessInfo] = useState<ProcessInfo | null>(null);
-  const [showProcessPage, setShowProcessPage] = useState(false);
-
-  useEffect(() => {
-    if (processInfo) {
-      setShowProcessPage(true);
-      setShowForm(false);
-    } else {
-      setShowProcessPage(false);
-    }
-  }, [processInfo]);
 
   const handleSuccess = (payload: ProcessInfo) => {
     setProcessInfo(payload);
+    setShowForm(false);
   };
 
   const handleBackHome = () => {
     setProcessInfo(null);
-    setShowProcessPage(false);
     setShowForm(false);
   };
 
   const handleNewRequest = () => {
     setProcessInfo(null);
-    setShowProcessPage(false);
     setShowForm(true);
   };
 
@@ -79,7 +68,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900">
-      {showForm && !showProcessPage && (
+      {showForm && (
         <ServiceRequestForm
           onClose={() => setShowForm(false)}
           onSuccess={handleSuccess}

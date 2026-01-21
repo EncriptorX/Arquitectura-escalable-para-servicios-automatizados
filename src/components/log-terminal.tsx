@@ -10,10 +10,8 @@ export function LogTerminal({ logs, className }: LogTerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-  }, [logs]);
+    terminalRef.current?.scrollTo({ top: terminalRef.current.scrollHeight, behavior: 'smooth' });
+  }, [logs.length]);
 
   return (
     <div

@@ -31,91 +31,59 @@ export default function ProcessInfoPage({
   const [isSimulationMode, setIsSimulationMode] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Parsear el output del API para obtener los logs reales
-    if (output) {
-      try {
-        console.log("📥 Raw output received:", output);
-        const apiResponse = JSON.parse(output);
-        console.log("📦 Parsed API response:", apiResponse);
-        
-        // Verificar si está en modo simulación
-        if (apiResponse.simulation_mode === true) {
-          console.warn("⚠️ API está en MODO SIMULACIÓN - No se aplicó protección real");
-          setIsSimulationMode(true);
-        } else {
-          console.log("✅ API está en MODO REAL - Protección aplicada");
-          setIsSimulationMode(false);
-        }
-        
-        // Si el API retorna logs, guardarlos todos
-        if (apiResponse.logs && Array.isArray(apiResponse.logs)) {
-          console.log(`📝 Logs recibidos: ${apiResponse.logs.length} líneas`);
-          setAllLogs(apiResponse.logs);
-        } else {
-          console.warn("⚠️ No se encontraron logs en la respuesta del API");
-          setAllLogs([
-            'ERROR: No se recibieron logs del servidor',
-            'Respuesta del API no contiene logs válidos',
-            'Por favor revisa la configuración del backend'
-          ]);
-        }
-        
-        // Si el API retorna nameservers, usarlos
-        if (apiResponse.nameservers && Array.isArray(apiResponse.nameservers)) {
-          console.log("🌐 Nameservers recibidos:", apiResponse.nameservers);
-          setNameservers(apiResponse.nameservers);
-        }
-        
-        // Mostrar información adicional si está disponible
-        if (apiResponse.sitios && Array.isArray(apiResponse.sitios)) {
-          console.log("🎯 Sitios procesados:", apiResponse.sitios);
-        }
-      } catch (e) {
-        console.error("❌ Error parsing output:", e);
-        console.error("📄 Output que causó el error:", output);
-        // Fallback: logs básicos
-        setAllLogs([
-          'ERROR: No se pudo parsear la respuesta del servidor',
-          `Error: ${e instanceof Error ? e.message : 'Unknown error'}`,
-          'Por favor revisa la consola del navegador para más detalles'
-        ]);
-      }
-    } else {
-      console.warn("⚠️ No se recibió output del API");
-      // Fallback: logs básicos si no hay output
+    if (!output) {
       setAllLogs([
         'ERROR: No se recibió respuesta del servidor',
         'El API no retornó ningún output',
         'Por favor verifica que el backend esté funcionando correctamente'
       ]);
+      return;
     }
-  }, [output, urls.length]);
+
+    try {
+      const apiResponse = JSON.parse(output);
+      
+      setIsSimulationMode(apiResponse.simulation_mode === true);
+      
+      if (apiResponse.logs && Array.isArray(apiResponse.logs)) {
+        setAllLogs(apiResponse.logs);
+      } else {
+        setAllLogs([
+          'ERROR: No se recibieron logs del servidor',
+          'Respuesta del API no contiene logs válidos',
+          'Por favor revisa la configuración del backend'
+        ]);
+      }
+      
+      if (apiResponse.nameservers && Array.isArray(apiResponse.nameservers)) {
+        setNameservers(apiResponse.nameservers);
+      }
+    } catch (e) {
+      setAllLogs([
+        'ERROR: No se pudo parsear la respuesta del servidor',
+        `Error: ${e instanceof Error ? e.message : 'Unknown error'}`,
+        'Por favor revisa la consola del navegador para más detalles'
+      ]);
+    }
+  }, [output]);
 
   useEffect(() => {
-    if (allLogs.length === 0) return;
-
-    // Mostrar logs progresivamente
-    if (currentLogIndex < allLogs.length) {
-      const timer = setTimeout(() => {
-        setLogs(prev => [...prev, allLogs[currentLogIndex]]);
-        setCurrentLogIndex(prev => prev + 1);
-        
-        // Actualizar progreso basado en el índice de logs
-        const progressPercent = Math.floor(((currentLogIndex + 1) / allLogs.length) * 100);
-        setProgress(progressPercent);
-      }, 300); // Mostrar un log cada 300ms
-
-      return () => clearTimeout(timer);
-    } else {
-      // Todos los logs mostrados
-      setProgress(100);
-      if (nameservers.length > 0) {
-        setStatus('waiting_dns');
-      } else {
-        setStatus('completed');
+    if (allLogs.length === 0 || currentLogIndex >= allLogs.length) {
+      if (currentLogIndex >= allLogs.length && allLogs.length > 0) {
+        setProgress(100);
+        setStatus(nameservers.length > 0 ? 'waiting_dns' : 'completed');
       }
+      return;
     }
-  }, [allLogs, currentLogIndex, nameservers.length]);
+
+    const timer = setTimeout(() => {
+      setLogs(prev => [...prev, allLogs[currentLogIndex]]);
+      setCurrentLogIndex(prev => prev + 1);
+      setProgress(Math.floor(((currentLogIndex + 1) / allLogs.length) * 100));
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [allLogs.length, currentLogIndex, nameservers.length]);
 
   const isComplete = status === 'completed';
   const isFailed = status === 'failed';
@@ -378,7 +346,7 @@ function StepIndicator({
   label: string;
   active: boolean;
   completed: boolean;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
 }) {
   return (
     <motion.div

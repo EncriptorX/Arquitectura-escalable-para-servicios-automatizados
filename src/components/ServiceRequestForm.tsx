@@ -2,10 +2,12 @@ import { useRef, useState, FormEvent, useEffect } from 'react';
 import { X, Plus, Loader2, Shield, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// --- Declaración global para TypeScript ---
 declare global {
   interface Window {
-    turnstile: any;
+    turnstile: {
+      render: (element: HTMLElement, options: Record<string, unknown>) => string | number;
+      reset: (widgetId: string | number) => void;
+    };
   }
 }
 
@@ -38,47 +40,48 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileWidgetIdRef = useRef<string | number | null>(null);
 
-  // Efecto para cargar el script de Cloudflare y asegurar que window.turnstile esté disponible
   useEffect(() => {
     const scriptId = 'cloudflare-turnstile-script';
-    if (!document.getElementById(scriptId)) {
-        const script = document.createElement('script');
-        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-        script.id = scriptId;
-        script.async = true;
-        script.defer = true;
-        script.onload = () => setIsTurnstileReady(true);
-        document.body.appendChild(script);
-    } else {
-        // Si el script ya existe, esperamos a que turnstile esté disponible
-        if (window.turnstile) setIsTurnstileReady(true);
-        else {
-          const interval = window.setInterval(() => {
-            if (window.turnstile) {
-              setIsTurnstileReady(true);
-              window.clearInterval(interval);
-            }
-          }, 50);
-          return () => window.clearInterval(interval);
-        }
+    const existingScript = document.getElementById(scriptId);
+    
+    if (!existingScript) {
+      const script = document.createElement('script');
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+      script.id = scriptId;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => setIsTurnstileReady(true);
+      document.body.appendChild(script);
+      return;
     }
+    
+    if (window.turnstile) {
+      setIsTurnstileReady(true);
+      return;
+    }
+    
+    const interval = setInterval(() => {
+      if (window.turnstile) {
+        setIsTurnstileReady(true);
+        clearInterval(interval);
+      }
+    }, 50);
+    
+    return () => clearInterval(interval);
   }, []);
 
-  // Renderizar Turnstile solo cuando el script haya cargado y el contenedor exista
   useEffect(() => {
-    const el = turnstileContainerRef.current;
-    if (!el) return;
-    if (!isTurnstileReady) return;
-    if (!window.turnstile) return;
+    if (!turnstileContainerRef.current || !isTurnstileReady || !window.turnstile || turnstileWidgetIdRef.current != null) {
+      return;
+    }
+
     if (!TURNSTILE_SITE_KEY) {
       setError('Falta configurar VITE_TURNSTILE_SITE_KEY en el frontend.');
       return;
     }
 
-    if (turnstileWidgetIdRef.current != null) return;
-
     try {
-      const widgetId = window.turnstile.render(el, {
+      const widgetId = window.turnstile.render(turnstileContainerRef.current, {
         sitekey: TURNSTILE_SITE_KEY,
         theme: 'dark',
         callback: (token: string) => setTurnstileToken(token),
@@ -110,20 +113,21 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
   };
 
   const validateForm = () => {
-    if (!formData.company_name.trim()) {
+    const { company_name, contact_name, email } = formData;
+    
+    if (!company_name.trim()) {
       setError('El nombre de la empresa es requerido');
       return false;
     }
-    if (!formData.contact_name.trim()) {
+    if (!contact_name.trim()) {
       setError('El nombre del responsable es requerido');
       return false;
     }
-    if (!formData.email.trim() || !formData.email.includes('@')) {
+    if (!email.trim() || !email.includes('@')) {
       setError('Un correo electrónico válido es requerido');
       return false;
     }
-    const validUrls = urls.filter(url => url.trim() !== '');
-    if (validUrls.length === 0) {
+    if (urls.filter(url => url.trim()).length === 0) {
       setError('Debe proporcionar al menos una URL');
       return false;
     }
@@ -146,14 +150,12 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
 
     setIsSubmitting(true);
 
-    const validUrls = urls.filter(url => url.trim() !== '');
+    const validUrls = urls.filter(url => url.trim());
 
     try {
       const response = await fetch('/api/solicitar-proteccion', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           company: formData.company_name,
           email: formData.email,
@@ -168,35 +170,28 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
         : { message: await response.text() };
 
       if (!response.ok) {
-        const errorMessage = result.message || 'Error al enviar la solicitud';
-        setError(errorMessage);
-        setIsSubmitting(false);
-        // Solo reseteamos el captcha si el backend indica fallo de verificación (403)
-        if (response.status === 403) {
+        setError(result.message || 'Error al enviar la solicitud');
+        
+        if (response.status === 403 && window.turnstile && turnstileWidgetIdRef.current != null) {
           setTurnstileToken(null);
-          if (window.turnstile && turnstileWidgetIdRef.current != null) {
-            try {
-              window.turnstile.reset(turnstileWidgetIdRef.current);
-            } catch {
-              // ignore
-            }
+          try {
+            window.turnstile.reset(turnstileWidgetIdRef.current);
+          } catch {
+            // Ignorar errores de reset
           }
         }
-        // Opcional: Aquí podrías forzar el reset del widget visualmente si tienes la ID del widget
         return;
       }
-
-      setIsSubmitting(false);
       
-      // Limpiar el formulario
-      setTurnstileToken(null);
       if (window.turnstile && turnstileWidgetIdRef.current != null) {
         try {
           window.turnstile.reset(turnstileWidgetIdRef.current);
         } catch {
-          // ignore
+          // Ignorar errores de reset
         }
       }
+      
+      setTurnstileToken(null);
       setFormData({
         company_name: '',
         contact_name: '',
@@ -206,18 +201,17 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
       });
       setUrls(['']);
       
-      // Llamar a onSuccess con toda la respuesta del API
       onSuccess({
         message: result.message || 'Protección perimetral en proceso',
         urls: validUrls,
-        output: JSON.stringify(result), // Pasar toda la respuesta
+        output: JSON.stringify(result),
       });
     } catch (err) {
-      const errorMessage = err instanceof Error 
+      setError(err instanceof Error 
         ? `Error de conexión: ${err.message}` 
-        : 'Error al conectar con el servidor. Verifica que el backend Flask esté corriendo.';
-      setError(errorMessage);
+        : 'Error al conectar con el servidor. Verifica que el backend Flask esté corriendo.');
       console.error('Error submitting request:', err);
+    } finally {
       setIsSubmitting(false);
     }
   };

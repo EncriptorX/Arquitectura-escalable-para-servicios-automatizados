@@ -3,31 +3,16 @@ import json
 import os
 import re
 import sys
-from dotenv import load_dotenv
-
-# Cargar variables de entorno desde el archivo .env
-load_dotenv()
-
-# --- CONFIGURACIÓN (Variables de Entorno desde .env) ---
-CF_API_TOKEN = os.getenv("CF_API_TOKEN", "TU_TOKEN_AQUI")
-CF_ZONE_ID = os.getenv("CF_ZONE_ID", "TU_ZONE_ID_AQUI")
-CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "TU_ACCOUNT_ID_AQUI")
-
-# Configuración del sitio objetivo (puede venir desde argumentos de línea de comandos)
 import argparse
 
-# Si se pasan URLs desde la línea de comandos, usarlas
-# Formato esperado: python cloudflare_protect.py "url1.com,url2.com"
+CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
+CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
+
 parser = argparse.ArgumentParser(description='Configurar protección perimetral Cloudflare')
-parser.add_argument('urls', nargs='?', help='URLs separadas por comas (ej: url1.com,url2.com)')
+parser.add_argument('urls', nargs='?', help='URLs separadas por comas')
 args = parser.parse_args()
 
-if args.urls:
-    # Parsear las URLs desde argumentos
-    TARGET_URLS = [url.strip() for url in args.urls.split(',') if url.strip()]
-else:
-    # Valores por defecto para testing
-    TARGET_URLS = ["app.midominio.com"]
+TARGET_URLS = [url.strip() for url in args.urls.split(',') if url.strip()] if args.urls else []
 
 class CloudflareEdgeProtector:
     def __init__(self, token, zone_id):
@@ -39,242 +24,162 @@ class CloudflareEdgeProtector:
         }
 
     def validate_domain(self, domain):
-        """
-        Valida que el dominio tenga un formato DNS válido (sin esquema ni ruta).
-        Permite subdominios, impide labels vacíos y guiones al inicio/fin.
-        """
-        pattern = re.compile(
-            r"^(?=.{1,253}$)(?!-)([A-Za-z0-9-]{1,63}(?<!-)\.)+[A-Za-z]{2,63}$"
-        )
-        return bool(pattern.match(domain))
+        """Valida formato DNS válido (sin esquema ni ruta)."""
+        pattern = r"^(?=.{1,253}$)(?!-)([A-Za-z0-9-]{1,63}(?<!-)\.)+[A-Za-z]{2,63}$"
+        return bool(re.match(pattern, domain))
 
     def fetch_zone_nameservers(self):
-        """
-        Obtiene los nameservers asignados por Cloudflare para la zona.
-        Útil para generar instrucciones de delegación DNS.
-        """
+        """Obtiene los nameservers asignados por Cloudflare."""
         res = self._request("GET", f"zones/{self.zone_id}")
         if res and res.get("success"):
             return res["result"].get("name_servers", [])
-        self._log("No se pudieron obtener los nameservers de la zona.", "WARN")
+        self._log("No se pudieron obtener nameservers", "WARN")
         return []
 
     def show_dns_delegation_instructions(self, domain):
-        """
-        Imprime instrucciones para que el usuario delegue su DNS hacia CAS/Cloudflare.
-        """
+        """Imprime instrucciones de delegación DNS."""
         nameservers = self.fetch_zone_nameservers()
         if nameservers:
-            print("\n[INFO] Instrucciones para delegar DNS a CAS/Cloudflare:")
-            print(f"  1) Ve al registrador del dominio '{domain}'.")
-            print("  2) Sustituye los nameservers actuales por los siguientes (modo autoritativo):")
+            print(f"\n[INFO] Instrucciones DNS para '{domain}':")
+            print("  1) Ve al registrador del dominio")
+            print("  2) Sustituye los nameservers por:")
             for ns in nameservers:
                 print(f"     - {ns}")
-            print("  3) Guarda los cambios y espera la propagación (puede tardar minutos a horas).")
-            print("  4) Una vez propagado, ejecuta nuevamente este script si deseas reprovisionar.")
+            print("  3) Espera propagación (minutos a horas)")
         else:
-            print("\n[WARN] No se encontraron nameservers de la zona.")
-            print("Configura los NS autoritativos hacia los que asigne tu cuenta de Cloudflare/CAS.")
+            print("\n[WARN] No se encontraron nameservers")
 
     def _log(self, message, level="INFO"):
-        """Helper simple para logging."""
+        """Helper para logging."""
         print(f"[{level}] {message}")
 
     def _request(self, method, endpoint, data=None):
-        """Wrapper para realizar peticiones HTTP a la API."""
+        """Wrapper para peticiones HTTP a la API."""
         url = f"{self.base_url}/{endpoint}"
         try:
-            response = requests.request(method, url, headers=self.headers, json=data)
-            response.raise_for_status() # Lanza error si status es 4xx o 5xx
+            response = requests.request(method, url, headers=self.headers, json=data, timeout=30)
+            response.raise_for_status()
             return response.json()
         except requests.exceptions.HTTPError as err:
             self._log(f"Error HTTP: {err}", "ERROR")
-            # Imprimir detalle del error de Cloudflare si existe
             if err.response.content:
-                print(json.dumps(err.response.json(), indent=2))
+                try:
+                    print(json.dumps(err.response.json(), indent=2))
+                except:
+                    pass
+            return None
+        except requests.exceptions.Timeout:
+            self._log("Timeout en request a Cloudflare API", "ERROR")
             return None
 
     def configure_dns_proxy(self, name, content, record_type="A"):
-        """
-        1. Crea o actualiza un registro DNS.
-        2. Activa el Proxy de Cloudflare (Nube Naranja) para ocultar la IP de origen.
-        """
-        self._log(f"Configurando DNS para {name} -> {content} ({record_type})...")
+        """Crea o actualiza registro DNS con Proxy activado."""
+        self._log(f"Configurando DNS: {name} -> {content} ({record_type})")
         
-        # Primero, buscamos si el registro ya existe
-        params = f"?name={name}&type={record_type}"
-        search_res = self._request("GET", f"zones/{self.zone_id}/dns_records{params}")
+        search_res = self._request("GET", f"zones/{self.zone_id}/dns_records?name={name}&type={record_type}")
         
         payload = {
             "type": record_type,
             "name": name,
             "content": content,
-            "proxied": True, # CRÍTICO: Activa la protección perimetral (CDN/WAF/DDoS)
-            "ttl": 1 # Automático
+            "proxied": True,
+            "ttl": 1
         }
 
         if search_res and search_res.get("result"):
-            # Actualizar existente
             record_id = search_res["result"][0]["id"]
             res = self._request("PUT", f"zones/{self.zone_id}/dns_records/{record_id}", payload)
             action = "actualizado"
         else:
-            # Crear nuevo
             res = self._request("POST", f"zones/{self.zone_id}/dns_records", payload)
             action = "creado"
 
         if res and res.get("success"):
-            self._log(f"Registro DNS {action} exitosamente con Proxy activado.")
+            self._log(f"DNS {action} con Proxy activado")
         else:
-            self._log("Fallo en configuración DNS.", "ERROR")
+            self._log("Fallo en configuración DNS", "ERROR")
 
     def configure_ssl_strict(self):
-        """
-        Configura SSL/TLS en modo Full (Strict).
-        Requisito: El servidor origen debe tener un certificado válido (aunque sea de Let's Encrypt o Cloudflare Origin CA).
-        """
-        self._log("Configurando modo SSL a Full (Strict)...")
-        payload = {"value": "strict"}
-        res = self._request("PATCH", f"zones/{self.zone_id}/settings/ssl", payload)
+        """Configura SSL/TLS en modo Full (Strict)."""
+        self._log("Configurando SSL Full (Strict)")
+        res = self._request("PATCH", f"zones/{self.zone_id}/settings/ssl", {"value": "strict"})
         
         if res and res.get("success"):
-            self._log("Modo SSL configurado a Full (Strict).")
+            self._log("SSL configurado correctamente")
         else:
-            self._log("Fallo al configurar SSL.", "ERROR")
+            self._log("Fallo al configurar SSL", "ERROR")
 
     def enable_https_force_redirect(self):
-        """
-        Fuerza la redirección de HTTP a HTTPS a nivel de Edge.
-        """
-        self._log("Activando 'Always Use HTTPS'...")
-        payload = {"value": "on"}
-        res = self._request("PATCH", f"zones/{self.zone_id}/settings/always_use_https", payload)
+        """Fuerza redirección HTTP a HTTPS."""
+        self._log("Activando Always Use HTTPS")
+        res = self._request("PATCH", f"zones/{self.zone_id}/settings/always_use_https", {"value": "on"})
         
         if res and res.get("success"):
-            self._log("Redirección HTTPS forzada activada.")
+            self._log("Redirección HTTPS activada")
 
     def enable_security_features(self):
-        """
-        1. Activa el motor WAF básico.
-        2. Configura el nivel de seguridad (DDoS sensitivity).
-        3. Activa mitigaciones automáticas (Browser Integrity Check).
-        """
-        self._log("Optimizando configuraciones de Seguridad y DDoS...")
+        """Activa WAF y configuraciones de seguridad DDoS."""
+        self._log("Configurando seguridad y DDoS")
         
-        # 1. Activar WAF globalmente
         self._request("PATCH", f"zones/{self.zone_id}/settings/waf", {"value": "on"})
-        
-        # 2. Security Level (Determina la sensibilidad del desafío CAPTCHA/DDoS)
-        # "high" es recomendado para sitios en producción bajo amenaza potencial.
         res = self._request("PATCH", f"zones/{self.zone_id}/settings/security_level", {"value": "high"})
         
         if res and res.get("success"):
-            self._log("WAF y protecciones DDoS base configuradas.")
+            self._log("WAF y DDoS configurados")
 
     def create_firewall_custom_rule(self):
-        """
-        Crea una regla de firewall personalizada (WAF Custom Rule).
-        Ejemplo: Bloquear tráfico de un país específico (ej. XX) O User-Agents sospechosos.
-        """
-        self._log("Implementando Regla de Firewall Personalizada (Capa 7)...")
+        """Crea regla de firewall personalizada."""
+        self._log("Implementando regla de Firewall")
         
-        # Usamos el endpoint de Rulesets (el estándar moderno para WAF Custom Rules)
-        # Phase: http_request_firewall_custom
-        
-        # Definimos la expresión lógica (Filter Expression)
-        # Bloquear si viene de 'XX' (país desconocido/ejemplo) O el User-Agent contiene 'python-requests' (ejemplo didáctico)
         expression = '(ip.geoip.country eq "XX") or (http.user_agent contains "BadBot")'
         
-        payload = {
-            "rules": [
-                {
-                    "action": "block",
-                    "expression": expression,
-                    "description": "CAS Auto-Block: GeoIP and Bad Bots",
-                    "enabled": True
-                }
-            ]
-        }
-
-        # NOTA: Para simplificar la tesis, usamos el endpoint de 'rulesets' a nivel de zona.
-        # Primero necesitamos obtener el ID del ruleset de "custom rules" de la zona.
-        # Sin embargo, un método más directo para scripts simples es usar el endpoint de filtros/reglas legacy 
-        # o crear un ruleset nuevo. Aquí usaremos el método directo de creación en el "default custom ruleset".
+        payload = [{
+            "filter": {
+                "expression": expression,
+                "paused": False
+            },
+            "action": "block",
+            "description": "CAS Auto-Provisioned Block Rule"
+        }]
         
-        # Para garantizar que funcione en una cuenta nueva sin buscar IDs complejos,
-        # usaremos el endpoint `firewall/rules` (aunque está en migración, es el más didáctico para una tesis 
-        # sin entrar en la complejidad de los Rulesets IDs globales).
-        
-        legacy_payload = [
-            {
-                "filter": {
-                    "expression": expression,
-                    "paused": False
-                },
-                "action": "block",
-                "description": "CAS Auto-Provisioned Block Rule"
-            }
-        ]
-        
-        res = self._request("POST", f"zones/{self.zone_id}/firewall/rules", legacy_payload)
+        res = self._request("POST", f"zones/{self.zone_id}/firewall/rules", payload)
         
         if res and res.get("success"):
-            self._log("Regla de Firewall creada correctamente.")
+            self._log("Regla de Firewall creada")
         else:
-            self._log("Nota: Si falla por 'deprecated', se debe implementar via Ruleset API (fase http_request_firewall_custom).", "WARN")
+            self._log("Regla de firewall no creada (puede requerir plan superior)", "WARN")
 
     def run_provisioning(self, dns_name, origin_ip):
-        self._log("=== INICIANDO PROVISIÓN DE SEGURIDAD PERIMETRAL CAS ===")
+        self._log("=== INICIANDO PROVISIÓN ===")
         
-        # Instrucciones de delegación DNS para asegurar que el tráfico llegue a Cloudflare/CAS
         self.show_dns_delegation_instructions(dns_name)
-
-        # 1. Perímetro de Red (DNS + Proxy)
         self.configure_dns_proxy(dns_name, origin_ip)
-        
-        # 2. Cifrado y Transporte (SSL/HTTPS)
         self.configure_ssl_strict()
         self.enable_https_force_redirect()
-        
-        # 3. Seguridad de Aplicación (WAF/DDoS)
         self.enable_security_features()
         self.create_firewall_custom_rule()
         
-        self._log("=== PROVISIÓN COMPLETADA EXITOSAMENTE ===")
+        self._log("=== PROVISIÓN COMPLETADA ===")
 
-# --- EJECUCIÓN DEL SCRIPT ---
 if __name__ == "__main__":
-    # Validación básica
-    if not CF_API_TOKEN:
-        print("Error: Falta CF_API_TOKEN en las variables de entorno.")
-        sys.exit(1)
-    
-    if not CF_ZONE_ID:
-        print("Error: Falta CF_ZONE_ID en las variables de entorno.")
+    if not CF_API_TOKEN or not CF_ZONE_ID:
+        print("Error: Faltan CF_API_TOKEN o CF_ZONE_ID")
         sys.exit(1)
 
     if not TARGET_URLS:
-        print("Error: No se proporcionaron URLs para proteger.")
+        print("Error: No se proporcionaron URLs")
         sys.exit(1)
 
-    # Instanciar el orquestador
     automator = CloudflareEdgeProtector(CF_API_TOKEN, CF_ZONE_ID)
-    
-    # Procesar cada URL proporcionada
-    print(f"[INFO] Procesando {len(TARGET_URLS)} URL(s): {', '.join(TARGET_URLS)}")
+    print(f"[INFO] Procesando {len(TARGET_URLS)} URL(s)")
     
     for url in TARGET_URLS:
-        # Extraer el dominio de la URL (ej: https://app.midominio.com -> app.midominio.com)
         domain = url.replace("https://", "").replace("http://", "").split("/")[0]
 
-        # Validación de dominio antes de continuar
         if not automator.validate_domain(domain):
-            print(f"[ERROR] Dominio inválido: {domain}. Use solo FQDN sin esquema ni ruta.")
+            print(f"[ERROR] Dominio inválido: {domain}")
             continue
         
-        # Por ahora usamos una IP genérica. En producción, esto debería venir de un DNS lookup o configuración
-        ORIGIN_IP = "203.0.113.10"  # IP del servidor real (Origen)
-        # TODO: Implementar resolución DNS o lectura desde configuración
-        
-        print(f"\n[INFO] Configurando protección para: {domain}")
+        ORIGIN_IP = "203.0.113.10"
+        print(f"\n[INFO] Configurando: {domain}")
         automator.run_provisioning(domain, ORIGIN_IP)
