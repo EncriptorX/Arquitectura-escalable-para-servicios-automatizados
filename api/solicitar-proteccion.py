@@ -1,8 +1,13 @@
+"""
+Vercel Serverless Function
+"""
+from flask import Flask, request, jsonify
 import json
 import os
 import re
 import requests
-from urllib.parse import parse_qs
+
+app = Flask(__name__)
 
 # ===============================
 # Configuración desde Vercel ENV
@@ -12,9 +17,6 @@ CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID")
 TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY")
 
 
-# ===============================
-# Utilidades
-# ===============================
 def validar_url(url):
     """Valida que la URL tenga un formato correcto"""
     regex = re.compile(
@@ -53,117 +55,77 @@ def validate_turnstile(token, ip=None):
         return False, f"Error conectando con Turnstile: {str(e)}"
 
 
-# ===============================
-# Handler principal (Vercel)
-# ===============================
-def handler(request):
-    """
-    Vercel Serverless Function handler
-    request es un objeto Request de Vercel
-    """
-    # Headers CORS
-    cors_headers = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Content-Type": "application/json"
-    }
+@app.after_request
+def after_request(response):
+    """Agregar headers CORS a todas las respuestas"""
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    return response
+
+
+@app.route('/', methods=['GET', 'POST', 'OPTIONS'])
+@app.route('/api/solicitar-proteccion', methods=['GET', 'POST', 'OPTIONS'])
+def handler():
+    """Endpoint principal - Compatible con Vercel"""
     
     # Manejar preflight CORS
-    if request.method == "OPTIONS":
-        return {
-            "statusCode": 200,
-            "headers": cors_headers,
-            "body": json.dumps({"message": "OK"})
-        }
+    if request.method == 'OPTIONS':
+        return jsonify({"message": "OK"}), 200
     
     # Health check
-    if request.method == "GET":
-        return {
-            "statusCode": 200,
-            "headers": cors_headers,
-            "body": json.dumps({
-                "status": "ok",
-                "message": "API funcionando correctamente"
-            })
-        }
+    if request.method == 'GET':
+        return jsonify({
+            "status": "ok",
+            "message": "API funcionando correctamente",
+            "method": request.method,
+            "path": request.path
+        }), 200
     
-    # Solo aceptar POST
-    if request.method != "POST":
-        return {
-            "statusCode": 405,
-            "headers": cors_headers,
-            "body": json.dumps({
-                "status": "error",
-                "message": f"Método {request.method} no permitido"
-            })
-        }
-    
+    # POST - Procesar solicitud
     try:
-        # Parsear el body
-        try:
-            data = request.get_json(force=True)
-        except:
-            # Intentar parsear como string
-            body_str = request.get_data(as_text=True)
-            data = json.loads(body_str) if body_str else {}
+        data = request.get_json(force=True)
         
         # Validar token de Turnstile
         token = data.get("turnstileToken")
         if not token:
-            return {
-                "statusCode": 400,
-                "headers": cors_headers,
-                "body": json.dumps({
-                    "status": "error",
-                    "message": "Falta el token de seguridad (Turnstile)"
-                })
-            }
+            return jsonify({
+                "status": "error",
+                "message": "Falta el token de seguridad (Turnstile)"
+            }), 400
         
         # Obtener IP del cliente
-        client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
         if not client_ip:
-            client_ip = request.headers.get("x-real-ip", "")
+            client_ip = request.headers.get("X-Real-IP", "")
         
         # Validar con Cloudflare Turnstile
         ok, err = validate_turnstile(token, client_ip)
         
         if not ok:
             status_code = 500 if "TURNSTILE_SECRET_KEY" in (err or "") else 403
-            return {
-                "statusCode": status_code,
-                "headers": cors_headers,
-                "body": json.dumps({
-                    "status": "error",
-                    "message": err or "Verificación de seguridad fallida"
-                })
-            }
+            return jsonify({
+                "status": "error",
+                "message": err or "Verificación de seguridad fallida"
+            }), status_code
         
         # Obtener URLs
         urls = data.get("urls", [])
         if not urls:
-            return {
-                "statusCode": 400,
-                "headers": cors_headers,
-                "body": json.dumps({
-                    "status": "error",
-                    "message": "No se proporcionaron URLs"
-                })
-            }
+            return jsonify({
+                "status": "error",
+                "message": "No se proporcionaron URLs"
+            }), 400
         
         # Validar formato de URLs
         for url in urls:
             if not validar_url(url):
-                return {
-                    "statusCode": 400,
-                    "headers": cors_headers,
-                    "body": json.dumps({
-                        "status": "error",
-                        "message": f"URL inválida: {url}"
-                    })
-                }
+                return jsonify({
+                    "status": "error",
+                    "message": f"URL inválida: {url}"
+                }), 400
         
-        # Procesar las URLs (simulación)
+        # Procesar las URLs
         protegidos = []
         for url in urls:
             dominio = url.replace("https://", "").replace("http://", "").split("/")[0]
@@ -173,32 +135,20 @@ def handler(request):
             })
         
         # Respuesta exitosa
-        return {
-            "statusCode": 200,
-            "headers": cors_headers,
-            "body": json.dumps({
-                "status": "ok",
-                "message": "Protección perimetral en proceso",
-                "urls": urls,
-                "sitios": protegidos
-            })
-        }
+        return jsonify({
+            "status": "ok",
+            "message": "Protección perimetral en proceso",
+            "urls": urls,
+            "sitios": protegidos
+        }), 200
     
-    except json.JSONDecodeError as e:
-        return {
-            "statusCode": 400,
-            "headers": cors_headers,
-            "body": json.dumps({
-                "status": "error",
-                "message": f"JSON inválido: {str(e)}"
-            })
-        }
     except Exception as e:
-        return {
-            "statusCode": 500,
-            "headers": cors_headers,
-            "body": json.dumps({
-                "status": "error",
-                "message": f"Error interno: {str(e)}"
-            })
-        }
+        return jsonify({
+            "status": "error",
+            "message": f"Error interno: {str(e)}"
+        }), 500
+
+
+# Para desarrollo local
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
