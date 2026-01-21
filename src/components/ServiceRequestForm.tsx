@@ -209,7 +209,7 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
       onSuccess({
         message: result.message || 'Protección perimetral en proceso',
         urls: validUrls,
-        output: result.output,
+        output: JSON.stringify(result), // Pasar toda la respuesta del API
       });
     } catch (err) {
       const errorMessage = err instanceof Error 

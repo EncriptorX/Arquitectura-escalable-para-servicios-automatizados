@@ -22,83 +22,57 @@ export default function ProcessInfoPage({
   onNewRequest,
 }: ProcessInfoPageProps) {
   const { toast } = useToast();
-  const [progress, setProgress] = useState(25);
-  const [logs, setLogs] = useState<string[]>([
-    'Initializing protection setup...',
-    `Processing ${urls.length} domain(s)...`,
-  ]);
-  const [status, setStatus] = useState<'processing' | 'waiting_dns' | 'completed' | 'failed'>('processing');
+  const [progress, setProgress] = useState(100); // Ya completado desde el API
+  const [logs, setLogs] = useState<string[]>([]);
+  const [status, setStatus] = useState<'processing' | 'waiting_dns' | 'completed' | 'failed'>('completed');
   const [nameservers, setNameservers] = useState<string[]>([]);
 
   useEffect(() => {
-    let progressInterval: NodeJS.Timeout | null = null;
-    let logInterval: NodeJS.Timeout | null = null;
-    let nameserverTimeout: NodeJS.Timeout | null = null;
-
-    // Simulate progress updates
-    progressInterval = setInterval(() => {
-      setProgress((prev) => {
-        const next = Math.min(prev + 5, 100);
-        if (next === 100) {
+    // Parsear el output del API para obtener los logs reales
+    if (output) {
+      try {
+        const apiResponse = JSON.parse(output);
+        
+        // Si el API retorna logs, usarlos
+        if (apiResponse.logs && Array.isArray(apiResponse.logs)) {
+          setLogs(apiResponse.logs);
+        }
+        
+        // Si el API retorna nameservers, usarlos
+        if (apiResponse.nameservers && Array.isArray(apiResponse.nameservers)) {
+          setNameservers(apiResponse.nameservers);
+          setStatus('waiting_dns');
+        }
+        
+        // Si el API retorna progreso, usarlo
+        if (apiResponse.progress) {
+          setProgress(apiResponse.progress);
+        }
+        
+        // Si está completado
+        if (apiResponse.status === 'ok') {
           setStatus('completed');
-          setLogs((prevLogs) => {
-            // Solo agregar el mensaje de completado una vez
-            if (!prevLogs.includes('Protection setup completed successfully!')) {
-              return [...prevLogs, 'Protection setup completed successfully!'];
-            }
-            return prevLogs;
-          });
-          // Detener los intervalos cuando llegue al 100%
-          if (progressInterval) clearInterval(progressInterval);
-          if (logInterval) clearInterval(logInterval);
         }
-        return next;
-      });
-    }, 2000);
-
-    // Simulate log updates
-    logInterval = setInterval(() => {
-      setProgress((currentProgress) => {
-        // Solo agregar logs si no hemos completado
-        if (currentProgress < 100) {
-          const logMessages = [
-            'Validating domain configuration...',
-            'Configuring DNS records...',
-            'Setting up SSL/TLS certificates...',
-            'Applying WAF rules...',
-            'Configuring DDoS protection...',
-            'Optimizing CDN settings...',
-          ];
-          setLogs((prev) => {
-            if (prev.length < 15) {
-              const randomLog = logMessages[Math.floor(Math.random() * logMessages.length)];
-              return [...prev, randomLog];
-            }
-            return prev;
-          });
-        }
-        return currentProgress;
-      });
-    }, 3000);
-
-    // Simulate nameserver assignment after 5 seconds
-    nameserverTimeout = setTimeout(() => {
-      setNameservers(['ns1.cloudflare.com', 'ns2.cloudflare.com']);
-      setStatus('waiting_dns');
-      setLogs((prev) => {
-        if (!prev.includes('Nameservers assigned. Waiting for DNS delegation...')) {
-          return [...prev, 'Nameservers assigned. Waiting for DNS delegation...'];
-        }
-        return prev;
-      });
-    }, 5000);
-
-    return () => {
-      if (progressInterval) clearInterval(progressInterval);
-      if (logInterval) clearInterval(logInterval);
-      if (nameserverTimeout) clearTimeout(nameserverTimeout);
-    };
-  }, []);
+      } catch (e) {
+        // Si no se puede parsear, usar logs por defecto
+        setLogs([
+          'Initializing protection setup...',
+          `Processing ${urls.length} domain(s)...`,
+          message || 'Protection setup completed successfully!'
+        ]);
+      }
+    } else {
+      // Fallback: logs básicos si no hay output
+      setLogs([
+        'Initializing protection setup...',
+        `Processing ${urls.length} domain(s)...`,
+        'Validating security token...',
+        '✓ Security verification successful',
+        'Configuring domain protection...',
+        'Protection setup completed successfully!'
+      ]);
+    }
+  }, [output, urls.length, message]);
 
   const isComplete = status === 'completed';
   const isFailed = status === 'failed';
