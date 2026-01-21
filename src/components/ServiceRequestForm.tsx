@@ -1,5 +1,6 @@
 import { useRef, useState, FormEvent, useEffect } from 'react';
-import { X, Plus, Loader2 } from 'lucide-react';
+import { X, Plus, Loader2, Shield, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Declaración global para TypeScript ---
 declare global {
@@ -222,33 +223,65 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
   };
 
   return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto"
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto"
       onClick={onClose}
     >
-      <div 
-        className="bg-gray-900 rounded-lg shadow-2xl w-full max-w-2xl my-4 sm:my-8 border border-gray-700 max-h-[95vh] flex flex-col"
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        transition={{ type: "spring", duration: 0.5 }}
+        className="glass border-white/20 rounded-2xl w-full max-w-2xl my-8 max-h-[90vh] flex flex-col shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-700 flex-shrink-0">
-          <h2 className="text-lg sm:text-2xl font-bold text-white pr-2">Solicitud de Protección Perimetral</h2>
-          <button
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Shield className="w-6 h-6 text-cyan-400" />
+              <motion.div
+                className="absolute inset-0 bg-cyan-400/20 rounded-full blur-xl"
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold gradient-text">Solicitud de Protección</h2>
+          </div>
+          <motion.button
             onClick={onClose}
-            className="text-gray-400 hover:text-white hover:bg-gray-800 p-2 rounded-lg transition-all flex-shrink-0"
+            className="glass glass-hover p-2 rounded-full"
+            whileHover={{ scale: 1.1, rotate: 90 }}
+            whileTap={{ scale: 0.9 }}
             aria-label="Cerrar"
           >
-            <X size={20} className="sm:w-6 sm:h-6" />
-          </button>
+            <X className="w-5 h-5 text-gray-400" />
+          </motion.button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
-          {error && (
-            <div className="bg-red-500 bg-opacity-10 border border-red-500 text-red-500 px-3 py-2 sm:px-4 sm:py-3 rounded text-sm">
-              {error}
-            </div>
-          )}
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto flex-1 custom-scrollbar">
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="glass border-l-4 border-red-400 p-4 rounded-r-xl"
+              >
+                <p className="text-red-400 text-sm">{error}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          <div>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+          >
             <label htmlFor="company_name" className="block text-sm font-medium text-gray-300 mb-2">
               Nombre de la Empresa *
             </label>
@@ -258,11 +291,16 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
               required
               value={formData.company_name}
               onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-cyan-500 transition-colors"
+              className="w-full px-4 py-3 glass border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 transition-all"
+              placeholder="Acme Corporation"
             />
-          </div>
+          </motion.div>
 
-          <div>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.15 }}
+          >
             <label htmlFor="contact_name" className="block text-sm font-medium text-gray-300 mb-2">
               Nombre del Responsable *
             </label>
@@ -272,11 +310,16 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
               required
               value={formData.contact_name}
               onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-cyan-500 transition-colors"
+              className="w-full px-4 py-3 glass border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 transition-all"
+              placeholder="John Doe"
             />
-          </div>
+          </motion.div>
 
-          <div>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
             <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
               Correo Electrónico *
             </label>
@@ -286,11 +329,16 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
               required
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-cyan-500 transition-colors"
+              className="w-full px-4 py-3 glass border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 transition-all"
+              placeholder="john@acme.com"
             />
-          </div>
+          </motion.div>
 
-          <div>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.25 }}
+          >
             <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-2">
               Teléfono (Opcional)
             </label>
@@ -299,48 +347,68 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
               id="phone"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-cyan-500 transition-colors"
+              className="w-full px-4 py-3 glass border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 transition-all"
+              placeholder="+1 (555) 000-0000"
             />
-          </div>
+          </motion.div>
 
-          <div>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+          >
             <label className="block text-sm font-medium text-gray-300 mb-2">
               URLs a Proteger *
             </label>
-            <div className="space-y-2 sm:space-y-3">
-              {urls.map((url, index) => (
-                <div key={index} className="flex gap-2">
-                  <input
-                    type="url"
-                    value={url}
-                    onChange={(e) => updateUrl(index, e.target.value)}
-                    placeholder="https://ejemplo.com"
-                    className="flex-1 px-3 py-2 sm:px-4 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-cyan-500 transition-colors"
-                  />
-                  {urls.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeUrlField(index)}
-                      className="px-3 py-2 sm:px-4 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex-shrink-0"
-                      aria-label="Eliminar URL"
-                    >
-                      <X size={18} className="sm:w-5 sm:h-5" />
-                    </button>
-                  )}
-                </div>
-              ))}
+            <div className="space-y-3">
+              <AnimatePresence>
+                {urls.map((url, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="flex gap-2"
+                  >
+                    <input
+                      type="url"
+                      value={url}
+                      onChange={(e) => updateUrl(index, e.target.value)}
+                      placeholder="https://ejemplo.com"
+                      className="flex-1 px-4 py-3 glass border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 transition-all"
+                    />
+                    {urls.length > 1 && (
+                      <motion.button
+                        type="button"
+                        onClick={() => removeUrlField(index)}
+                        className="glass glass-hover px-4 py-3 rounded-xl text-red-400 hover:text-red-300"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        aria-label="Eliminar URL"
+                      >
+                        <X className="w-5 h-5" />
+                      </motion.button>
+                    )}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
-            <button
+            <motion.button
               type="button"
               onClick={addUrlField}
-              className="mt-2 sm:mt-3 flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors text-sm sm:text-base"
+              className="mt-3 flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
+              whileHover={{ x: 5 }}
             >
-              <Plus size={18} className="sm:w-5 sm:h-5" />
-              <span>Agregar otra URL</span>
-            </button>
-          </div>
+              <Plus className="w-5 h-5" />
+              <span className="text-sm font-medium">Agregar otra URL</span>
+            </motion.button>
+          </motion.div>
 
-          <div>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.35 }}
+          >
             <label htmlFor="comments" className="block text-sm font-medium text-gray-300 mb-2">
               Comentarios Adicionales
             </label>
@@ -349,36 +417,51 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
               rows={3}
               value={formData.comments}
               onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
-              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-cyan-500 transition-colors resize-none"
+              className="w-full px-4 py-3 glass border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 transition-all resize-none custom-scrollbar"
+              placeholder="Información adicional sobre su solicitud..."
             />
-          </div>
+          </motion.div>
 
           {/* Widget de Turnstile */}
-          <div className="flex justify-center py-2">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4 }}
+            className="flex justify-center py-4"
+          >
             <div
-              className="cf-turnstile scale-90 sm:scale-100 origin-center"
+              className="cf-turnstile"
               data-sitekey={TURNSTILE_SITE_KEY}
               data-theme="dark"
               ref={turnstileContainerRef}
             ></div>
-          </div>
+          </motion.div>
 
-          <button
+          <motion.button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-4 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover-glow"
+            whileHover={{ scale: isSubmitting ? 1 : 1.02 }}
+            whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="animate-spin" size={18} />
-                <span>Enviando...</span>
+                <Loader2 className="animate-spin w-5 h-5" />
+                <span>Procesando...</span>
               </>
             ) : (
-              <span>Solicitar Protección</span>
+              <>
+                <Shield className="w-5 h-5" />
+                <span>Solicitar Protección</span>
+                <Sparkles className="w-4 h-4" />
+              </>
             )}
-          </button>
+          </motion.button>
         </form>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
