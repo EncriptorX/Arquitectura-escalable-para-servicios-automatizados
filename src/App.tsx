@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Shield, Zap, Lock, Globe, Activity, CheckCircle, Cloud, ShieldCheck, Eye, Server, BarChart3, Clock } from 'lucide-react';
+import { Shield, Zap, Lock, Globe, Activity, CheckCircle, Cloud, ShieldCheck, Eye, Server, BarChart3, Clock, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
 import ServiceRequestForm from './components/ServiceRequestForm';
 import ProcessInfoPage from './components/ProcessInfoPage';
 
@@ -14,7 +15,6 @@ function App() {
   const [processInfo, setProcessInfo] = useState<ProcessInfo | null>(null);
   const [showProcessPage, setShowProcessPage] = useState(false);
 
-  // Sincronizar showProcessPage con processInfo
   useEffect(() => {
     if (processInfo) {
       setShowProcessPage(true);
@@ -41,95 +41,30 @@ function App() {
   };
 
   const features = [
-    {
-      icon: Shield,
-      title: 'Protección DDoS Multicapa',
-      description: 'Defensa contra ataques DDoS en las capas 3, 4 y 7 del modelo OSI',
-    },
-    {
-      icon: Lock,
-      title: 'Web Application Firewall',
-      description: 'WAF avanzado que protege contra vulnerabilidades OWASP y ataques web',
-    },
-    {
-      icon: Activity,
-      title: 'Protección contra Bots',
-      description: 'Filtrado inteligente de tráfico malicioso y bots automatizados',
-    },
-    {
-      icon: Zap,
-      title: 'CDN y Optimización',
-      description: 'Red de distribución de contenido para máximo rendimiento',
-    },
-    {
-      icon: Globe,
-      title: 'Protección DNS',
-      description: 'Seguridad completa a nivel de DNS contra ataques y manipulación',
-    },
-    {
-      icon: Server,
-      title: 'Reglas Personalizadas',
-      description: 'Filtrado de tráfico y políticas de seguridad adaptadas a sus necesidades',
-    },
-    {
-      icon: Eye,
-      title: 'Monitoreo Continuo',
-      description: 'Vigilancia 24/7 con detección y respuesta automática a amenazas',
-    },
-    {
-      icon: BarChart3,
-      title: 'Mitigación Automática',
-      description: 'Respuesta instantánea ante incidentes de seguridad',
-    },
+    { icon: Shield, title: 'Protección DDoS', description: 'Defensa multicapa contra ataques DDoS' },
+    { icon: Lock, title: 'WAF Avanzado', description: 'Firewall de aplicaciones web inteligente' },
+    { icon: Activity, title: 'Anti-Bot', description: 'Filtrado de tráfico malicioso' },
+    { icon: Zap, title: 'CDN Global', description: 'Optimización y distribución de contenido' },
+    { icon: Globe, title: 'DNS Seguro', description: 'Protección a nivel de DNS' },
+    { icon: Server, title: 'Reglas Custom', description: 'Políticas de seguridad personalizadas' },
+    { icon: Eye, title: 'Monitoreo 24/7', description: 'Vigilancia continua de amenazas' },
+    { icon: BarChart3, title: 'Auto-Mitigación', description: 'Respuesta automática a incidentes' },
   ];
 
   const benefits = [
-    {
-      icon: Clock,
-      title: 'Protección 24/7',
-      description: 'Seguridad continua sin interrupciones, día y noche',
-    },
-    {
-      icon: ShieldCheck,
-      title: 'Reducción de Riesgos',
-      description: 'Minimice la exposición a ciberataques y vulnerabilidades',
-    },
-    {
-      icon: Zap,
-      title: 'Mayor Disponibilidad',
-      description: 'Asegure el tiempo de actividad y rendimiento óptimo de su sitio',
-    },
-    {
-      icon: Cloud,
-      title: 'Seguridad Gestionada',
-      description: 'Expertos en ciberseguridad administran su protección',
-    },
+    { icon: Clock, title: 'Protección 24/7', description: 'Seguridad continua sin interrupciones' },
+    { icon: ShieldCheck, title: 'Reducción de Riesgos', description: 'Minimice la exposición a amenazas' },
+    { icon: Zap, title: 'Alta Disponibilidad', description: 'Tiempo de actividad óptimo' },
+    { icon: Cloud, title: 'Gestión Completa', description: 'Administración por expertos' },
   ];
 
   const steps = [
-    {
-      number: '01',
-      title: 'Solicitud del Servicio',
-      description: 'Complete el formulario con los datos de su empresa y las URLs a proteger',
-    },
-    {
-      number: '02',
-      title: 'Registro de URLs',
-      description: 'Indique todos los sitios web y aplicaciones que desea proteger',
-    },
-    {
-      number: '03',
-      title: 'Configuración de Cloudflare',
-      description: 'Nuestro equipo configura las políticas de seguridad perimetral',
-    },
-    {
-      number: '04',
-      title: 'Protección Activa',
-      description: 'Su infraestructura queda protegida de forma integral e inmediata',
-    },
+    { number: '01', title: 'Solicitud', description: 'Complete el formulario con sus datos' },
+    { number: '02', title: 'Registro', description: 'Indique las URLs a proteger' },
+    { number: '03', title: 'Configuración', description: 'Configuramos las políticas de seguridad' },
+    { number: '04', title: 'Protección Activa', description: 'Su infraestructura queda protegida' },
   ];
 
-  // Mostrar la página de proceso si hay información del proceso
   if (processInfo) {
     return (
       <ProcessInfoPage
@@ -143,7 +78,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900">
       {showForm && !showProcessPage && (
         <ServiceRequestForm
           onClose={() => setShowForm(false)}
@@ -151,330 +86,380 @@ function App() {
         />
       )}
 
-      <header className="fixed w-full top-0 z-40 bg-black bg-opacity-90 backdrop-blur-sm border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
+      {/* Header */}
+      <motion.header 
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        className="fixed w-full top-0 z-50 glass backdrop-blur-glass border-b border-white/10"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Shield className="text-cyan-400" size={24} />
-              <span className="text-base sm:text-lg md:text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                SecurePerimeter
-              </span>
-            </div>
-            <button
-              onClick={() => setShowForm(true)}
-              className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold text-xs sm:text-sm md:text-base py-2 px-3 sm:px-4 md:px-6 rounded-lg transition-all transform hover:scale-105 whitespace-nowrap"
+            <motion.div 
+              className="flex items-center gap-3"
+              whileHover={{ scale: 1.05 }}
             >
-              <span className="hidden sm:inline">Solicitar Protección</span>
-              <span className="sm:hidden">Solicitar</span>
-            </button>
+              <div className="relative">
+                <Shield className="text-cyan-400 w-7 h-7" />
+                <motion.div
+                  className="absolute inset-0 bg-cyan-400/20 rounded-full blur-xl"
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
+              </div>
+              <span className="text-xl font-bold gradient-text">SecurePerimeter</span>
+            </motion.div>
+            
+            <motion.button
+              onClick={() => setShowForm(true)}
+              className="glass glass-hover px-6 py-2.5 rounded-full font-medium text-sm hover-glow group"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <span className="gradient-text">Solicitar Protección</span>
+              <Sparkles className="inline-block ml-2 w-4 h-4 text-cyan-400 group-hover:rotate-12 transition-transform" />
+            </motion.button>
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      <section className="relative pt-24 sm:pt-28 md:pt-32 pb-12 sm:pb-16 md:pb-20 px-3 sm:px-4 md:px-6 lg:px-8 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-black to-cyan-900/20"></div>
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+        {/* Animated Background */}
         <div className="absolute inset-0">
-          <div className="absolute top-1/4 left-1/4 w-48 sm:w-72 md:w-96 h-48 sm:h-72 md:h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
-          <div className="absolute bottom-1/4 right-1/4 w-48 sm:w-72 md:w-96 h-48 sm:h-72 md:h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse delay-1000"></div>
+          <motion.div
+            className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.3, 0.5, 0.3],
+            }}
+            transition={{ duration: 8, repeat: Infinity }}
+          />
+          <motion.div
+            className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"
+            animate={{
+              scale: [1.2, 1, 1.2],
+              opacity: [0.5, 0.3, 0.5],
+            }}
+            transition={{ duration: 8, repeat: Infinity, delay: 1 }}
+          />
         </div>
 
         <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center">
-            <div className="inline-flex items-center gap-2 bg-cyan-500 bg-opacity-10 border border-cyan-500 rounded-full px-3 sm:px-4 py-1.5 sm:py-2 mb-6 sm:mb-8">
-              <Lock size={16} className="text-cyan-400 sm:w-5 sm:h-5" />
-              <span className="text-cyan-400 font-medium text-xs sm:text-sm md:text-base">Protección Perimetral Cloudflare</span>
-            </div>
-
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold mb-4 sm:mb-6 leading-tight px-2">
-              <span className="bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-                Proteja Su
-              </span>
-              <br />
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                Perímetro Digital
-              </span>
-            </h1>
-
-            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-300 mb-8 sm:mb-10 md:mb-12 max-w-3xl mx-auto leading-relaxed px-4">
-              Protección integral para su infraestructura web con la tecnología líder de Cloudflare.
-              Una solución completa contra todas las amenazas.
-            </p>
-
-            <button
-              onClick={() => setShowForm(true)}
-              className="group relative inline-flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold text-sm sm:text-base md:text-lg py-3 sm:py-4 px-5 sm:px-6 md:px-8 rounded-lg transition-all transform hover:scale-105 shadow-2xl shadow-cyan-500/50"
+          <div className="text-center space-y-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="inline-flex items-center gap-2 glass px-4 py-2 rounded-full"
             >
-              <Shield size={20} className="sm:w-6 sm:h-6" />
-              <span className="hidden sm:inline">Solicitar Protección Perimetral</span>
-              <span className="sm:hidden">Solicitar Protección</span>
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </section>
+              <Lock className="w-4 h-4 text-cyan-400" />
+              <span className="text-sm text-gray-300">Protección Perimetral Cloudflare</span>
+            </motion.div>
 
-      <section className="py-12 sm:py-16 md:py-20 px-3 sm:px-4 md:px-6 lg:px-8 bg-gradient-to-b from-black to-gray-900">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-10 sm:mb-12 md:mb-16">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 px-2">
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                Servicio Integral de Protección Perimetral
-              </span>
-            </h2>
-            <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed px-4">
-              Un servicio unificado y completo que incluye todas las capas de protección necesarias
-              para mantener su infraestructura web segura, disponible y optimizada.
-            </p>
-          </div>
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight"
+            >
+              <span className="text-white">Proteja Su</span>
+              <br />
+              <span className="gradient-text">Perímetro Digital</span>
+            </motion.h1>
 
-          <div className="bg-gray-800 bg-opacity-50 backdrop-blur-sm border border-gray-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 lg:p-12 mb-8 sm:mb-10 md:mb-12">
-            <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 mb-6 sm:mb-8">
-              <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-2.5 sm:p-3 rounded-lg flex-shrink-0">
-                <Shield size={24} className="text-white sm:w-8 sm:h-8" />
-              </div>
-              <div>
-                <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-2 sm:mb-3 text-white">Protección Completa en un Solo Servicio</h3>
-                <p className="text-gray-300 text-sm sm:text-base md:text-lg leading-relaxed">
-                  No ofrecemos módulos separados ni planes fragmentados. Nuestro servicio de Protección Perimetral
-                  es una solución integral que combina todas las tecnologías de seguridad de Cloudflare en un paquete
-                  unificado y gestionado por especialistas.
-                </p>
-              </div>
-            </div>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-xl text-gray-400 max-w-2xl mx-auto"
+            >
+              Protección integral con tecnología Cloudflare. Seguridad empresarial simplificada.
+            </motion.p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
-              {features.map((feature, index) => (
-                <div
-                  key={index}
-                  className="bg-gray-900 border border-gray-700 rounded-lg sm:rounded-xl p-4 sm:p-5 md:p-6 hover:border-cyan-500 transition-all transform hover:scale-105 group"
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
+              <motion.button
+                onClick={() => setShowForm(true)}
+                className="group relative inline-flex items-center gap-3 bg-gradient-to-r from-cyan-500 to-blue-600 px-8 py-4 rounded-full font-semibold text-lg hover-glow"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Shield className="w-5 h-5" />
+                <span>Comenzar Ahora</span>
+                <motion.svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  animate={{ x: [0, 5, 0] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
                 >
-                  <feature.icon className="text-cyan-400 mb-3 sm:mb-4 group-hover:scale-110 transition-transform" size={28} />
-                  <h4 className="text-base sm:text-lg font-bold mb-1.5 sm:mb-2 text-white">{feature.title}</h4>
-                  <p className="text-gray-400 text-xs sm:text-sm leading-relaxed">{feature.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl sm:rounded-2xl p-5 sm:p-6 md:p-8 text-center">
-            <CheckCircle className="text-cyan-400 mx-auto mb-3 sm:mb-4" size={40} />
-            <p className="text-base sm:text-lg md:text-xl text-gray-200 font-semibold px-2">
-              Todas estas características están incluidas en un único servicio integral.
-              Sin sorpresas, sin complementos adicionales.
-            </p>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </motion.svg>
+              </motion.button>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      <section className="py-12 sm:py-16 md:py-20 px-3 sm:px-4 md:px-6 lg:px-8 bg-gray-900">
+      {/* Features Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-10 sm:mb-12 md:mb-16">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 px-2">
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                Beneficios Clave
-              </span>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl font-bold mb-4">
+              <span className="gradient-text">Protección Integral</span>
             </h2>
-            <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-3xl mx-auto px-4">
-              Ventajas tangibles que impactan directamente en su negocio
+            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+              Todas las capas de seguridad en un solo servicio
             </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {features.map((feature, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ y: -5 }}
+                className="glass glass-hover p-6 rounded-2xl group cursor-pointer"
+              >
+                <div className="bg-gradient-to-br from-cyan-500/20 to-blue-600/20 w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <feature.icon className="w-6 h-6 text-cyan-400" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2 text-white">{feature.title}</h3>
+                <p className="text-sm text-gray-400">{feature.description}</p>
+              </motion.div>
+            ))}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 md:gap-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-12 glass p-8 rounded-2xl text-center"
+          >
+            <CheckCircle className="w-12 h-12 text-cyan-400 mx-auto mb-4" />
+            <p className="text-lg text-gray-300">
+              Todas estas características incluidas. Sin costos adicionales.
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Benefits Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent to-black/50">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl font-bold mb-4">
+              <span className="gradient-text">Beneficios Clave</span>
+            </h2>
+            <p className="text-gray-400 text-lg">Impacto directo en su negocio</p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {benefits.map((benefit, index) => (
-              <div
+              <motion.div
                 key={index}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
                 className="relative group"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl sm:rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity blur"></div>
-                <div className="relative bg-gray-800 border border-gray-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 md:p-8 hover:border-transparent transition-all">
-                  <div className="bg-gradient-to-br from-cyan-500 to-blue-600 w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-lg sm:rounded-xl flex items-center justify-center mb-4 sm:mb-5 md:mb-6">
-                    <benefit.icon className="text-white" size={24} />
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-blue-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative glass glass-hover p-8 rounded-2xl">
+                  <div className="bg-gradient-to-br from-cyan-500 to-blue-600 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+                    <benefit.icon className="w-7 h-7 text-white" />
                   </div>
-                  <h3 className="text-base sm:text-lg md:text-xl font-bold mb-2 sm:mb-3 text-white">{benefit.title}</h3>
-                  <p className="text-gray-400 text-sm sm:text-base leading-relaxed">{benefit.description}</p>
+                  <h3 className="text-xl font-bold mb-3 text-white">{benefit.title}</h3>
+                  <p className="text-gray-400">{benefit.description}</p>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
-
-          <div className="mt-10 sm:mt-12 md:mt-16 grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 md:gap-8">
-            <div className="bg-gray-800 border border-gray-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 md:p-8">
-              <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-4 text-white">Integración Transparente</h3>
-              <p className="text-gray-300 text-sm sm:text-base leading-relaxed">
-                La implementación no afecta el funcionamiento de su sitio. Los usuarios finales no
-                notarán cambios, excepto por la mejora en velocidad y disponibilidad.
-              </p>
-            </div>
-            <div className="bg-gray-800 border border-gray-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 md:p-8">
-              <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-4 text-white">Sin Mantenimiento</h3>
-              <p className="text-gray-300 text-sm sm:text-base leading-relaxed">
-                Nuestro equipo de especialistas gestiona todas las actualizaciones, ajustes y
-                optimizaciones. Usted se enfoca en su negocio mientras nosotros protegemos su perímetro.
-              </p>
-            </div>
           </div>
         </div>
       </section>
 
-      <section className="py-12 sm:py-16 md:py-20 px-3 sm:px-4 md:px-6 lg:px-8 bg-gradient-to-b from-gray-900 to-black">
+      {/* Steps Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-10 sm:mb-12 md:mb-16">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 px-2">
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                ¿Cómo Funciona?
-              </span>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl font-bold mb-4">
+              <span className="gradient-text">¿Cómo Funciona?</span>
             </h2>
-            <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-3xl mx-auto px-4">
-              Proceso simple y rápido para activar su protección perimetral
-            </p>
-          </div>
+            <p className="text-gray-400 text-lg">Proceso simple en 4 pasos</p>
+          </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {steps.map((step, index) => (
-              <div key={index} className="relative">
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="relative"
+              >
                 {index < steps.length - 1 && (
-                  <div className="hidden lg:block absolute top-16 left-full w-full h-0.5 bg-gradient-to-r from-cyan-500 to-transparent"></div>
+                  <div className="hidden lg:block absolute top-12 left-full w-full h-px bg-gradient-to-r from-cyan-500/50 to-transparent" />
                 )}
-                <div className="relative bg-gray-800 border border-gray-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 md:p-8 hover:border-cyan-500 transition-all group">
-                  <div className="absolute -top-5 sm:-top-6 left-5 sm:left-8 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-lg sm:text-xl w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border-4 border-black">
+                <motion.div
+                  whileHover={{ y: -5 }}
+                  className="glass glass-hover p-6 rounded-2xl"
+                >
+                  <div className="bg-gradient-to-r from-cyan-500 to-blue-600 w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg mb-4">
                     {step.number}
                   </div>
-                  <div className="mt-3 sm:mt-4">
-                    <h3 className="text-base sm:text-lg md:text-xl font-bold mb-2 sm:mb-3 text-white group-hover:text-cyan-400 transition-colors">
-                      {step.title}
-                    </h3>
-                    <p className="text-gray-400 text-sm sm:text-base leading-relaxed">{step.description}</p>
-                  </div>
-                </div>
-              </div>
+                  <h3 className="text-lg font-bold mb-2 text-white">{step.title}</h3>
+                  <p className="text-sm text-gray-400">{step.description}</p>
+                </motion.div>
+              </motion.div>
             ))}
           </div>
 
-          <div className="mt-10 sm:mt-12 md:mt-16 text-center">
-            <button
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-12 text-center"
+          >
+            <motion.button
               onClick={() => setShowForm(true)}
-              className="group inline-flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold text-sm sm:text-base md:text-lg py-3 sm:py-4 px-5 sm:px-6 md:px-8 rounded-lg transition-all transform hover:scale-105 shadow-2xl shadow-cyan-500/50"
+              className="glass glass-hover px-8 py-4 rounded-full font-semibold hover-glow"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              <span>Iniciar Ahora</span>
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
+              <span className="gradient-text">Iniciar Ahora</span>
+            </motion.button>
+          </motion.div>
         </div>
       </section>
 
-      <section className="py-12 sm:py-16 md:py-20 px-3 sm:px-4 md:px-6 lg:px-8 bg-black">
+      {/* Trust Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-black/50 to-transparent">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-10 sm:mb-12 md:mb-16">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 px-2">
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                Confianza y Seguridad
-              </span>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl font-bold mb-4">
+              <span className="gradient-text">Confianza y Seguridad</span>
             </h2>
-            <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-3xl mx-auto px-4">
-              Su tranquilidad es nuestra prioridad
-            </p>
+            <p className="text-gray-400 text-lg">Respaldados por la mejor tecnología</p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+            {[
+              { icon: ShieldCheck, title: 'Tecnología Cloudflare', desc: 'Infraestructura líder mundial' },
+              { icon: Lock, title: 'Confidencialidad Total', desc: 'Máximos estándares de privacidad' },
+              { icon: Eye, title: 'Gestión Profesional', desc: 'Expertos certificados 24/7' },
+            ].map((item, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ y: -5 }}
+                className="glass glass-hover p-8 rounded-2xl text-center"
+              >
+                <div className="bg-gradient-to-br from-cyan-500 to-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <item.icon className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold mb-3 text-white">{item.title}</h3>
+                <p className="text-gray-400">{item.desc}</p>
+              </motion.div>
+            ))}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 sm:gap-6 md:gap-8 mb-8 sm:mb-10 md:mb-12">
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 md:p-8 text-center hover:border-cyan-500 transition-all">
-              <div className="bg-gradient-to-br from-cyan-500 to-blue-600 w-16 h-16 sm:w-18 sm:h-18 md:w-20 md:h-20 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-5 md:mb-6">
-                <ShieldCheck className="text-white" size={32} />
-              </div>
-              <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-2 sm:mb-3 md:mb-4 text-white">Tecnología Cloudflare</h3>
-              <p className="text-gray-300 text-sm sm:text-base leading-relaxed">
-                Respaldados por la infraestructura de seguridad más grande y confiable del mundo
-              </p>
-            </div>
-
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 md:p-8 text-center hover:border-cyan-500 transition-all">
-              <div className="bg-gradient-to-br from-cyan-500 to-blue-600 w-16 h-16 sm:w-18 sm:h-18 md:w-20 md:h-20 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-5 md:mb-6">
-                <Lock className="text-white" size={32} />
-              </div>
-              <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-2 sm:mb-3 md:mb-4 text-white">Confidencialidad Total</h3>
-              <p className="text-gray-300 text-sm sm:text-base leading-relaxed">
-                Sus datos y configuraciones están protegidos con los más altos estándares de privacidad
-              </p>
-            </div>
-
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 md:p-8 text-center hover:border-cyan-500 transition-all sm:col-span-2 md:col-span-1">
-              <div className="bg-gradient-to-br from-cyan-500 to-blue-600 w-16 h-16 sm:w-18 sm:h-18 md:w-20 md:h-20 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-5 md:mb-6">
-                <Eye className="text-white" size={32} />
-              </div>
-              <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-2 sm:mb-3 md:mb-4 text-white">Gestión Profesional</h3>
-              <p className="text-gray-300 text-sm sm:text-base leading-relaxed">
-                Expertos certificados en ciberseguridad administran su protección 24/7
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl sm:rounded-2xl p-6 sm:p-8 md:p-10 lg:p-12 text-center">
-            <h3 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 sm:mb-4 text-white px-2">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="glass p-12 rounded-2xl text-center"
+          >
+            <h3 className="text-2xl font-bold mb-6 text-white">
               Miles de Organizaciones Confían en Cloudflare
             </h3>
-            <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-6 sm:mb-8 px-4">
-              Únase a empresas líderes que protegen su infraestructura digital con la mejor tecnología del mercado
-            </p>
-            <div className="flex flex-wrap justify-center gap-6 sm:gap-8 text-gray-400">
-              <div className="text-center">
-                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-cyan-400 mb-1 sm:mb-2">99.99%</div>
-                <div className="text-xs sm:text-sm">Disponibilidad</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-cyan-400 mb-1 sm:mb-2">&lt;3ms</div>
-                <div className="text-xs sm:text-sm">Latencia Promedio</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-cyan-400 mb-1 sm:mb-2">182 Tbps</div>
-                <div className="text-xs sm:text-sm">Capacidad de Red</div>
-              </div>
+            <div className="flex flex-wrap justify-center gap-12">
+              {[
+                { value: '99.99%', label: 'Disponibilidad' },
+                { value: '<3ms', label: 'Latencia' },
+                { value: '182 Tbps', label: 'Capacidad' },
+              ].map((stat, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="text-center"
+                >
+                  <div className="text-4xl font-bold gradient-text mb-2">{stat.value}</div>
+                  <div className="text-sm text-gray-400">{stat.label}</div>
+                </motion.div>
+              ))}
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      <footer className="bg-gradient-to-b from-black to-gray-900 border-t border-gray-800 py-8 sm:py-10 md:py-12 px-3 sm:px-4 md:px-6 lg:px-8">
+      {/* Footer */}
+      <footer className="border-t border-white/10 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-8">
-            <div className="sm:col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                <Shield className="text-cyan-400" size={24} />
-                <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                  SecurePerimeter
-                </span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <Shield className="text-cyan-400 w-6 h-6" />
+                <span className="text-lg font-bold gradient-text">SecurePerimeter</span>
               </div>
-              <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
-                Protección perimetral integral para su infraestructura digital,
-                respaldada por la tecnología líder de Cloudflare.
+              <p className="text-gray-400 text-sm">
+                Protección perimetral integral respaldada por Cloudflare
               </p>
             </div>
 
             <div>
-              <h4 className="text-base sm:text-lg font-bold mb-3 sm:mb-4 text-white">Contacto</h4>
-              <div className="space-y-1.5 sm:space-y-2 text-gray-400 text-sm sm:text-base">
-                <p>Email: contacto@secureperimeter.com</p>
-                <p>Teléfono: +34 900 000 000</p>
-                <p>Horario: Lunes a Viernes, 9:00 - 18:00</p>
+              <h4 className="font-semibold mb-4 text-white">Contacto</h4>
+              <div className="space-y-2 text-sm text-gray-400">
+                <p>contacto@secureperimeter.com</p>
+                <p>+34 900 000 000</p>
+                <p>Lun-Vie, 9:00 - 18:00</p>
               </div>
             </div>
 
             <div>
-              <h4 className="text-base sm:text-lg font-bold mb-3 sm:mb-4 text-white">Legal</h4>
-              <div className="space-y-1.5 sm:space-y-2 text-gray-400">
-                <p className="text-xs sm:text-sm leading-relaxed">
-                  Servicios de ciberseguridad profesional. Todos los datos son tratados
-                  con confidencialidad y protegidos según la normativa vigente.
-                </p>
-              </div>
+              <h4 className="font-semibold mb-4 text-white">Legal</h4>
+              <p className="text-sm text-gray-400">
+                Servicios profesionales de ciberseguridad
+              </p>
             </div>
           </div>
 
-          <div className="border-t border-gray-800 pt-6 sm:pt-8 text-center text-gray-500 text-xs sm:text-sm">
-            <p>© 2024 SecurePerimeter. Protección Perimetral Profesional. Todos los derechos reservados.</p>
-            <p className="mt-1.5 sm:mt-2">Cloudflare® es una marca registrada de Cloudflare, Inc.</p>
+          <div className="border-t border-white/10 pt-8 text-center text-sm text-gray-500">
+            <p>© 2024 SecurePerimeter. Todos los derechos reservados.</p>
+            <p className="mt-2">Cloudflare® es una marca registrada de Cloudflare, Inc.</p>
           </div>
         </div>
       </footer>

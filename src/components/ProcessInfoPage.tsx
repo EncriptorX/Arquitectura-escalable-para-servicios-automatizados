@@ -131,60 +131,78 @@ export default function ProcessInfoPage({
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <header className="fixed w-full top-0 z-40 bg-black bg-opacity-90 backdrop-blur-sm border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-center justify-between gap-2 sm:gap-4">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <Shield className="text-cyan-400 flex-shrink-0" size={24} />
-              <span className="text-base sm:text-lg md:text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent truncate">
-                SecurePerimeter
-              </span>
-            </div>
-            <div className="flex gap-2 sm:gap-3 flex-shrink-0">
-              <button
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900">
+      <motion.header 
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        className="fixed w-full top-0 z-50 glass backdrop-blur-glass border-b border-white/10"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <motion.div 
+              className="flex items-center gap-3"
+              whileHover={{ scale: 1.05 }}
+            >
+              <div className="relative">
+                <Shield className="text-cyan-400 w-7 h-7" />
+                <motion.div
+                  className="absolute inset-0 bg-cyan-400/20 rounded-full blur-xl"
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
+              </div>
+              <span className="text-xl font-bold gradient-text">SecurePerimeter</span>
+            </motion.div>
+            
+            <div className="flex gap-3">
+              <motion.button
                 onClick={onBack}
-                className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 rounded-lg border border-gray-700 transition-colors whitespace-nowrap"
+                className="glass glass-hover px-4 py-2 rounded-full text-sm font-medium"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                <ArrowLeft size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <ArrowLeft className="w-4 h-4 inline mr-2" />
                 <span className="hidden sm:inline">Volver</span>
-              </button>
-              <button
+              </motion.button>
+              
+              <motion.button
                 onClick={onNewRequest}
-                className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 rounded-lg transition-all transform hover:scale-105 whitespace-nowrap"
+                className="glass glass-hover px-4 py-2 rounded-full text-sm font-medium hover-glow"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                <Repeat size={16} className="sm:w-[18px] sm:h-[18px]" />
-                <span className="hidden sm:inline">Nueva solicitud</span>
-                <span className="sm:hidden">Nueva</span>
-              </button>
+                <Repeat className="w-4 h-4 inline mr-2" />
+                <span className="hidden sm:inline gradient-text">Nueva Solicitud</span>
+                <span className="sm:hidden gradient-text">Nueva</span>
+              </motion.button>
             </div>
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      <main className="pt-20 sm:pt-24 pb-12 sm:pb-16 px-3 sm:px-4 md:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8">
+      <main className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto space-y-8">
           {/* Simulation Mode Warning */}
           {isSimulationMode === true && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="border-l-4 border-orange-500 bg-orange-900/20 rounded-r-lg overflow-hidden shadow-sm"
+              className="glass border-l-4 border-orange-400 rounded-r-2xl overflow-hidden"
             >
-              <div className="p-4 sm:p-5 md:p-6">
-                <div className="flex items-start space-x-3 sm:space-x-4">
-                  <div className="p-1.5 sm:p-2 bg-orange-900/40 rounded-full text-orange-400 flex-shrink-0">
-                    <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6" />
+              <div className="p-6">
+                <div className="flex items-start space-x-4">
+                  <div className="p-2 bg-orange-400/20 rounded-xl text-orange-400 flex-shrink-0">
+                    <AlertTriangle className="w-6 h-6" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base sm:text-lg font-bold text-orange-200 mb-1.5 sm:mb-2">
+                    <h3 className="text-lg font-bold text-orange-200 mb-2">
                       ⚠️ MODO SIMULACIÓN ACTIVO
                     </h3>
-                    <p className="text-orange-300 text-sm sm:text-base mb-1.5 sm:mb-2">
+                    <p className="text-orange-300 mb-2 text-sm">
                       El servicio está corriendo en <strong>modo simulación</strong>. No se aplicó protección real de Cloudflare.
                     </p>
-                    <p className="text-orange-300 text-xs sm:text-sm">
-                      Para activar la protección real, configura <code className="bg-orange-900/40 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs">CF_API_TOKEN</code> y <code className="bg-orange-900/40 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs">CF_ZONE_ID</code> en Vercel.
+                    <p className="text-orange-300/80 text-xs">
+                      Para activar la protección real, configura <code className="glass px-2 py-1 rounded text-xs">CF_API_TOKEN</code> y <code className="glass px-2 py-1 rounded text-xs">CF_ZONE_ID</code> en Vercel.
                     </p>
                   </div>
                 </div>
@@ -197,18 +215,18 @@ export default function ProcessInfoPage({
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="border-l-4 border-green-500 bg-green-900/20 rounded-r-lg overflow-hidden shadow-sm"
+              className="glass border-l-4 border-green-400 rounded-r-2xl overflow-hidden animate-glow"
             >
-              <div className="p-4 sm:p-5 md:p-6">
-                <div className="flex items-start space-x-3 sm:space-x-4">
-                  <div className="p-1.5 sm:p-2 bg-green-900/40 rounded-full text-green-400 flex-shrink-0">
-                    <Check className="w-5 h-5 sm:w-6 sm:h-6" />
+              <div className="p-6">
+                <div className="flex items-start space-x-4">
+                  <div className="p-2 bg-green-400/20 rounded-xl text-green-400 flex-shrink-0">
+                    <Check className="w-6 h-6" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base sm:text-lg font-bold text-green-200 mb-1.5 sm:mb-2">
+                    <h3 className="text-lg font-bold text-green-200 mb-2">
                       ✅ MODO REAL ACTIVO
                     </h3>
-                    <p className="text-green-300 text-sm sm:text-base">
+                    <p className="text-green-300 text-sm">
                       El servicio aplicó protección perimetral <strong>REAL</strong> de Cloudflare a tu dominio.
                     </p>
                   </div>
@@ -218,52 +236,66 @@ export default function ProcessInfoPage({
           )}
           
           {/* Header Section */}
-          <div className="flex flex-col gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col gap-4"
+          >
             <div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Deployment Status</h1>
+              <div className="flex flex-wrap items-center gap-3 mb-2">
+                <h1 className="text-3xl font-bold gradient-text">Deployment Status</h1>
                 <Badge
                   variant="outline"
-                  className={`text-xs sm:text-sm ${isComplete ? "bg-green-50 text-green-700 border-green-200" : ""}
-                    ${isFailed ? "bg-red-50 text-red-700 border-red-200" : ""}
-                    ${!isComplete && !isFailed ? "bg-blue-50 text-blue-700 border-blue-200 animate-pulse" : ""}`}
+                  className={`glass ${isComplete ? "border-green-400 text-green-400" : ""}
+                    ${isFailed ? "border-red-400 text-red-400" : ""}
+                    ${!isComplete && !isFailed ? "border-cyan-400 text-cyan-400 animate-pulse" : ""}`}
                 >
                   {status.replace(/_/g, " ").toUpperCase()}
                 </Badge>
               </div>
-              <p className="text-gray-400 text-xs sm:text-sm">{message}</p>
+              <p className="text-gray-400 text-sm">{message}</p>
             </div>
-            <div className="flex flex-wrap gap-4 sm:gap-6 text-xs sm:text-sm text-gray-400 border-l border-gray-800 pl-4 sm:pl-6 md:pl-8">
+            <div className="flex flex-wrap gap-6 text-sm text-gray-400 border-l-2 border-cyan-400/30 pl-6">
               <div className="flex flex-col">
                 <span className="font-medium text-white">Target Domains</span>
                 <span>{urls.length} domain(s)</span>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Progress Section */}
-          <Card className="p-4 sm:p-5 md:p-6 border-gray-800 shadow-sm">
-            <div className="space-y-3 sm:space-y-4">
-              <div className="flex justify-between text-xs sm:text-sm font-medium">
-                <span>Overall Progress</span>
-                <span>{progress}%</span>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <Card className="glass p-6 border-white/10">
+              <div className="space-y-4">
+                <div className="flex justify-between text-sm font-medium">
+                  <span className="text-gray-300">Overall Progress</span>
+                  <span className="gradient-text font-bold">{progress}%</span>
+                </div>
+                <div className="relative h-3 w-full overflow-hidden rounded-full bg-white/5">
+                  <motion.div
+                    className={`h-full ${isFailed ? "bg-gradient-to-r from-red-500 to-red-600" : "bg-gradient-to-r from-cyan-500 to-blue-600"}`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                  />
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                    animate={{ x: ["-100%", "200%"] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4">
+                  <StepIndicator label="Analyzing" active={progress > 0} completed={progress >= 25} icon={Globe} />
+                  <StepIndicator label="Provisioning" active={progress >= 25} completed={progress >= 50} icon={Activity} />
+                  <StepIndicator label="Securing" active={progress >= 50} completed={progress >= 75} icon={Shield} />
+                  <StepIndicator label="Finalizing" active={progress >= 75} completed={progress === 100} icon={Check} />
+                </div>
               </div>
-              <div className="relative h-2.5 sm:h-3 w-full overflow-hidden rounded-full bg-gray-800">
-                <motion.div
-                  className={`h-full ${isFailed ? "bg-red-500" : "bg-cyan-500"}`}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.5, ease: "easeInOut" }}
-                />
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 sm:pt-4">
-                <StepIndicator label="Analyzing" active={progress > 0} completed={progress >= 25} icon={Globe} />
-                <StepIndicator label="Provisioning" active={progress >= 25} completed={progress >= 50} icon={Activity} />
-                <StepIndicator label="Securing" active={progress >= 50} completed={progress >= 75} icon={Shield} />
-                <StepIndicator label="Finalizing" active={progress >= 75} completed={progress === 100} icon={Check} />
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </motion.div>
 
           {/* Action Required Box */}
           {isActionRequired && nameservers.length > 0 && (
@@ -349,15 +381,25 @@ function StepIndicator({
   icon: any;
 }) {
   return (
-    <div
-      className={`flex flex-col items-center space-y-1.5 sm:space-y-2 p-2 sm:p-3 rounded-lg transition-colors ${
-        completed ? "text-cyan-400" : active ? "text-white bg-gray-800/50" : "text-gray-600 opacity-50"
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className={`flex flex-col items-center space-y-2 p-3 rounded-xl transition-all ${
+        completed ? "glass border-cyan-400/50" : active ? "glass" : "opacity-50"
       }`}
     >
-      <div className={`p-1.5 sm:p-2 rounded-full ${completed ? "bg-cyan-500/10" : "bg-transparent"}`}>
-        <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
-      </div>
-      <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-center">{label}</span>
-    </div>
+      <motion.div 
+        className={`p-2 rounded-full ${completed ? "bg-gradient-to-r from-cyan-500 to-blue-600" : "bg-white/5"}`}
+        animate={completed ? { scale: [1, 1.1, 1] } : {}}
+        transition={{ duration: 0.3 }}
+      >
+        <Icon className={`w-5 h-5 ${completed ? "text-white" : active ? "text-cyan-400" : "text-gray-600"}`} />
+      </motion.div>
+      <span className={`text-xs font-semibold uppercase tracking-wider text-center ${
+        completed ? "gradient-text" : active ? "text-white" : "text-gray-600"
+      }`}>
+        {label}
+      </span>
+    </motion.div>
   );
 }
