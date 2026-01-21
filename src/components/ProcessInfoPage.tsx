@@ -28,43 +28,65 @@ export default function ProcessInfoPage({
   const [nameservers, setNameservers] = useState<string[]>([]);
   const [allLogs, setAllLogs] = useState<string[]>([]);
   const [currentLogIndex, setCurrentLogIndex] = useState(0);
+  const [isSimulationMode, setIsSimulationMode] = useState<boolean | null>(null);
 
   useEffect(() => {
     // Parsear el output del API para obtener los logs reales
     if (output) {
       try {
+        console.log("📥 Raw output received:", output);
         const apiResponse = JSON.parse(output);
+        console.log("📦 Parsed API response:", apiResponse);
+        
+        // Verificar si está en modo simulación
+        if (apiResponse.simulation_mode === true) {
+          console.warn("⚠️ API está en MODO SIMULACIÓN - No se aplicó protección real");
+          setIsSimulationMode(true);
+        } else {
+          console.log("✅ API está en MODO REAL - Protección aplicada");
+          setIsSimulationMode(false);
+        }
         
         // Si el API retorna logs, guardarlos todos
         if (apiResponse.logs && Array.isArray(apiResponse.logs)) {
+          console.log(`📝 Logs recibidos: ${apiResponse.logs.length} líneas`);
           setAllLogs(apiResponse.logs);
+        } else {
+          console.warn("⚠️ No se encontraron logs en la respuesta del API");
+          setAllLogs([
+            'ERROR: No se recibieron logs del servidor',
+            'Respuesta del API no contiene logs válidos',
+            'Por favor revisa la configuración del backend'
+          ]);
         }
         
         // Si el API retorna nameservers, usarlos
         if (apiResponse.nameservers && Array.isArray(apiResponse.nameservers)) {
+          console.log("🌐 Nameservers recibidos:", apiResponse.nameservers);
           setNameservers(apiResponse.nameservers);
         }
+        
+        // Mostrar información adicional si está disponible
+        if (apiResponse.sitios && Array.isArray(apiResponse.sitios)) {
+          console.log("🎯 Sitios procesados:", apiResponse.sitios);
+        }
       } catch (e) {
-        console.error("Error parsing output:", e);
+        console.error("❌ Error parsing output:", e);
+        console.error("📄 Output que causó el error:", output);
         // Fallback: logs básicos
         setAllLogs([
-          'Initializing protection setup...',
-          `Processing ${urls.length} domain(s)...`,
-          'Validating security token...',
-          '✓ Security verification successful',
-          'Configuring domain protection...',
-          'Protection setup completed successfully!'
+          'ERROR: No se pudo parsear la respuesta del servidor',
+          `Error: ${e instanceof Error ? e.message : 'Unknown error'}`,
+          'Por favor revisa la consola del navegador para más detalles'
         ]);
       }
     } else {
+      console.warn("⚠️ No se recibió output del API");
       // Fallback: logs básicos si no hay output
       setAllLogs([
-        'Initializing protection setup...',
-        `Processing ${urls.length} domain(s)...`,
-        'Validating security token...',
-        '✓ Security verification successful',
-        'Configuring domain protection...',
-        'Protection setup completed successfully!'
+        'ERROR: No se recibió respuesta del servidor',
+        'El API no retornó ningún output',
+        'Por favor verifica que el backend esté funcionando correctamente'
       ]);
     }
   }, [output, urls.length]);
@@ -141,6 +163,59 @@ export default function ProcessInfoPage({
 
       <main className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto space-y-8">
+          {/* Simulation Mode Warning */}
+          {isSimulationMode === true && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="border-l-4 border-orange-500 bg-orange-900/20 rounded-r-lg overflow-hidden shadow-sm"
+            >
+              <div className="p-6">
+                <div className="flex items-start space-x-4">
+                  <div className="p-2 bg-orange-900/40 rounded-full text-orange-400">
+                    <AlertTriangle className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-orange-200 mb-2">
+                      ⚠️ MODO SIMULACIÓN ACTIVO
+                    </h3>
+                    <p className="text-orange-300 mb-2">
+                      El servicio está corriendo en <strong>modo simulación</strong>. No se aplicó protección real de Cloudflare.
+                    </p>
+                    <p className="text-orange-300 text-sm">
+                      Para activar la protección real, configura <code className="bg-orange-900/40 px-2 py-1 rounded">CF_API_TOKEN</code> y <code className="bg-orange-900/40 px-2 py-1 rounded">CF_ZONE_ID</code> en Vercel.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Real Mode Confirmation */}
+          {isSimulationMode === false && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="border-l-4 border-green-500 bg-green-900/20 rounded-r-lg overflow-hidden shadow-sm"
+            >
+              <div className="p-6">
+                <div className="flex items-start space-x-4">
+                  <div className="p-2 bg-green-900/40 rounded-full text-green-400">
+                    <Check className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-green-200 mb-2">
+                      ✅ MODO REAL ACTIVO
+                    </h3>
+                    <p className="text-green-300">
+                      El servicio aplicó protección perimetral <strong>REAL</strong> de Cloudflare a tu dominio.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+          
           {/* Header Section */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
