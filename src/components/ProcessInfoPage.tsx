@@ -31,47 +31,72 @@ export default function ProcessInfoPage({
   const [nameservers, setNameservers] = useState<string[]>([]);
 
   useEffect(() => {
+    let progressInterval: NodeJS.Timeout | null = null;
+    let logInterval: NodeJS.Timeout | null = null;
+    let nameserverTimeout: NodeJS.Timeout | null = null;
+
     // Simulate progress updates
-    const progressInterval = setInterval(() => {
+    progressInterval = setInterval(() => {
       setProgress((prev) => {
         const next = Math.min(prev + 5, 100);
         if (next === 100) {
           setStatus('completed');
-          setLogs((prevLogs) => [...prevLogs, 'Protection setup completed successfully!']);
+          setLogs((prevLogs) => {
+            // Solo agregar el mensaje de completado una vez
+            if (!prevLogs.includes('Protection setup completed successfully!')) {
+              return [...prevLogs, 'Protection setup completed successfully!'];
+            }
+            return prevLogs;
+          });
+          // Detener los intervalos cuando llegue al 100%
+          if (progressInterval) clearInterval(progressInterval);
+          if (logInterval) clearInterval(logInterval);
         }
         return next;
       });
     }, 2000);
 
     // Simulate log updates
-    const logInterval = setInterval(() => {
-      const logMessages = [
-        'Validating domain configuration...',
-        'Configuring DNS records...',
-        'Setting up SSL/TLS certificates...',
-        'Applying WAF rules...',
-        'Configuring DDoS protection...',
-        'Optimizing CDN settings...',
-      ];
-      setLogs((prev) => {
-        if (prev.length < 15) {
-          const randomLog = logMessages[Math.floor(Math.random() * logMessages.length)];
-          return [...prev, randomLog];
+    logInterval = setInterval(() => {
+      setProgress((currentProgress) => {
+        // Solo agregar logs si no hemos completado
+        if (currentProgress < 100) {
+          const logMessages = [
+            'Validating domain configuration...',
+            'Configuring DNS records...',
+            'Setting up SSL/TLS certificates...',
+            'Applying WAF rules...',
+            'Configuring DDoS protection...',
+            'Optimizing CDN settings...',
+          ];
+          setLogs((prev) => {
+            if (prev.length < 15) {
+              const randomLog = logMessages[Math.floor(Math.random() * logMessages.length)];
+              return [...prev, randomLog];
+            }
+            return prev;
+          });
         }
-        return prev;
+        return currentProgress;
       });
     }, 3000);
 
     // Simulate nameserver assignment after 5 seconds
-    setTimeout(() => {
+    nameserverTimeout = setTimeout(() => {
       setNameservers(['ns1.cloudflare.com', 'ns2.cloudflare.com']);
       setStatus('waiting_dns');
-      setLogs((prev) => [...prev, 'Nameservers assigned. Waiting for DNS delegation...']);
+      setLogs((prev) => {
+        if (!prev.includes('Nameservers assigned. Waiting for DNS delegation...')) {
+          return [...prev, 'Nameservers assigned. Waiting for DNS delegation...'];
+        }
+        return prev;
+      });
     }, 5000);
 
     return () => {
-      clearInterval(progressInterval);
-      clearInterval(logInterval);
+      if (progressInterval) clearInterval(progressInterval);
+      if (logInterval) clearInterval(logInterval);
+      if (nameserverTimeout) clearTimeout(nameserverTimeout);
     };
   }, []);
 
