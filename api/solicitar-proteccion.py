@@ -1,14 +1,16 @@
 """
-Vercel Serverless Function - Simplified
+Vercel Serverless Function - Native Format (No Flask)
 """
-from flask import Flask, request, jsonify
+from http.server import BaseHTTPRequestHandler
+import json
 import os
 import re
+import urllib.request
+import urllib.parse
 
-app = Flask(__name__)
 
 # Configuración
-TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY")
+TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
 
 
 def validar_url(url):
@@ -25,8 +27,6 @@ def validate_turnstile(token, ip=None):
         return False, "TURNSTILE_SECRET_KEY no está configurada"
 
     try:
-        import requests
-        
         url = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
         data = {
             "secret": TURNSTILE_SECRET_KEY,
@@ -35,9 +35,13 @@ def validate_turnstile(token, ip=None):
         
         if ip:
             data["remoteip"] = ip
-
-        r = requests.post(url, data=data, timeout=10)
-        result = r.json()
+        
+        # Usar urllib en lugar de requests
+        data_encoded = urllib.parse.urlencode(data).encode('utf-8')
+        req = urllib.request.Request(url, data=data_encoded, method='POST')
+        
+        with urllib.request.urlopen(req, timeout=10) as response:
+            result = json.loads(response.read().decode('utf-8'))
         
         if result.get("success", False):
             return True, None
@@ -47,90 +51,98 @@ def validate_turnstile(token, ip=None):
         if codes:
             msg += f". Códigos: {', '.join(codes)}"
         return False, msg
-    except ImportError:
-        return False, "Módulo requests no disponible"
     except Exception as e:
         return False, f"Error conectando con Turnstile: {str(e)}"
 
 
-@app.after_request
-def after_request(response):
-    """Agregar headers CORS a todas las respuestas"""
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    return response
-
-
-@app.route('/', methods=['GET', 'POST', 'OPTIONS'])
-@app.route('/api/solicitar-proteccion', methods=['GET', 'POST', 'OPTIONS'])
-def handler():
-    """Endpoint principal"""
+class handler(BaseHTTPRequestHandler):
+    """Handler para Vercel Serverless Function"""
     
-    try:
-        # Manejar preflight CORS
-        if request.method == 'OPTIONS':
-            return jsonify({"message": "OK"}), 200
-        
-        # Health check
-        if request.method == 'GET':
-            return jsonify({
-                "status": "ok",
-                "message": "API funcionando correctamente",
-                "method": request.method,
-                "path": request.path,
-                "has_turnstile_key": bool(TURNSTILE_SECRET_KEY)
-            }), 200
-        
-        # POST - Procesar solicitud
-        if request.method == 'POST':
-            # Parsear datos
+    def _set_headers(self, status_code=200, content_type='application/json'):
+        """Configura los headers de respuesta"""
+        self.send_response(status_code)
+        self.send_header('Content-Type', content_type)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+    
+    def _send_json(self, data, status_code=200):
+        """Envía una respuesta JSON"""
+        self._set_headers(status_code)
+        self.wfile.write(json.dumps(data).encode('utf-8'))
+    
+    def do_OPTIONS(self):
+        """Maneja preflight CORS"""
+        self._send_json({"message": "OK"}, 200)
+    
+    def do_GET(self):
+        """Health check"""
+        self._send_json({
+            "status": "ok",
+            "message": "API funcionando correctamente",
+            "has_turnstile_key": bool(TURNSTILE_SECRET_KEY)
+        }, 200)
+    
+    def do_POST(self):
+        """Procesa la solicitud de protección"""
+        try:
+            # Leer el body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            
+            # Parsear JSON
             try:
-                data = request.get_json(force=True)
-            except Exception as e:
-                return jsonify({
+                data = json.loads(body.decode('utf-8'))
+            except json.JSONDecodeError as e:
+                self._send_json({
                     "status": "error",
                     "message": f"Error parseando JSON: {str(e)}"
-                }), 400
+                }, 400)
+                return
             
             # Validar token de Turnstile
             token = data.get("turnstileToken")
             if not token:
-                return jsonify({
+                self._send_json({
                     "status": "error",
                     "message": "Falta el token de seguridad (Turnstile)"
-                }), 400
+                }, 400)
+                return
             
             # Obtener IP del cliente
-            client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+            client_ip = self.headers.get("X-Forwarded-For", "").split(",")[0].strip()
             if not client_ip:
-                client_ip = request.headers.get("X-Real-IP", "")
+                client_ip = self.headers.get("X-Real-IP", "")
             
             # Validar con Cloudflare Turnstile
             ok, err = validate_turnstile(token, client_ip)
             
             if not ok:
                 status_code = 500 if "TURNSTILE_SECRET_KEY" in (err or "") else 403
-                return jsonify({
+                self._send_json({
                     "status": "error",
                     "message": err or "Verificación de seguridad fallida"
-                }), status_code
+                }, status_code)
+                return
             
             # Obtener URLs
             urls = data.get("urls", [])
             if not urls:
-                return jsonify({
+                self._send_json({
                     "status": "error",
                     "message": "No se proporcionaron URLs"
-                }), 400
+                }, 400)
+                return
             
             # Validar formato de URLs
             for url in urls:
                 if not validar_url(url):
-                    return jsonify({
+                    self._send_json({
                         "status": "error",
                         "message": f"URL inválida: {url}"
-                    }), 400
+                    }, 400)
+                    return
             
             # Procesar las URLs
             protegidos = []
@@ -142,28 +154,17 @@ def handler():
                 })
             
             # Respuesta exitosa
-            return jsonify({
+            self._send_json({
                 "status": "ok",
                 "message": "Protección perimetral en proceso",
                 "urls": urls,
                 "sitios": protegidos
-            }), 200
-        
-        # Método no soportado
-        return jsonify({
-            "status": "error",
-            "message": f"Método {request.method} no soportado"
-        }), 405
-        
-    except Exception as e:
-        # Capturar cualquier error no manejado
-        return jsonify({
-            "status": "error",
-            "message": f"Error interno del servidor: {str(e)}",
-            "type": type(e).__name__
-        }), 500
-
-
-# Para desarrollo local
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+            }, 200)
+            
+        except Exception as e:
+            # Capturar cualquier error no manejado
+            self._send_json({
+                "status": "error",
+                "message": f"Error interno del servidor: {str(e)}",
+                "type": type(e).__name__
+            }, 500)
