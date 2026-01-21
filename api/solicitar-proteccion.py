@@ -8,6 +8,7 @@ import os
 import re
 import urllib.request
 import urllib.parse
+import socket
 
 
 # ===============================
@@ -61,16 +62,31 @@ class CloudflareEdgeProtector:
             self._log(f"Error en request: {str(e)}", "ERROR")
             return None
 
-    def fetch_zone_nameservers(self):
-        """Obtiene los nameservers asignados por Cloudflare para la zona"""
-        self._log("Obteniendo nameservers de Cloudflare...")
+    def fetch_zone_info(self):
+        """Obtiene información de la zona incluyendo nameservers y nombre"""
+        self._log("Obteniendo información de la zona de Cloudflare...")
         res = self._request("GET", f"zones/{self.zone_id}")
         if res and res.get("success"):
-            nameservers = res["result"].get("name_servers", [])
-            self._log(f"✓ Nameservers obtenidos: {', '.join(nameservers)}")
-            return nameservers
-        self._log("No se pudieron obtener los nameservers de la zona", "WARN")
-        return []
+            zone_data = res["result"]
+            zone_name = zone_data.get("name", "")
+            nameservers = zone_data.get("name_servers", [])
+            self._log(f"✓ Zona: {zone_name}")
+            self._log(f"✓ Nameservers: {', '.join(nameservers)}")
+            return {
+                "name": zone_name,
+                "nameservers": nameservers
+            }
+        self._log("No se pudo obtener información de la zona", "ERROR")
+        return None
+    
+    def validate_domain_in_zone(self, domain, zone_name):
+        """Valida que el dominio pertenezca a la zona configurada"""
+        # El dominio debe ser igual a la zona o un subdominio de ella
+        if domain == zone_name:
+            return True
+        if domain.endswith(f".{zone_name}"):
+            return True
+        return False
 
     def configure_dns_proxy(self, name, content, record_type="A"):
         """Crea o actualiza un registro DNS con Proxy activado"""
@@ -166,12 +182,21 @@ class CloudflareEdgeProtector:
             self._log("Nota: Regla de firewall no creada (puede requerir plan superior)", "WARN")
             return False
 
-    def run_provisioning(self, dns_name, origin_ip):
+    def run_provisioning(self, dns_name, origin_ip, zone_name):
         """Ejecuta el aprovisionamiento completo de protección perimetral"""
         self._log("=== INICIANDO PROVISIÓN DE SEGURIDAD PERIMETRAL ===")
         
-        nameservers = self.fetch_zone_nameservers()
+        # Validar que el dominio pertenece a la zona
+        if not self.validate_domain_in_zone(dns_name, zone_name):
+            self._log(f"ERROR: El dominio '{dns_name}' no pertenece a la zona '{zone_name}'", "ERROR")
+            self._log(f"Solo puede proteger dominios que sean '{zone_name}' o subdominios como 'app.{zone_name}'", "ERROR")
+            return {
+                "success": False,
+                "error": f"Dominio no válido para esta zona. Use '{zone_name}' o subdominios.",
+                "logs": self.logs
+            }
         
+        self._log(f"✓ Dominio '{dns_name}' validado para la zona '{zone_name}'")
         self._log(f"Configurando protección para dominio: {dns_name}")
         self.configure_dns_proxy(dns_name, origin_ip)
         
@@ -184,7 +209,7 @@ class CloudflareEdgeProtector:
         self._log("=== PROVISIÓN COMPLETADA EXITOSAMENTE ===")
         
         return {
-            "nameservers": nameservers,
+            "success": True,
             "logs": self.logs
         }
 
@@ -198,6 +223,24 @@ def validar_url(url):
         r'^(https?:\/\/)?(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(\/.*)?$'
     )
     return re.match(regex, url) is not None
+
+
+def obtener_ip_origen(dominio):
+    """
+    Obtiene la IP real del dominio mediante DNS lookup.
+    Esto es CRÍTICO para que la protección funcione correctamente.
+    """
+    try:
+        # Limpiar el dominio (remover protocolo y path)
+        dominio_limpio = dominio.replace("https://", "").replace("http://", "").split("/")[0]
+        
+        # Realizar DNS lookup
+        ip = socket.gethostbyname(dominio_limpio)
+        return ip, None
+    except socket.gaierror as e:
+        return None, f"No se pudo resolver el dominio {dominio}: {str(e)}"
+    except Exception as e:
+        return None, f"Error obteniendo IP del dominio: {str(e)}"
 
 
 def validate_turnstile(token, ip=None):
@@ -376,35 +419,72 @@ class handler(BaseHTTPRequestHandler):
             logs.append("Starting REAL Cloudflare protection configuration...")
             logs.append(f"Using Cloudflare Zone ID: {CF_ZONE_ID[:8]}...")
             
+            # Obtener información de la zona PRIMERO
+            temp_protector = CloudflareEdgeProtector(CF_API_TOKEN, CF_ZONE_ID)
+            zone_info = temp_protector.fetch_zone_info()
+            
+            if not zone_info:
+                self._send_json({
+                    "status": "error",
+                    "message": "No se pudo obtener información de la zona de Cloudflare",
+                    "logs": logs + temp_protector.logs
+                }, 500)
+                return
+            
+            zone_name = zone_info["name"]
+            all_nameservers = zone_info["nameservers"]
+            
+            logs.extend(temp_protector.logs)
+            logs.append(f"✓ Zona configurada: {zone_name}")
+            logs.append(f"✓ Solo se pueden proteger: {zone_name} y subdominios (ej: app.{zone_name})")
+            
             protegidos = []
-            all_nameservers = []
             
             for idx, url in enumerate(urls, 1):
                 dominio = url.replace("https://", "").replace("http://", "").split("/")[0]
                 
                 logs.append(f"[{idx}/{len(urls)}] Processing domain: {dominio}")
                 
+                # CRÍTICO: Obtener la IP REAL del dominio del usuario
+                logs.append(f"Resolving IP address for {dominio}...")
+                origin_ip, error = obtener_ip_origen(dominio)
+                
+                if error:
+                    logs.append(f"ERROR: {error}")
+                    logs.append(f"Skipping {dominio} - Cannot resolve IP address")
+                    protegidos.append({
+                        "dominio": dominio,
+                        "estado": f"Error: {error}",
+                        "nameservers": []
+                    })
+                    continue
+                
+                logs.append(f"✓ Resolved {dominio} -> {origin_ip}")
+                
                 # Crear instancia del protector
                 protector = CloudflareEdgeProtector(CF_API_TOKEN, CF_ZONE_ID)
                 
-                # IP de origen
-                ORIGIN_IP = "203.0.113.10"
-                
-                # Ejecutar aprovisionamiento
-                result = protector.run_provisioning(dominio, ORIGIN_IP)
+                # Ejecutar aprovisionamiento con la IP REAL del usuario
+                result = protector.run_provisioning(dominio, origin_ip, zone_name)
                 
                 # Agregar logs del protector
                 logs.extend(result["logs"])
                 
-                # Guardar nameservers
-                if result["nameservers"]:
-                    all_nameservers = result["nameservers"]
-                
-                protegidos.append({
-                    "dominio": dominio,
-                    "estado": "Protección perimetral configurada",
-                    "nameservers": result["nameservers"]
-                })
+                # Verificar si hubo error
+                if not result.get("success"):
+                    protegidos.append({
+                        "dominio": dominio,
+                        "estado": f"Error: {result.get('error', 'Unknown error')}",
+                        "nameservers": [],
+                        "origin_ip": origin_ip
+                    })
+                else:
+                    protegidos.append({
+                        "dominio": dominio,
+                        "estado": "Protección perimetral configurada",
+                        "nameservers": all_nameservers,
+                        "origin_ip": origin_ip
+                    })
             
             logs.append(f"✓ Protection setup completed for {len(protegidos)} domain(s)")
             logs.append("Next steps: Update nameservers at your domain registrar")
