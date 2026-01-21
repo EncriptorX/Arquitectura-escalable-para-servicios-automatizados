@@ -175,6 +175,91 @@ Se ha transformado completamente el diseño del proyecto con un enfoque minimali
 
 ---
 
+### 3. ServiceRequestForm.tsx - Formulario
+
+#### Modal
+**Antes:**
+- Fondo sólido gris oscuro
+- Bordes simples
+- Sin animaciones de entrada
+
+**Ahora:**
+- Glassmorphism con blur
+- Animación de entrada con escala y fade
+- Backdrop blur en fondo
+- Sombra dramática
+- Animación de salida
+
+#### Header del Formulario
+**Antes:**
+- Título simple
+- Botón de cerrar básico
+
+**Ahora:**
+- Logo con efecto de brillo pulsante
+- Título con gradiente
+- Botón de cerrar con animación de rotación
+- Glassmorphism en botón
+
+#### Campos de Entrada
+**Antes:**
+- Fondos sólidos grises
+- Bordes simples
+- Sin animaciones
+
+**Ahora:**
+- Glassmorphism en todos los inputs
+- Animación de entrada escalonada (delay por campo)
+- Focus con ring cyan
+- Placeholders elegantes
+- Transiciones suaves
+
+#### URLs Dinámicas
+**Antes:**
+- Botón de eliminar rojo sólido
+- Sin animaciones al agregar/eliminar
+
+**Ahora:**
+- AnimatePresence para entrada/salida suave
+- Botón de eliminar con glassmorphism
+- Animación de deslizamiento al agregar
+- Botón "Agregar" con animación de deslizamiento horizontal
+
+#### Textarea
+**Antes:**
+- Fondo sólido
+- Sin estilo especial
+
+**Ahora:**
+- Glassmorphism
+- Scrollbar personalizado
+- Placeholder elegante
+- Focus con ring
+
+#### Turnstile Widget
+**Antes:**
+- Sin animación de entrada
+
+**Ahora:**
+- Animación de escala y fade
+- Centrado con padding
+
+#### Botón de Envío
+**Antes:**
+- Gradiente simple
+- Hover básico
+- Sin iconos
+
+**Ahora:**
+- Gradiente vibrante
+- Iconos Shield y Sparkles
+- Animación de escala en hover/tap
+- Efecto glow
+- Estado de carga con spinner animado
+- Transiciones suaves
+
+---
+
 ## 🎨 Paleta de Colores
 
 ### Colores Principales
@@ -378,6 +463,12 @@ El nuevo diseño está inspirado en:
 - [x] Transiciones suaves (300ms)
 - [x] Scrollbar personalizado
 - [x] Focus states accesibles
+- [x] Formulario con glassmorphism
+- [x] Modal con animación de entrada/salida
+- [x] Campos con animación escalonada
+- [x] AnimatePresence en URLs dinámicas
+- [x] Botón de envío con iconos animados
+- [x] Turnstile con animación de escala
 
 ---
 
