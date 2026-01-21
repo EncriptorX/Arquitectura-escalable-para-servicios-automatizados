@@ -2,6 +2,7 @@ import json
 import os
 import re
 import requests
+from urllib.parse import parse_qs
 
 # ===============================
 # Configuración desde Vercel ENV
@@ -52,90 +53,115 @@ def validate_turnstile(token, ip=None):
         return False, f"Error conectando con Turnstile: {str(e)}"
 
 
-def json_response(status_code, body):
-    """Helper para crear respuestas JSON con CORS"""
-    return {
-        "statusCode": status_code,
-        "headers": {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type"
-        },
-        "body": json.dumps(body)
-    }
-
-
 # ===============================
 # Handler principal (Vercel)
 # ===============================
-def handler(event, context):
+def handler(request):
     """
     Vercel Serverless Function handler
+    request es un objeto Request de Vercel
     """
+    # Headers CORS
+    cors_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Content-Type": "application/json"
+    }
+    
     # Manejar preflight CORS
-    if event.get("httpMethod") == "OPTIONS":
-        return json_response(200, {"message": "OK"})
+    if request.method == "OPTIONS":
+        return {
+            "statusCode": 200,
+            "headers": cors_headers,
+            "body": json.dumps({"message": "OK"})
+        }
     
     # Health check
-    if event.get("httpMethod") == "GET":
-        return json_response(200, {
-            "status": "ok",
-            "message": "API funcionando correctamente"
-        })
+    if request.method == "GET":
+        return {
+            "statusCode": 200,
+            "headers": cors_headers,
+            "body": json.dumps({
+                "status": "ok",
+                "message": "API funcionando correctamente"
+            })
+        }
     
     # Solo aceptar POST
-    if event.get("httpMethod") != "POST":
-        return json_response(405, {
-            "status": "error",
-            "message": "Método no permitido"
-        })
+    if request.method != "POST":
+        return {
+            "statusCode": 405,
+            "headers": cors_headers,
+            "body": json.dumps({
+                "status": "error",
+                "message": f"Método {request.method} no permitido"
+            })
+        }
     
     try:
         # Parsear el body
-        body = event.get("body", "{}")
-        if isinstance(body, str):
-            data = json.loads(body)
-        else:
-            data = body
+        try:
+            data = request.get_json(force=True)
+        except:
+            # Intentar parsear como string
+            body_str = request.get_data(as_text=True)
+            data = json.loads(body_str) if body_str else {}
         
         # Validar token de Turnstile
         token = data.get("turnstileToken")
         if not token:
-            return json_response(400, {
-                "status": "error",
-                "message": "Falta el token de seguridad (Turnstile)"
-            })
+            return {
+                "statusCode": 400,
+                "headers": cors_headers,
+                "body": json.dumps({
+                    "status": "error",
+                    "message": "Falta el token de seguridad (Turnstile)"
+                })
+            }
         
         # Obtener IP del cliente
-        headers = event.get("headers", {})
-        client_ip = headers.get("x-forwarded-for", "").split(",")[0].strip()
+        client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        if not client_ip:
+            client_ip = request.headers.get("x-real-ip", "")
         
         # Validar con Cloudflare Turnstile
         ok, err = validate_turnstile(token, client_ip)
         
         if not ok:
             status_code = 500 if "TURNSTILE_SECRET_KEY" in (err or "") else 403
-            return json_response(status_code, {
-                "status": "error",
-                "message": err or "Verificación de seguridad fallida"
-            })
+            return {
+                "statusCode": status_code,
+                "headers": cors_headers,
+                "body": json.dumps({
+                    "status": "error",
+                    "message": err or "Verificación de seguridad fallida"
+                })
+            }
         
         # Obtener URLs
         urls = data.get("urls", [])
         if not urls:
-            return json_response(400, {
-                "status": "error",
-                "message": "No se proporcionaron URLs"
-            })
+            return {
+                "statusCode": 400,
+                "headers": cors_headers,
+                "body": json.dumps({
+                    "status": "error",
+                    "message": "No se proporcionaron URLs"
+                })
+            }
         
         # Validar formato de URLs
         for url in urls:
             if not validar_url(url):
-                return json_response(400, {
-                    "status": "error",
-                    "message": f"URL inválida: {url}"
-                })
+                return {
+                    "statusCode": 400,
+                    "headers": cors_headers,
+                    "body": json.dumps({
+                        "status": "error",
+                        "message": f"URL inválida: {url}"
+                    })
+                }
         
         # Procesar las URLs (simulación)
         protegidos = []
@@ -147,20 +173,32 @@ def handler(event, context):
             })
         
         # Respuesta exitosa
-        return json_response(200, {
-            "status": "ok",
-            "message": "Protección perimetral en proceso",
-            "urls": urls,
-            "sitios": protegidos
-        })
+        return {
+            "statusCode": 200,
+            "headers": cors_headers,
+            "body": json.dumps({
+                "status": "ok",
+                "message": "Protección perimetral en proceso",
+                "urls": urls,
+                "sitios": protegidos
+            })
+        }
     
-    except json.JSONDecodeError:
-        return json_response(400, {
-            "status": "error",
-            "message": "JSON inválido"
-        })
+    except json.JSONDecodeError as e:
+        return {
+            "statusCode": 400,
+            "headers": cors_headers,
+            "body": json.dumps({
+                "status": "error",
+                "message": f"JSON inválido: {str(e)}"
+            })
+        }
     except Exception as e:
-        return json_response(500, {
-            "status": "error",
-            "message": f"Error interno: {str(e)}"
-        })
+        return {
+            "statusCode": 500,
+            "headers": cors_headers,
+            "body": json.dumps({
+                "status": "error",
+                "message": f"Error interno: {str(e)}"
+            })
+        }
