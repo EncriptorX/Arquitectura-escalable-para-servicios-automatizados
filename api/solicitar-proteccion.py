@@ -2,7 +2,6 @@ import json
 import os
 import re
 import requests
-from http.server import BaseHTTPRequestHandler
 
 # ===============================
 # Configuración desde Vercel ENV
@@ -10,6 +9,7 @@ from http.server import BaseHTTPRequestHandler
 CF_API_TOKEN = os.getenv("CF_API_TOKEN")
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID")
 TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY")
+
 
 # ===============================
 # Utilidades
@@ -52,127 +52,115 @@ def validate_turnstile(token, ip=None):
         return False, f"Error conectando con Turnstile: {str(e)}"
 
 
+def json_response(status_code, body):
+    """Helper para crear respuestas JSON con CORS"""
+    return {
+        "statusCode": status_code,
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        },
+        "body": json.dumps(body)
+    }
+
+
 # ===============================
 # Handler principal (Vercel)
 # ===============================
-class handler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        try:
-            # Leer el body de la petición
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body.decode('utf-8'))
-            
-            # Validar token de Turnstile
-            token = data.get("turnstileToken")
-            if not token:
-                self.send_response(400)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(json.dumps({
-                    "status": "error",
-                    "message": "Falta el token de seguridad (Turnstile)"
-                }).encode())
-                return
-
-            # Validar con Cloudflare Turnstile
-            client_ip = self.headers.get('X-Forwarded-For', '').split(',')[0].strip()
-            ok, err = validate_turnstile(token, client_ip)
-            
-            if not ok:
-                status_code = 500 if "TURNSTILE_SECRET_KEY" in (err or "") else 403
-                self.send_response(status_code)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(json.dumps({
-                    "status": "error",
-                    "message": err or "Verificación de seguridad fallida"
-                }).encode())
-                return
-
-            # Obtener URLs
-            urls = data.get("urls", [])
-            if not urls:
-                self.send_response(400)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(json.dumps({
-                    "status": "error",
-                    "message": "No se proporcionaron URLs"
-                }).encode())
-                return
-
-            # Validar formato de URLs
-            for url in urls:
-                if not validar_url(url):
-                    self.send_response(400)
-                    self.send_header('Content-Type', 'application/json')
-                    self.send_header('Access-Control-Allow-Origin', '*')
-                    self.end_headers()
-                    self.wfile.write(json.dumps({
-                        "status": "error",
-                        "message": f"URL inválida: {url}"
-                    }).encode())
-                    return
-
-            # Procesar las URLs (simulación)
-            protegidos = []
-            for url in urls:
-                dominio = url.replace("https://", "").replace("http://", "").split("/")[0]
-                protegidos.append({
-                    "dominio": dominio,
-                    "estado": "Protección perimetral iniciada"
-                })
-
-            # Respuesta exitosa
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(json.dumps({
-                "status": "ok",
-                "message": "Protección perimetral en proceso",
-                "urls": urls,
-                "sitios": protegidos
-            }).encode())
-
-        except json.JSONDecodeError:
-            self.send_response(400)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(json.dumps({
-                "status": "error",
-                "message": "JSON inválido"
-            }).encode())
-        except Exception as e:
-            self.send_response(500)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(json.dumps({
-                "status": "error",
-                "message": f"Error interno: {str(e)}"
-            }).encode())
-
-    def do_OPTIONS(self):
-        """Manejar preflight CORS"""
-        self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.end_headers()
-
-    def do_GET(self):
-        """Health check endpoint"""
-        self.send_response(200)
-        self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
-        self.wfile.write(json.dumps({
+def handler(event, context):
+    """
+    Vercel Serverless Function handler
+    """
+    # Manejar preflight CORS
+    if event.get("httpMethod") == "OPTIONS":
+        return json_response(200, {"message": "OK"})
+    
+    # Health check
+    if event.get("httpMethod") == "GET":
+        return json_response(200, {
             "status": "ok",
             "message": "API funcionando correctamente"
-        }).encode())
+        })
+    
+    # Solo aceptar POST
+    if event.get("httpMethod") != "POST":
+        return json_response(405, {
+            "status": "error",
+            "message": "Método no permitido"
+        })
+    
+    try:
+        # Parsear el body
+        body = event.get("body", "{}")
+        if isinstance(body, str):
+            data = json.loads(body)
+        else:
+            data = body
+        
+        # Validar token de Turnstile
+        token = data.get("turnstileToken")
+        if not token:
+            return json_response(400, {
+                "status": "error",
+                "message": "Falta el token de seguridad (Turnstile)"
+            })
+        
+        # Obtener IP del cliente
+        headers = event.get("headers", {})
+        client_ip = headers.get("x-forwarded-for", "").split(",")[0].strip()
+        
+        # Validar con Cloudflare Turnstile
+        ok, err = validate_turnstile(token, client_ip)
+        
+        if not ok:
+            status_code = 500 if "TURNSTILE_SECRET_KEY" in (err or "") else 403
+            return json_response(status_code, {
+                "status": "error",
+                "message": err or "Verificación de seguridad fallida"
+            })
+        
+        # Obtener URLs
+        urls = data.get("urls", [])
+        if not urls:
+            return json_response(400, {
+                "status": "error",
+                "message": "No se proporcionaron URLs"
+            })
+        
+        # Validar formato de URLs
+        for url in urls:
+            if not validar_url(url):
+                return json_response(400, {
+                    "status": "error",
+                    "message": f"URL inválida: {url}"
+                })
+        
+        # Procesar las URLs (simulación)
+        protegidos = []
+        for url in urls:
+            dominio = url.replace("https://", "").replace("http://", "").split("/")[0]
+            protegidos.append({
+                "dominio": dominio,
+                "estado": "Protección perimetral iniciada"
+            })
+        
+        # Respuesta exitosa
+        return json_response(200, {
+            "status": "ok",
+            "message": "Protección perimetral en proceso",
+            "urls": urls,
+            "sitios": protegidos
+        })
+    
+    except json.JSONDecodeError:
+        return json_response(400, {
+            "status": "error",
+            "message": "JSON inválido"
+        })
+    except Exception as e:
+        return json_response(500, {
+            "status": "error",
+            "message": f"Error interno: {str(e)}"
+        })

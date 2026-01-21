@@ -96,9 +96,9 @@ Las Serverless Functions en `api/` ya incluyen headers CORS. Si tienes problemas
 ## Arquitectura
 
 - **Frontend**: React + Vite + TypeScript + Tailwind CSS
-- **Backend**: Vercel Serverless Functions (Python)
+- **Backend**: Vercel Serverless Functions (Python 3.9)
 - **Hosting**: Vercel Edge Network
-- **API**: `/api/solicitar-proteccion` (POST)
+- **API**: `/api/solicitar-proteccion` (POST, GET, OPTIONS)
 
 ## Endpoints
 
@@ -116,7 +116,7 @@ Solicita protección perimetral para dominios.
 }
 ```
 
-**Response:**
+**Response (Success):**
 ```json
 {
   "status": "ok",
@@ -129,6 +129,47 @@ Solicita protección perimetral para dominios.
     }
   ]
 }
+```
+
+**Response (Error):**
+```json
+{
+  "status": "error",
+  "message": "Descripción del error"
+}
+```
+
+### GET /api/solicitar-proteccion
+
+Health check endpoint.
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "message": "API funcionando correctamente"
+}
+```
+
+## Formato de Serverless Functions
+
+Las funciones en `api/` deben seguir el formato de Vercel:
+
+```python
+def handler(event, context):
+    # event contiene:
+    # - httpMethod: GET, POST, etc.
+    # - body: Request body (string o dict)
+    # - headers: Request headers
+    # - queryStringParameters: Query params
+    
+    return {
+        "statusCode": 200,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": json.dumps({"message": "OK"})
+    }
 ```
 
 ## Monitoreo
