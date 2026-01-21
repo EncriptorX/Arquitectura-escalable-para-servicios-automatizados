@@ -22,57 +22,69 @@ export default function ProcessInfoPage({
   onNewRequest,
 }: ProcessInfoPageProps) {
   const { toast } = useToast();
-  const [progress, setProgress] = useState(100); // Ya completado desde el API
+  const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
-  const [status, setStatus] = useState<'processing' | 'waiting_dns' | 'completed' | 'failed'>('completed');
+  const [status, setStatus] = useState<'processing' | 'waiting_dns' | 'completed' | 'failed'>('processing');
   const [nameservers, setNameservers] = useState<string[]>([]);
+  const [taskId, setTaskId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Parsear el output del API para obtener los logs reales
+    // Extraer task_id del output
     if (output) {
       try {
-        const apiResponse = JSON.parse(output);
-        
-        // Si el API retorna logs, usarlos
-        if (apiResponse.logs && Array.isArray(apiResponse.logs)) {
-          setLogs(apiResponse.logs);
-        }
-        
-        // Si el API retorna nameservers, usarlos
-        if (apiResponse.nameservers && Array.isArray(apiResponse.nameservers)) {
-          setNameservers(apiResponse.nameservers);
-          setStatus('waiting_dns');
-        }
-        
-        // Si el API retorna progreso, usarlo
-        if (apiResponse.progress) {
-          setProgress(apiResponse.progress);
-        }
-        
-        // Si está completado
-        if (apiResponse.status === 'ok') {
-          setStatus('completed');
+        const data = JSON.parse(output);
+        if (data.task_id) {
+          setTaskId(data.task_id);
         }
       } catch (e) {
-        // Si no se puede parsear, usar logs por defecto
-        setLogs([
-          'Initializing protection setup...',
-          `Processing ${urls.length} domain(s)...`,
-          message || 'Protection setup completed successfully!'
-        ]);
+        console.error("Error parsing output:", e);
       }
-    } else {
-      // Fallback: logs básicos si no hay output
-      setLogs([
-        'Initializing protection setup...',
-        `Processing ${urls.length} domain(s)...`,
-        'Validating security token...',
-        '✓ Security verification successful',
-        'Configuring domain protection...',
-        'Protection setup completed successfully!'
-      ]);
     }
-  }, [output, urls.length, message]);
+  }, [output]);
+
+  useEffect(() => {
+    if (!taskId) return;
+
+    // Polling para obtener el estado de la tarea
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/task-status?task_id=${taskId}`);
+        const taskData = await response.json();
+
+        if (taskData.status === 'error') {
+          clearInterval(pollInterval);
+          setStatus('failed');
+          return;
+        }
+
+        // Actualizar estado
+        setProgress(taskData.progress || 0);
+        setLogs(taskData.logs || []);
+        
+        if (taskData.nameservers && taskData.nameservers.length > 0) {
+          setNameservers(taskData.nameservers);
+          if (taskData.status === 'completed') {
+            setStatus('waiting_dns');
+          }
+        }
+
+        // Si está completado, detener polling
+        if (taskData.status === 'completed') {
+          clearInterval(pollInterval);
+          setStatus('completed');
+          setProgress(100);
+        } else if (taskData.status === 'failed') {
+          clearInterval(pollInterval);
+          setStatus('failed');
+        }
+      } catch (error) {
+        console.error("Error polling task status:", error);
+      }
+    }, 2000); // Poll cada 2 segundos
+
+    // Cleanup
+    return () => clearInterval(pollInterval);
+  }, [taskId]);
 
   const isComplete = status === 'completed';
   const isFailed = status === 'failed';
@@ -169,7 +181,7 @@ export default function ProcessInfoPage({
           </Card>
 
           {/* Action Required Box */}
-          {isActionRequired && (
+          {isActionRequired && nameservers.length > 0 && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -188,28 +200,22 @@ export default function ProcessInfoPage({
                       To complete the setup, please log in to your domain registrar and replace your existing
                       nameservers with the ones below. This delegates authority to Cloudflare.
                     </p>
-                    {nameservers && nameservers.length > 0 ? (
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        {nameservers.map((ns: string, idx: number) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between p-3 bg-gray-900 border border-yellow-800 rounded-md shadow-sm group hover:border-yellow-400 transition-colors"
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {nameservers.map((ns: string, idx: number) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-3 bg-gray-900 border border-yellow-800 rounded-md shadow-sm group hover:border-yellow-400 transition-colors"
+                        >
+                          <code className="font-mono text-sm text-gray-200">{ns}</code>
+                          <button
+                            onClick={() => copyToClipboard(ns)}
+                            className="p-1.5 hover:bg-gray-800 rounded text-gray-400 hover:text-gray-200 transition-colors"
                           >
-                            <code className="font-mono text-sm text-gray-200">{ns}</code>
-                            <button
-                              onClick={() => copyToClipboard(ns)}
-                              className="p-1.5 hover:bg-gray-800 rounded text-gray-400 hover:text-gray-200 transition-colors"
-                            >
-                              <Copy className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-4 bg-gray-900/50 rounded text-sm text-yellow-300 italic">
-                        Fetching assigned nameservers...
-                      </div>
-                    )}
+                            <Copy className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                     <div className="mt-4 flex items-center text-xs text-yellow-400">
                       <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                       Waiting for DNS propagation... this may take a few minutes to several hours.
@@ -228,7 +234,7 @@ export default function ProcessInfoPage({
                 <div key={idx} className="flex items-center justify-between p-3 bg-black rounded-lg">
                   <span className="text-gray-200">{url}</span>
                   <Badge variant="outline" className="bg-blue-900/20 text-blue-400 border-blue-800">
-                    Processing
+                    {isComplete ? 'Completed' : 'Processing'}
                   </Badge>
                 </div>
               ))}
@@ -240,16 +246,6 @@ export default function ProcessInfoPage({
             <h2 className="text-lg font-semibold tracking-tight ml-1">Live Execution Logs</h2>
             <LogTerminal logs={logs} className="h-[400px]" />
           </div>
-
-          {/* Technical Output */}
-          {output && (
-            <Card className="p-6 border-gray-800">
-              <h2 className="text-xl font-semibold mb-4">Technical Output</h2>
-              <div className="bg-black border border-gray-800 rounded-xl p-4 overflow-x-auto">
-                <pre className="text-sm text-gray-200 font-mono whitespace-pre-wrap">{output}</pre>
-              </div>
-            </Card>
-          )}
         </div>
       </main>
     </div>

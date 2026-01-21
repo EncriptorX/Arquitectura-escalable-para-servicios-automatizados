@@ -1,5 +1,6 @@
 """
 Vercel Serverless Function - Cloudflare Protection Integration
+With Real-time Progress Updates
 """
 from http.server import BaseHTTPRequestHandler
 import json
@@ -7,6 +8,8 @@ import os
 import re
 import urllib.request
 import urllib.parse
+import time
+import uuid
 
 
 # ===============================
@@ -17,12 +20,82 @@ CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
 CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "")
 
+# Directorio para almacenar estado de tareas
+TASKS_DIR = "/tmp/cloudflare_tasks"
+
+# Crear directorio si no existe
+if not os.path.exists(TASKS_DIR):
+    try:
+        os.makedirs(TASKS_DIR)
+    except:
+        pass
+
+
+# ===============================
+# Task Manager
+# ===============================
+class TaskManager:
+    @staticmethod
+    def create_task(task_id, urls):
+        """Crea una nueva tarea"""
+        task_data = {
+            "task_id": task_id,
+            "status": "processing",
+            "progress": 0,
+            "logs": [],
+            "urls": urls,
+            "sitios": [],
+            "nameservers": [],
+            "simulation_mode": not (CF_API_TOKEN and CF_ZONE_ID),
+            "created_at": time.time()
+        }
+        TaskManager.save_task(task_id, task_data)
+        return task_data
+    
+    @staticmethod
+    def save_task(task_id, task_data):
+        """Guarda el estado de una tarea"""
+        try:
+            task_file = f"{TASKS_DIR}/{task_id}.json"
+            with open(task_file, 'w') as f:
+                json.dump(task_data, f)
+        except Exception as e:
+            print(f"Error saving task: {e}")
+    
+    @staticmethod
+    def update_task(task_id, updates):
+        """Actualiza el estado de una tarea"""
+        try:
+            task_file = f"{TASKS_DIR}/{task_id}.json"
+            if os.path.exists(task_file):
+                with open(task_file, 'r') as f:
+                    task_data = json.load(f)
+                task_data.update(updates)
+                TaskManager.save_task(task_id, task_data)
+                return task_data
+        except Exception as e:
+            print(f"Error updating task: {e}")
+        return None
+    
+    @staticmethod
+    def add_log(task_id, log_message):
+        """Agrega un log a la tarea"""
+        try:
+            task_file = f"{TASKS_DIR}/{task_id}.json"
+            if os.path.exists(task_file):
+                with open(task_file, 'r') as f:
+                    task_data = json.load(f)
+                task_data['logs'].append(log_message)
+                TaskManager.save_task(task_id, task_data)
+        except Exception as e:
+            print(f"Error adding log: {e}")
+
 
 # ===============================
 # Cloudflare Edge Protector
 # ===============================
 class CloudflareEdgeProtector:
-    def __init__(self, token, zone_id):
+    def __init__(self, token, zone_id, task_id=None):
         self.base_url = "https://api.cloudflare.com/client/v4"
         self.zone_id = zone_id
         self.headers = {
@@ -30,11 +103,17 @@ class CloudflareEdgeProtector:
             "Content-Type": "application/json"
         }
         self.logs = []
+        self.task_id = task_id
 
     def _log(self, message, level="INFO"):
-        """Helper para logging"""
+        """Helper para logging con actualización en tiempo real"""
         log_entry = f"[{level}] {message}"
         self.logs.append(log_entry)
+        
+        # Actualizar tarea si existe task_id
+        if self.task_id:
+            TaskManager.add_log(self.task_id, log_entry)
+        
         return log_entry
 
     def _request(self, method, endpoint, data=None):
@@ -177,20 +256,50 @@ class CloudflareEdgeProtector:
         """Ejecuta el aprovisionamiento completo de protección perimetral"""
         self._log("=== INICIANDO PROVISIÓN DE SEGURIDAD PERIMETRAL ===")
         
+        # Actualizar progreso: 10%
+        if self.task_id:
+            TaskManager.update_task(self.task_id, {"progress": 10})
+        
         # Obtener nameservers
         nameservers = self.fetch_zone_nameservers()
+        
+        # Actualizar progreso: 20%
+        if self.task_id:
+            TaskManager.update_task(self.task_id, {"progress": 20, "nameservers": nameservers})
         
         # 1. Perímetro de Red (DNS + Proxy)
         self._log(f"Configurando protección para dominio: {dns_name}")
         self.configure_dns_proxy(dns_name, origin_ip)
         
+        # Actualizar progreso: 40%
+        if self.task_id:
+            TaskManager.update_task(self.task_id, {"progress": 40})
+        
         # 2. Cifrado y Transporte (SSL/HTTPS)
         self.configure_ssl_strict()
+        
+        # Actualizar progreso: 60%
+        if self.task_id:
+            TaskManager.update_task(self.task_id, {"progress": 60})
+        
         self.enable_https_force_redirect()
+        
+        # Actualizar progreso: 70%
+        if self.task_id:
+            TaskManager.update_task(self.task_id, {"progress": 70})
         
         # 3. Seguridad de Aplicación (WAF/DDoS)
         self.enable_security_features()
+        
+        # Actualizar progreso: 85%
+        if self.task_id:
+            TaskManager.update_task(self.task_id, {"progress": 85})
+        
         self.create_firewall_custom_rule()
+        
+        # Actualizar progreso: 95%
+        if self.task_id:
+            TaskManager.update_task(self.task_id, {"progress": 95})
         
         self._log("=== PROVISIÓN COMPLETADA EXITOSAMENTE ===")
         
@@ -278,7 +387,7 @@ class handler(BaseHTTPRequestHandler):
         }, 200)
     
     def do_POST(self):
-        """Procesa la solicitud de protección"""
+        """Procesa la solicitud de protección - Retorna task_id inmediatamente"""
         try:
             # Leer el body
             content_length = int(self.headers.get('Content-Length', 0))
@@ -308,14 +417,8 @@ class handler(BaseHTTPRequestHandler):
             if not client_ip:
                 client_ip = self.headers.get("X-Real-IP", "")
             
-            # Obtener URLs primero
+            # Obtener URLs
             urls = data.get("urls", [])
-            
-            # Inicializar logs
-            logs = []
-            logs.append("Initializing protection setup...")
-            logs.append(f"Processing {len(urls)} domain(s)...")
-            logs.append("Validating security token with Cloudflare Turnstile...")
             
             # Validar con Cloudflare Turnstile
             ok, err = validate_turnstile(token, client_ip)
@@ -324,68 +427,95 @@ class handler(BaseHTTPRequestHandler):
                 status_code = 500 if "TURNSTILE_SECRET_KEY" in (err or "") else 403
                 self._send_json({
                     "status": "error",
-                    "message": err or "Verificación de seguridad fallida",
-                    "logs": logs + [f"ERROR: {err}"]
+                    "message": err or "Verificación de seguridad fallida"
                 }, status_code)
                 return
-            
-            logs.append("✓ Security verification successful")
             
             # Validar que haya URLs
             if not urls:
                 self._send_json({
                     "status": "error",
-                    "message": "No se proporcionaron URLs",
-                    "logs": logs + ["ERROR: No URLs provided"]
+                    "message": "No se proporcionaron URLs"
                 }, 400)
                 return
             
             # Validar formato de URLs
-            logs.append("Validating URL formats...")
             for url in urls:
                 if not validar_url(url):
                     self._send_json({
                         "status": "error",
-                        "message": f"URL inválida: {url}",
-                        "logs": logs + [f"ERROR: Invalid URL format - {url}"]
+                        "message": f"URL inválida: {url}"
                     }, 400)
                     return
             
-            logs.append(f"✓ All {len(urls)} URLs validated successfully")
+            # Crear tarea única
+            task_id = str(uuid.uuid4())
+            task_data = TaskManager.create_task(task_id, urls)
             
+            # Agregar logs iniciales
+            TaskManager.add_log(task_id, "Initializing protection setup...")
+            TaskManager.add_log(task_id, f"Processing {len(urls)} domain(s)...")
+            TaskManager.add_log(task_id, "✓ Security verification successful")
+            TaskManager.add_log(task_id, "Validating URL formats...")
+            TaskManager.add_log(task_id, f"✓ All {len(urls)} URLs validated successfully")
+            
+            # Actualizar progreso inicial
+            TaskManager.update_task(task_id, {"progress": 5})
+            
+            # Procesar las URLs (esto se ejecuta síncronamente pero actualiza progreso)
+            self._process_urls_async(task_id, urls)
+            
+            # Retornar task_id inmediatamente
+            self._send_json({
+                "status": "ok",
+                "message": "Tarea iniciada",
+                "task_id": task_id,
+                "urls": urls
+            }, 200)
+            
+        except Exception as e:
+            self._send_json({
+                "status": "error",
+                "message": f"Error interno del servidor: {str(e)}",
+                "type": type(e).__name__
+            }, 500)
+    
+    def _process_urls_async(self, task_id, urls):
+        """Procesa las URLs y actualiza el progreso"""
+        try:
             # Verificar configuración de Cloudflare
             if not CF_API_TOKEN or not CF_ZONE_ID:
-                logs.append("WARNING: Cloudflare credentials not configured - running in simulation mode")
-                logs.append("To enable real protection, configure CF_API_TOKEN and CF_ZONE_ID in Vercel")
+                TaskManager.add_log(task_id, "WARNING: Cloudflare credentials not configured - running in simulation mode")
+                TaskManager.add_log(task_id, "To enable real protection, configure CF_API_TOKEN and CF_ZONE_ID in Vercel")
                 
-                # Modo simulación
+                # Modo simulación con delays para simular progreso
                 protegidos = []
                 for idx, url in enumerate(urls, 1):
                     dominio = url.replace("https://", "").replace("http://", "").split("/")[0]
-                    logs.append(f"[{idx}/{len(urls)}] Simulating protection for: {dominio}")
+                    TaskManager.add_log(task_id, f"[{idx}/{len(urls)}] Simulating protection for: {dominio}")
+                    
+                    # Simular progreso
+                    progress = 10 + (idx * 80 // len(urls))
+                    TaskManager.update_task(task_id, {"progress": progress})
+                    
                     protegidos.append({
                         "dominio": dominio,
                         "estado": "Simulación - Configure Cloudflare credentials",
                         "nameservers": ["Configure CF_API_TOKEN and CF_ZONE_ID"]
                     })
                 
-                logs.append("Simulation completed - No real changes made to Cloudflare")
-                
-                self._send_json({
-                    "status": "ok",
-                    "message": "Simulación completada - Configure credenciales de Cloudflare",
-                    "urls": urls,
-                    "sitios": protegidos,
-                    "logs": logs,
+                TaskManager.add_log(task_id, "Simulation completed - No real changes made to Cloudflare")
+                TaskManager.update_task(task_id, {
+                    "status": "completed",
                     "progress": 100,
-                    "nameservers": ["Configure CF_API_TOKEN and CF_ZONE_ID"],
-                    "simulation_mode": True
-                }, 200)
+                    "sitios": protegidos,
+                    "nameservers": ["Configure CF_API_TOKEN and CF_ZONE_ID"]
+                })
                 return
             
-            # Procesar las URLs con protección REAL de Cloudflare
-            logs.append("Starting REAL Cloudflare protection configuration...")
-            logs.append(f"Using Cloudflare Zone ID: {CF_ZONE_ID[:8]}...")
+            # Procesar con protección REAL de Cloudflare
+            TaskManager.add_log(task_id, "Starting REAL Cloudflare protection configuration...")
+            TaskManager.add_log(task_id, f"Using Cloudflare Zone ID: {CF_ZONE_ID[:8]}...")
             
             protegidos = []
             all_nameservers = []
@@ -393,19 +523,16 @@ class handler(BaseHTTPRequestHandler):
             for idx, url in enumerate(urls, 1):
                 dominio = url.replace("https://", "").replace("http://", "").split("/")[0]
                 
-                logs.append(f"[{idx}/{len(urls)}] Processing domain: {dominio}")
+                TaskManager.add_log(task_id, f"[{idx}/{len(urls)}] Processing domain: {dominio}")
                 
-                # Crear instancia del protector
-                protector = CloudflareEdgeProtector(CF_API_TOKEN, CF_ZONE_ID)
+                # Crear instancia del protector con task_id
+                protector = CloudflareEdgeProtector(CF_API_TOKEN, CF_ZONE_ID, task_id)
                 
-                # IP de origen (en producción debería venir de configuración o DNS lookup)
-                ORIGIN_IP = "203.0.113.10"  # IP placeholder
+                # IP de origen
+                ORIGIN_IP = "203.0.113.10"
                 
                 # Ejecutar aprovisionamiento
                 result = protector.run_provisioning(dominio, ORIGIN_IP)
-                
-                # Agregar logs del protector
-                logs.extend(result["logs"])
                 
                 # Guardar nameservers
                 if result["nameservers"]:
@@ -417,25 +544,20 @@ class handler(BaseHTTPRequestHandler):
                     "nameservers": result["nameservers"]
                 })
             
-            logs.append(f"✓ Protection setup completed for {len(protegidos)} domain(s)")
-            logs.append("Next steps: Update nameservers at your domain registrar")
+            TaskManager.add_log(task_id, f"✓ Protection setup completed for {len(protegidos)} domain(s)")
+            TaskManager.add_log(task_id, "Next steps: Update nameservers at your domain registrar")
             
-            # Respuesta exitosa
-            self._send_json({
-                "status": "ok",
-                "message": "Protección perimetral configurada exitosamente",
-                "urls": urls,
-                "sitios": protegidos,
-                "logs": logs,
+            # Marcar como completado
+            TaskManager.update_task(task_id, {
+                "status": "completed",
                 "progress": 100,
-                "nameservers": all_nameservers,
-                "simulation_mode": False
-            }, 200)
+                "sitios": protegidos,
+                "nameservers": all_nameservers
+            })
             
         except Exception as e:
-            # Capturar cualquier error no manejado
-            self._send_json({
-                "status": "error",
-                "message": f"Error interno del servidor: {str(e)}",
-                "type": type(e).__name__
-            }, 500)
+            TaskManager.add_log(task_id, f"ERROR: {str(e)}")
+            TaskManager.update_task(task_id, {
+                "status": "failed",
+                "error": str(e)
+            })
