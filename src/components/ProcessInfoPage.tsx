@@ -133,36 +133,37 @@ export default function ProcessInfoPage({
   return (
     <div className="min-h-screen bg-black text-white">
       <header className="fixed w-full top-0 z-40 bg-black bg-opacity-90 backdrop-blur-sm border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Shield className="text-cyan-400" size={32} />
-              <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <Shield className="text-cyan-400 flex-shrink-0" size={24} />
+              <span className="text-base sm:text-lg md:text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent truncate">
                 SecurePerimeter
               </span>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3 flex-shrink-0">
               <button
                 onClick={onBack}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 rounded-lg border border-gray-700 transition-colors"
+                className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 rounded-lg border border-gray-700 transition-colors whitespace-nowrap"
               >
-                <ArrowLeft size={18} />
-                Volver al inicio
+                <ArrowLeft size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden sm:inline">Volver</span>
               </button>
               <button
                 onClick={onNewRequest}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 rounded-lg transition-all transform hover:scale-105"
+                className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 rounded-lg transition-all transform hover:scale-105 whitespace-nowrap"
               >
-                <Repeat size={18} />
-                Enviar otra solicitud
+                <Repeat size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden sm:inline">Nueva solicitud</span>
+                <span className="sm:hidden">Nueva</span>
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto space-y-8">
+      <main className="pt-20 sm:pt-24 pb-12 sm:pb-16 px-3 sm:px-4 md:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8">
           {/* Simulation Mode Warning */}
           {isSimulationMode === true && (
             <motion.div
@@ -170,20 +171,20 @@ export default function ProcessInfoPage({
               animate={{ opacity: 1, y: 0 }}
               className="border-l-4 border-orange-500 bg-orange-900/20 rounded-r-lg overflow-hidden shadow-sm"
             >
-              <div className="p-6">
-                <div className="flex items-start space-x-4">
-                  <div className="p-2 bg-orange-900/40 rounded-full text-orange-400">
-                    <AlertTriangle className="w-6 h-6" />
+              <div className="p-4 sm:p-5 md:p-6">
+                <div className="flex items-start space-x-3 sm:space-x-4">
+                  <div className="p-1.5 sm:p-2 bg-orange-900/40 rounded-full text-orange-400 flex-shrink-0">
+                    <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-orange-200 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-bold text-orange-200 mb-1.5 sm:mb-2">
                       ⚠️ MODO SIMULACIÓN ACTIVO
                     </h3>
-                    <p className="text-orange-300 mb-2">
+                    <p className="text-orange-300 text-sm sm:text-base mb-1.5 sm:mb-2">
                       El servicio está corriendo en <strong>modo simulación</strong>. No se aplicó protección real de Cloudflare.
                     </p>
-                    <p className="text-orange-300 text-sm">
-                      Para activar la protección real, configura <code className="bg-orange-900/40 px-2 py-1 rounded">CF_API_TOKEN</code> y <code className="bg-orange-900/40 px-2 py-1 rounded">CF_ZONE_ID</code> en Vercel.
+                    <p className="text-orange-300 text-xs sm:text-sm">
+                      Para activar la protección real, configura <code className="bg-orange-900/40 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs">CF_API_TOKEN</code> y <code className="bg-orange-900/40 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs">CF_ZONE_ID</code> en Vercel.
                     </p>
                   </div>
                 </div>
@@ -198,16 +199,16 @@ export default function ProcessInfoPage({
               animate={{ opacity: 1, y: 0 }}
               className="border-l-4 border-green-500 bg-green-900/20 rounded-r-lg overflow-hidden shadow-sm"
             >
-              <div className="p-6">
-                <div className="flex items-start space-x-4">
-                  <div className="p-2 bg-green-900/40 rounded-full text-green-400">
-                    <Check className="w-6 h-6" />
+              <div className="p-4 sm:p-5 md:p-6">
+                <div className="flex items-start space-x-3 sm:space-x-4">
+                  <div className="p-1.5 sm:p-2 bg-green-900/40 rounded-full text-green-400 flex-shrink-0">
+                    <Check className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-green-200 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-bold text-green-200 mb-1.5 sm:mb-2">
                       ✅ MODO REAL ACTIVO
                     </h3>
-                    <p className="text-green-300">
+                    <p className="text-green-300 text-sm sm:text-base">
                       El servicio aplicó protección perimetral <strong>REAL</strong> de Cloudflare a tu dominio.
                     </p>
                   </div>
@@ -217,22 +218,22 @@ export default function ProcessInfoPage({
           )}
           
           {/* Header Section */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col gap-4">
             <div>
-              <div className="flex items-center space-x-3 mb-1">
-                <h1 className="text-3xl font-bold tracking-tight">Deployment Status</h1>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Deployment Status</h1>
                 <Badge
                   variant="outline"
-                  className={`${isComplete ? "bg-green-50 text-green-700 border-green-200" : ""}
+                  className={`text-xs sm:text-sm ${isComplete ? "bg-green-50 text-green-700 border-green-200" : ""}
                     ${isFailed ? "bg-red-50 text-red-700 border-red-200" : ""}
                     ${!isComplete && !isFailed ? "bg-blue-50 text-blue-700 border-blue-200 animate-pulse" : ""}`}
                 >
                   {status.replace(/_/g, " ").toUpperCase()}
                 </Badge>
               </div>
-              <p className="text-gray-400 text-sm">{message}</p>
+              <p className="text-gray-400 text-xs sm:text-sm">{message}</p>
             </div>
-            <div className="flex space-x-8 text-sm text-gray-400 border-l border-gray-800 pl-8">
+            <div className="flex flex-wrap gap-4 sm:gap-6 text-xs sm:text-sm text-gray-400 border-l border-gray-800 pl-4 sm:pl-6 md:pl-8">
               <div className="flex flex-col">
                 <span className="font-medium text-white">Target Domains</span>
                 <span>{urls.length} domain(s)</span>
@@ -241,13 +242,13 @@ export default function ProcessInfoPage({
           </div>
 
           {/* Progress Section */}
-          <Card className="p-6 border-gray-800 shadow-sm">
-            <div className="space-y-4">
-              <div className="flex justify-between text-sm font-medium">
+          <Card className="p-4 sm:p-5 md:p-6 border-gray-800 shadow-sm">
+            <div className="space-y-3 sm:space-y-4">
+              <div className="flex justify-between text-xs sm:text-sm font-medium">
                 <span>Overall Progress</span>
                 <span>{progress}%</span>
               </div>
-              <div className="relative h-3 w-full overflow-hidden rounded-full bg-gray-800">
+              <div className="relative h-2.5 sm:h-3 w-full overflow-hidden rounded-full bg-gray-800">
                 <motion.div
                   className={`h-full ${isFailed ? "bg-red-500" : "bg-cyan-500"}`}
                   initial={{ width: 0 }}
@@ -255,7 +256,7 @@ export default function ProcessInfoPage({
                   transition={{ duration: 0.5, ease: "easeInOut" }}
                 />
               </div>
-              <div className="grid grid-cols-4 gap-2 pt-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 sm:pt-4">
                 <StepIndicator label="Analyzing" active={progress > 0} completed={progress >= 25} icon={Globe} />
                 <StepIndicator label="Provisioning" active={progress >= 25} completed={progress >= 50} icon={Activity} />
                 <StepIndicator label="Securing" active={progress >= 50} completed={progress >= 75} icon={Shield} />
@@ -271,38 +272,38 @@ export default function ProcessInfoPage({
               animate={{ opacity: 1, scale: 1 }}
               className="border-l-4 border-yellow-500 bg-yellow-900/20 rounded-r-lg overflow-hidden shadow-sm"
             >
-              <div className="p-6">
-                <div className="flex items-start space-x-4">
-                  <div className="p-2 bg-yellow-900/40 rounded-full text-yellow-400">
-                    <AlertTriangle className="w-6 h-6" />
+              <div className="p-4 sm:p-5 md:p-6">
+                <div className="flex items-start space-x-3 sm:space-x-4">
+                  <div className="p-1.5 sm:p-2 bg-yellow-900/40 rounded-full text-yellow-400 flex-shrink-0">
+                    <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-yellow-200 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-bold text-yellow-200 mb-1.5 sm:mb-2">
                       Action Required: Update Nameservers
                     </h3>
-                    <p className="text-yellow-300 mb-4">
+                    <p className="text-yellow-300 text-sm sm:text-base mb-3 sm:mb-4">
                       To complete the setup, please log in to your domain registrar and replace your existing
                       nameservers with the ones below. This delegates authority to Cloudflare.
                     </p>
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       {nameservers.map((ns: string, idx: number) => (
                         <div
                           key={idx}
-                          className="flex items-center justify-between p-3 bg-gray-900 border border-yellow-800 rounded-md shadow-sm group hover:border-yellow-400 transition-colors"
+                          className="flex items-center justify-between p-2.5 sm:p-3 bg-gray-900 border border-yellow-800 rounded-md shadow-sm group hover:border-yellow-400 transition-colors"
                         >
-                          <code className="font-mono text-sm text-gray-200">{ns}</code>
+                          <code className="font-mono text-xs sm:text-sm text-gray-200 truncate pr-2">{ns}</code>
                           <button
                             onClick={() => copyToClipboard(ns)}
-                            className="p-1.5 hover:bg-gray-800 rounded text-gray-400 hover:text-gray-200 transition-colors"
+                            className="p-1.5 hover:bg-gray-800 rounded text-gray-400 hover:text-gray-200 transition-colors flex-shrink-0"
                           >
-                            <Copy className="w-4 h-4" />
+                            <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           </button>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 flex items-center text-xs text-yellow-400">
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      Waiting for DNS propagation... this may take a few minutes to several hours.
+                    <div className="mt-3 sm:mt-4 flex items-center text-xs text-yellow-400">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin flex-shrink-0" />
+                      <span>Waiting for DNS propagation... this may take a few minutes to several hours.</span>
                     </div>
                   </div>
                 </div>
@@ -311,13 +312,13 @@ export default function ProcessInfoPage({
           )}
 
           {/* URLs Section */}
-          <Card className="p-6 border-gray-800">
-            <h2 className="text-xl font-semibold mb-4">Protected Domains</h2>
+          <Card className="p-4 sm:p-5 md:p-6 border-gray-800">
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Protected Domains</h2>
             <div className="space-y-2">
               {urls.map((url, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-black rounded-lg">
-                  <span className="text-gray-200">{url}</span>
-                  <Badge variant="outline" className="bg-blue-900/20 text-blue-400 border-blue-800">
+                <div key={idx} className="flex items-center justify-between p-2.5 sm:p-3 bg-black rounded-lg gap-2">
+                  <span className="text-gray-200 text-sm sm:text-base truncate">{url}</span>
+                  <Badge variant="outline" className="bg-blue-900/20 text-blue-400 border-blue-800 text-xs whitespace-nowrap flex-shrink-0">
                     {isComplete ? 'Completed' : 'Processing'}
                   </Badge>
                 </div>
@@ -327,8 +328,8 @@ export default function ProcessInfoPage({
 
           {/* Logs Terminal */}
           <div className="space-y-2">
-            <h2 className="text-lg font-semibold tracking-tight ml-1">Live Execution Logs</h2>
-            <LogTerminal logs={logs} className="h-[400px]" />
+            <h2 className="text-base sm:text-lg font-semibold tracking-tight ml-1">Live Execution Logs</h2>
+            <LogTerminal logs={logs} className="h-[300px] sm:h-[350px] md:h-[400px]" />
           </div>
         </div>
       </main>
@@ -349,14 +350,14 @@ function StepIndicator({
 }) {
   return (
     <div
-      className={`flex flex-col items-center space-y-2 p-3 rounded-lg transition-colors ${
+      className={`flex flex-col items-center space-y-1.5 sm:space-y-2 p-2 sm:p-3 rounded-lg transition-colors ${
         completed ? "text-cyan-400" : active ? "text-white bg-gray-800/50" : "text-gray-600 opacity-50"
       }`}
     >
-      <div className={`p-2 rounded-full ${completed ? "bg-cyan-500/10" : "bg-transparent"}`}>
-        <Icon className="w-5 h-5" />
+      <div className={`p-1.5 sm:p-2 rounded-full ${completed ? "bg-cyan-500/10" : "bg-transparent"}`}>
+        <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
       </div>
-      <span className="text-xs font-semibold uppercase tracking-wider">{label}</span>
+      <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-center">{label}</span>
     </div>
   );
 }
