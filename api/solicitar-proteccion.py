@@ -115,12 +115,16 @@ class handler(BaseHTTPRequestHandler):
             if not client_ip:
                 client_ip = self.headers.get("X-Real-IP", "")
             
-            # Validar con Cloudflare Turnstile
+            # Obtener URLs primero (necesario para los logs)
+            urls = data.get("urls", [])
+            
+            # Inicializar logs
             logs = []
             logs.append("Initializing protection setup...")
             logs.append(f"Processing {len(urls)} domain(s)...")
             logs.append("Validating security token with Cloudflare Turnstile...")
             
+            # Validar con Cloudflare Turnstile
             ok, err = validate_turnstile(token, client_ip)
             
             if not ok:
@@ -134,8 +138,7 @@ class handler(BaseHTTPRequestHandler):
             
             logs.append("✓ Security verification successful")
             
-            # Obtener URLs
-            urls = data.get("urls", [])
+            # Validar que haya URLs
             if not urls:
                 self._send_json({
                     "status": "error",
