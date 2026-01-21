@@ -2,6 +2,7 @@ import json
 import os
 import re
 import requests
+from http.server import BaseHTTPRequestHandler
 
 # ===============================
 # Configuración desde Vercel ENV
@@ -13,119 +14,165 @@ TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY")
 # ===============================
 # Utilidades
 # ===============================
-def json_response(status, body):
-    return {
-        "statusCode": status,
-        "headers": {
-            "Content-Type": "application/json"
-        },
-        "body": json.dumps(body)
-    }
-
-
 def validar_url(url):
+    """Valida que la URL tenga un formato correcto"""
     regex = re.compile(
         r'^(https?:\/\/)?(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(\/.*)?$'
     )
-    return re.match(regex, url)
+    return re.match(regex, url) is not None
+
+
+def validate_turnstile(token, ip=None):
+    """Valida el token de Turnstile con la API de Cloudflare"""
+    if not TURNSTILE_SECRET_KEY:
+        return False, "TURNSTILE_SECRET_KEY no está configurada"
+
+    url = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+    data = {
+        "secret": TURNSTILE_SECRET_KEY,
+        "response": token
+    }
+    
+    if ip:
+        data["remoteip"] = ip
+
+    try:
+        r = requests.post(url, data=data, timeout=10)
+        result = r.json()
+        
+        if result.get("success", False):
+            return True, None
+        
+        codes = result.get("error-codes") or result.get("error_codes") or []
+        msg = "Verificación Turnstile fallida"
+        if codes:
+            msg += f". Códigos: {', '.join(codes)}"
+        return False, msg
+    except Exception as e:
+        return False, f"Error conectando con Turnstile: {str(e)}"
+
 
 # ===============================
 # Handler principal (Vercel)
 # ===============================
-def handler(request):
+class handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        try:
+            # Leer el body de la petición
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            
+            # Validar token de Turnstile
+            token = data.get("turnstileToken")
+            if not token:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "error",
+                    "message": "Falta el token de seguridad (Turnstile)"
+                }).encode())
+                return
 
-    if request.method != "POST":
-        return json_response(405, {"error": "Método no permitido"})
+            # Validar con Cloudflare Turnstile
+            client_ip = self.headers.get('X-Forwarded-For', '').split(',')[0].strip()
+            ok, err = validate_turnstile(token, client_ip)
+            
+            if not ok:
+                status_code = 500 if "TURNSTILE_SECRET_KEY" in (err or "") else 403
+                self.send_response(status_code)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "error",
+                    "message": err or "Verificación de seguridad fallida"
+                }).encode())
+                return
 
-    try:
-        data = request.get_json()
-    except Exception:
-        return json_response(400, {"error": "JSON inválido"})
+            # Obtener URLs
+            urls = data.get("urls", [])
+            if not urls:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "error",
+                    "message": "No se proporcionaron URLs"
+                }).encode())
+                return
 
-    token = data.get("turnstileToken")
+            # Validar formato de URLs
+            for url in urls:
+                if not validar_url(url):
+                    self.send_response(400)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({
+                        "status": "error",
+                        "message": f"URL inválida: {url}"
+                    }).encode())
+                    return
 
-    if not token:
-        return json_response(400, {"error": "Token Turnstile faltante"})
+            # Procesar las URLs (simulación)
+            protegidos = []
+            for url in urls:
+                dominio = url.replace("https://", "").replace("http://", "").split("/")[0]
+                protegidos.append({
+                    "dominio": dominio,
+                    "estado": "Protección perimetral iniciada"
+                })
 
-    # 🔐 Validación Turnstile
-    ts_verify = requests.post(
-        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-        data={
-            "secret": TURNSTILE_SECRET_KEY,
-            "response": token
-        },
-        timeout=10
-    )
+            # Respuesta exitosa
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "ok",
+                "message": "Protección perimetral en proceso",
+                "urls": urls,
+                "sitios": protegidos
+            }).encode())
 
-    result = ts_verify.json()
+        except json.JSONDecodeError:
+            self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "error",
+                "message": "JSON inválido"
+            }).encode())
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "error",
+                "message": f"Error interno: {str(e)}"
+            }).encode())
 
-    if not result.get("success"):
-        return json_response(403, {
-            "error": "Captcha inválido",
-            "details": result
-        })
+    def do_OPTIONS(self):
+        """Manejar preflight CORS"""
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
 
-    return json_response(200, {
-        "message": "Turnstile validado correctamente"
-    })
-
-    # -------- Validar URLs --------
-    for url in urls:
-        if not validar_url(url):
-            return response(400, {"error": f"URL inválida: {url}"})
-
-    # ===============================
-    # Validación Turnstile
-    # ===============================
-    ts_response = requests.post(
-        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-        data={
-            "secret": TURNSTILE_SECRET_KEY,
-            "response": turnstile_token
-        },
-        timeout=10
-    )
-
-    ts_result = ts_response.json()
-
-    if not ts_result.get("success"):
-        return response(403, {
-            "error": "Captcha inválido",
-            "details": ts_result
-        })
-
-    # ===============================
-    # Cloudflare API (ejemplo básico)
-    # ===============================
-    headers = {
-        "Authorization": f"Bearer {CF_API_TOKEN}",
-        "Content-Type": "application/json"
-    }
-
-    protegidos = []
-
-    for url in urls:
-        dominio = url.replace("https://", "").replace("http://", "").split("/")[0]
-
-        # ⚠ Aquí SOLO simulamos la protección
-        # En producción:
-        # - Crear zona
-        # - Activar proxy
-        # - Activar WAF
-        # - Forzar HTTPS
-        # - Reglas firewall
-
-        protegidos.append({
-            "dominio": dominio,
-            "estado": "Protección perimetral iniciada"
-        })
-
-    # ===============================
-    # Respuesta final
-    # ===============================
-    return response(200, {
-        "message": "Solicitud procesada correctamente",
-        "empresa": company,
-        "email": email,
-        "sitios": protegidos
-    })
+    def do_GET(self):
+        """Health check endpoint"""
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(json.dumps({
+            "status": "ok",
+            "message": "API funcionando correctamente"
+        }).encode())
