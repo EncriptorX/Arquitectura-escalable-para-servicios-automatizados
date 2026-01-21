@@ -223,27 +223,27 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto"
+      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div 
-        className="bg-gray-900 rounded-lg shadow-2xl max-w-2xl w-full my-8 border border-gray-700"
+        className="bg-gray-900 rounded-lg shadow-2xl w-full max-w-2xl my-4 sm:my-8 border border-gray-700 max-h-[95vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <h2 className="text-2xl font-bold text-white">Solicitud de Protección Perimetral</h2>
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-700 flex-shrink-0">
+          <h2 className="text-lg sm:text-2xl font-bold text-white pr-2">Solicitud de Protección Perimetral</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white hover:bg-gray-800 p-2 rounded-lg transition-all"
+            className="text-gray-400 hover:text-white hover:bg-gray-800 p-2 rounded-lg transition-all flex-shrink-0"
             aria-label="Cerrar"
           >
-            <X size={24} />
+            <X size={20} className="sm:w-6 sm:h-6" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
           {error && (
-            <div className="bg-red-500 bg-opacity-10 border border-red-500 text-red-500 px-4 py-3 rounded">
+            <div className="bg-red-500 bg-opacity-10 border border-red-500 text-red-500 px-3 py-2 sm:px-4 sm:py-3 rounded text-sm">
               {error}
             </div>
           )}
@@ -258,7 +258,7 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
               required
               value={formData.company_name}
               onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors"
+              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-cyan-500 transition-colors"
             />
           </div>
 
@@ -272,7 +272,7 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
               required
               value={formData.contact_name}
               onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors"
+              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-cyan-500 transition-colors"
             />
           </div>
 
@@ -286,7 +286,7 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
               required
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors"
+              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-cyan-500 transition-colors"
             />
           </div>
 
@@ -299,7 +299,7 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
               id="phone"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors"
+              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-cyan-500 transition-colors"
             />
           </div>
 
@@ -307,7 +307,7 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
             <label className="block text-sm font-medium text-gray-300 mb-2">
               URLs a Proteger *
             </label>
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {urls.map((url, index) => (
                 <div key={index} className="flex gap-2">
                   <input
@@ -315,16 +315,16 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
                     value={url}
                     onChange={(e) => updateUrl(index, e.target.value)}
                     placeholder="https://ejemplo.com"
-                    className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                    className="flex-1 px-3 py-2 sm:px-4 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-cyan-500 transition-colors"
                   />
                   {urls.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeUrlField(index)}
-                      className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                      className="px-3 py-2 sm:px-4 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex-shrink-0"
                       aria-label="Eliminar URL"
                     >
-                      <X size={20} />
+                      <X size={18} className="sm:w-5 sm:h-5" />
                     </button>
                   )}
                 </div>
@@ -333,9 +333,9 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
             <button
               type="button"
               onClick={addUrlField}
-              className="mt-3 flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
+              className="mt-2 sm:mt-3 flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors text-sm sm:text-base"
             >
-              <Plus size={20} />
+              <Plus size={18} className="sm:w-5 sm:h-5" />
               <span>Agregar otra URL</span>
             </button>
           </div>
@@ -346,17 +346,17 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
             </label>
             <textarea
               id="comments"
-              rows={4}
+              rows={3}
               value={formData.comments}
               onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors resize-none"
+              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-cyan-500 transition-colors resize-none"
             />
           </div>
 
           {/* Widget de Turnstile */}
           <div className="flex justify-center py-2">
             <div
-              className="cf-turnstile"
+              className="cf-turnstile scale-90 sm:scale-100 origin-center"
               data-sitekey={TURNSTILE_SITE_KEY}
               data-theme="dark"
               ref={turnstileContainerRef}
@@ -366,11 +366,11 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-4 px-6 rounded-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="animate-spin" size={20} />
+                <Loader2 className="animate-spin" size={18} />
                 <span>Enviando...</span>
               </>
             ) : (
