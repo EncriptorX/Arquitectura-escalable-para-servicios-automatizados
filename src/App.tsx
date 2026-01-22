@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Shield, Zap, Lock, Globe, Activity, CheckCircle, Cloud, ShieldCheck, Eye, Server, BarChart3, Clock, Sparkles } from 'lucide-react';
+import { Shield, Zap, Lock, Globe, Activity, CheckCircle, Cloud, ShieldCheck, Eye, Server, BarChart3, Clock, Sparkles, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ServiceRequestForm from './components/ServiceRequestForm';
 import ProcessInfoPage from './components/ProcessInfoPage';
+import ControlPanelPage from './components/ControlPanelPage';
 
 type ProcessInfo = {
   urls: string[];
@@ -10,23 +11,29 @@ type ProcessInfo = {
   output?: string;
 };
 
+type View = 'home' | 'form' | 'process' | 'control-panel';
+
 function App() {
-  const [showForm, setShowForm] = useState(false);
+  const [currentView, setCurrentView] = useState<View>('home');
   const [processInfo, setProcessInfo] = useState<ProcessInfo | null>(null);
 
   const handleSuccess = (payload: ProcessInfo) => {
     setProcessInfo(payload);
-    setShowForm(false);
+    setCurrentView('process');
   };
 
   const handleBackHome = () => {
     setProcessInfo(null);
-    setShowForm(false);
+    setCurrentView('home');
   };
 
   const handleNewRequest = () => {
     setProcessInfo(null);
-    setShowForm(true);
+    setCurrentView('form');
+  };
+
+  const handleOpenControlPanel = () => {
+    setCurrentView('control-panel');
   };
 
   const features = [
@@ -54,7 +61,11 @@ function App() {
     { number: '04', title: 'Protección Activa', description: 'Su infraestructura queda protegida' },
   ];
 
-  if (processInfo) {
+  if (currentView === 'control-panel') {
+    return <ControlPanelPage onBack={handleBackHome} />;
+  }
+
+  if (currentView === 'process' && processInfo) {
     return (
       <ProcessInfoPage
         urls={processInfo.urls}
@@ -68,9 +79,9 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900">
-      {showForm && (
+      {currentView === 'form' && (
         <ServiceRequestForm
-          onClose={() => setShowForm(false)}
+          onClose={() => setCurrentView('home')}
           onSuccess={handleSuccess}
         />
       )}
@@ -98,15 +109,28 @@ function App() {
               <span className="text-xl font-bold gradient-text">SecurePerimeter</span>
             </motion.div>
             
-            <motion.button
-              onClick={() => setShowForm(true)}
-              className="glass glass-hover px-6 py-2.5 rounded-full font-medium text-sm hover-glow group"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <span className="gradient-text">Solicitar Protección</span>
-              <Sparkles className="inline-block ml-2 w-4 h-4 text-cyan-400 group-hover:rotate-12 transition-transform" />
-            </motion.button>
+            <div className="flex items-center gap-3">
+              <motion.button
+                onClick={handleOpenControlPanel}
+                className="glass glass-hover px-4 py-2.5 rounded-full font-medium text-sm group"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Settings className="inline-block mr-2 w-4 h-4 text-cyan-400" />
+                <span className="gradient-text hidden sm:inline">Panel de Control</span>
+                <span className="gradient-text sm:hidden">Panel</span>
+              </motion.button>
+              
+              <motion.button
+                onClick={() => setCurrentView('form')}
+                className="glass glass-hover px-6 py-2.5 rounded-full font-medium text-sm hover-glow group"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <span className="gradient-text">Solicitar Protección</span>
+                <Sparkles className="inline-block ml-2 w-4 h-4 text-cyan-400 group-hover:rotate-12 transition-transform" />
+              </motion.button>
+            </div>
           </div>
         </div>
       </motion.header>
@@ -171,7 +195,7 @@ function App() {
               transition={{ duration: 0.6, delay: 0.3 }}
             >
               <motion.button
-                onClick={() => setShowForm(true)}
+                onClick={() => setCurrentView('form')}
                 className="group relative inline-flex items-center gap-3 bg-gradient-to-r from-cyan-500 to-blue-600 px-8 py-4 rounded-full font-semibold text-lg hover-glow"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -333,7 +357,7 @@ function App() {
             className="mt-12 text-center"
           >
             <motion.button
-              onClick={() => setShowForm(true)}
+              onClick={() => setCurrentView('form')}
               className="glass glass-hover px-8 py-4 rounded-full font-semibold hover-glow"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
