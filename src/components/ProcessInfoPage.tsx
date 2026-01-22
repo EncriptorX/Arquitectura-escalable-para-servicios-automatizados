@@ -5,6 +5,7 @@ import { Loader2, Globe, Shield, Activity, Copy, Check, AlertTriangle, ArrowLeft
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
+import DelegationChecker from "@/components/DelegationChecker";
 
 interface ProcessInfoPageProps {
   urls: string[];
@@ -365,6 +366,20 @@ export default function ProcessInfoPage({
                   </div>
                 </div>
               </div>
+            </motion.div>
+          )}
+
+          {/* Delegation Checker - Solo mostrar si hay nameservers y un dominio */}
+          {nameservers.length > 0 && urls.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <DelegationChecker 
+                dominio={urls[0].replace("https://", "").replace("http://", "").split("/")[0]}
+                nameserversEsperados={nameservers}
+              />
             </motion.div>
           )}
 
