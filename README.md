@@ -58,12 +58,17 @@ Este sistema automatiza todo el proceso en **menos de 30 segundos**, aplicando:
 - ✅ Protección anti-bot con Cloudflare Turnstile
 - ✅ Visualización de logs en tiempo real
 - ✅ Indicadores de progreso animados
+- ✅ **Panel de Control de Protección** - Activar/Desactivar políticas de seguridad
+- ✅ **Verificación de Delegación DNS** - Comprobar estado de nameservers en tiempo real
+- ✅ Instrucciones automáticas de delegación DNS con nameservers de Cloudflare
 - ✅ Modo claro/oscuro
 - ✅ Totalmente responsive (móvil, tablet, desktop)
 
 ### Backend
 - ✅ API serverless en Python (Vercel Functions)
 - ✅ Integración completa con Cloudflare API
+- ✅ **API de Toggle Protection** - Habilitar/Deshabilitar protecciones
+- ✅ **API de Verificación de Delegación DNS** - Validar nameservers
 - ✅ Validación de seguridad con Turnstile
 - ✅ Resolución automática de IPs mediante DNS
 - ✅ Manejo robusto de errores
@@ -75,6 +80,14 @@ Este sistema automatiza todo el proceso en **menos de 30 segundos**, aplicando:
 - ✅ Validación de dominios en zona
 - ✅ CORS configurado correctamente
 - ✅ Manejo seguro de credenciales
+
+### Nuevas Funcionalidades (Enero 2026)
+- ✅ **Control de Protección en Tiempo Real** - Activar/desactivar políticas desde el panel
+- ✅ **Verificación Automática de DNS** - Comprobar si el dominio está delegado correctamente
+- ✅ **Instrucciones de Delegación Detalladas** - Pasos claros para configurar nameservers
+- ✅ **Panel de Control Dedicado** - Interfaz completa para gestionar protecciones
+- ✅ **Estado Visual de Protecciones** - Ver estado de WAF, HTTPS, Firewall, etc.
+- ✅ **Navegación Mejorada** - Acceso fácil a todas las funcionalidades
 
 ---
 
@@ -195,6 +208,12 @@ npm install
 pip install -r requirements.txt
 ```
 
+**Dependencias incluidas:**
+- `flask==3.0.0` - Framework web
+- `flask-cors==4.0.0` - CORS support
+- `requests==2.31.0` - Cliente HTTP
+- `dnspython==2.4.2` - DNS lookups (NUEVO)
+
 ### 4. Configurar Variables de Entorno
 
 #### Frontend (.env)
@@ -280,13 +299,17 @@ vercel dev
 
 El backend estará disponible en `http://localhost:3000`
 
+---
+
 ### Uso del Sistema
 
-#### 1. Acceder a la Aplicación
+#### Flujo Principal: Solicitar Protección
+
+##### 1. Acceder a la Aplicación
 
 Abre tu navegador y ve a la URL del proyecto (local o producción).
 
-#### 2. Llenar el Formulario
+##### 2. Llenar el Formulario
 
 - **Nombre de la Empresa:** Nombre de tu organización
 - **Nombre del Responsable:** Tu nombre
@@ -297,20 +320,321 @@ Abre tu navegador y ve a la URL del proyecto (local o producción).
   - Puedes agregar múltiples URLs
 - **Comentarios:** (Opcional) Información adicional
 
-#### 3. Completar Turnstile
+##### 3. Completar Turnstile
 
 Completa el desafío de Cloudflare Turnstile para verificar que no eres un bot.
 
-#### 4. Enviar Solicitud
+##### 4. Enviar Solicitud
 
 Click en "Solicitar Protección" y espera a que el sistema procese la solicitud.
 
-#### 5. Visualizar Resultados
+##### 5. Visualizar Resultados
 
 - Verás logs en tiempo real de cada paso
 - Indicador de progreso
 - Banner indicando si es modo real o simulación
 - Nameservers de Cloudflare al finalizar
+
+##### 6. Instrucciones de Delegación DNS
+
+El sistema muestra automáticamente:
+- **Nameservers asignados por Cloudflare** (con botón de copiar)
+- **Pasos detallados** para actualizar nameservers en tu registrador
+- **Explicación clara** de qué es la delegación DNS y por qué es necesaria
+- **Tiempos estimados** de propagación DNS (15 min - 48 horas)
+
+##### 7. Verificar Delegación DNS
+
+Una vez actualices los nameservers en tu registrador:
+- Haz clic en **"Verificar Ahora"** en el componente de verificación
+- El sistema comprueba automáticamente si los nameservers coinciden
+- Muestra resultado visual:
+  - ✅ **Verde** = Delegación exitosa, sistema puede continuar
+  - ⏳ **Amarillo** = Delegación pendiente, espera propagación
+  - ⚠️ **Naranja** = No se pudo verificar automáticamente
+
+---
+
+#### Flujo Secundario: Panel de Control
+
+##### 1. Acceder al Panel de Control
+
+Desde cualquier página, haz clic en **"Panel de Control"** en el header.
+
+##### 2. Ver Estado de Protecciones
+
+El panel muestra:
+- **Estado general** (Activo/Inactivo)
+- **Detalles de cada protección:**
+  - WAF (Web Application Firewall)
+  - HTTPS Redirect
+  - Nivel de Seguridad
+  - Reglas de Firewall
+- **Última actualización**
+
+##### 3. Activar/Desactivar Protecciones
+
+- **Activar Protección:** Habilita todas las políticas de seguridad
+  - WAF → ON
+  - HTTPS Redirect → ON
+  - Security Level → HIGH
+  - Firewall Rules → ENABLED
+  
+- **Desactivar Protección:** Desactiva temporalmente las políticas
+  - WAF → OFF
+  - HTTPS Redirect → OFF
+  - Security Level → MEDIUM
+  - Firewall Rules → PAUSED
+
+**⚠️ Importante:** Desactivar la protección deja tu dominio expuesto. Solo desactiva si es absolutamente necesario.
+
+##### 4. Actualizar Estado
+
+Haz clic en el botón de **refresh** (🔄) para actualizar el estado en tiempo real.
+
+##### 5. Solicitar Protección para Nuevo Dominio
+
+Desde el panel de control:
+- Haz clic en **"Solicitar Protección"** en el header, o
+- Haz clic en el botón destacado **"Solicitar Protección para Nuevo Dominio"**
+- Se abrirá el formulario de solicitud
+
+---
+
+### Navegación del Sistema
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      PÁGINA PRINCIPAL                        │
+│  - Hero section                                              │
+│  - Características                                           │
+│  - Beneficios                                                │
+│  - Pasos                                                     │
+│                                                              │
+│  Header: [Panel de Control] [Solicitar Protección]          │
+└─────────────────────────────────────────────────────────────┘
+                    │                    │
+        ┌───────────┘                    └───────────┐
+        │                                            │
+        ▼                                            ▼
+┌──────────────────────┐              ┌──────────────────────┐
+│  PANEL DE CONTROL    │              │  FORMULARIO          │
+│  - Estado actual     │              │  - Datos empresa     │
+│  - Activar/Desactivar│              │  - URLs              │
+│  - Detalles          │              │  - Turnstile         │
+│  - Solicitar nuevo   │              │  - Enviar            │
+└──────────────────────┘              └──────────────────────┘
+        │                                            │
+        │                                            ▼
+        │                              ┌──────────────────────┐
+        │                              │  PÁGINA DE PROCESO   │
+        │                              │  - Logs en tiempo    │
+        │                              │    real              │
+        │                              │  - Progreso          │
+        │                              │  - Instrucciones DNS │
+        │                              │  - Verificador DNS   │
+        │                              │  - Control integrado │
+        │                              └──────────────────────┘
+        │                                            │
+        └────────────────────────────────────────────┘
+```
+
+---
+
+## 🔌 APIs Disponibles
+
+### 1. API de Solicitud de Protección
+
+**Endpoint:** `POST /api/solicitar-proteccion`
+
+**Descripción:** Configura protección perimetral completa para uno o más dominios.
+
+**Request:**
+```json
+{
+  "company": "Mi Empresa",
+  "responsible": "Juan Pérez",
+  "email": "juan@empresa.com",
+  "phone": "+1234567890",
+  "urls": ["demo.tudominio.com"],
+  "comments": "Comentarios opcionales",
+  "turnstileToken": "token_de_turnstile"
+}
+```
+
+**Response (Éxito):**
+```json
+{
+  "status": "ok",
+  "message": "Protección perimetral configurada exitosamente",
+  "urls": ["demo.tudominio.com"],
+  "sitios": [{
+    "dominio": "demo.tudominio.com",
+    "estado": "Protección perimetral configurada",
+    "nameservers": ["ns1.cloudflare.com", "ns2.cloudflare.com"],
+    "origin_ip": "192.0.2.1"
+  }],
+  "logs": ["...", "..."],
+  "progress": 100,
+  "nameservers": ["ns1.cloudflare.com", "ns2.cloudflare.com"],
+  "simulation_mode": false
+}
+```
+
+---
+
+### 2. API de Control de Protección (NUEVO)
+
+**Endpoint:** `GET /api/toggle-protection`
+
+**Descripción:** Obtiene el estado actual de todas las protecciones.
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "protection_status": {
+    "waf": true,
+    "https_redirect": true,
+    "security_level": "high",
+    "firewall_rules": [{
+      "id": "...",
+      "description": "CAS Auto-Provisioned Block Rule",
+      "action": "block",
+      "enabled": true
+    }],
+    "overall_enabled": true
+  },
+  "logs": ["..."]
+}
+```
+
+**Endpoint:** `POST /api/toggle-protection`
+
+**Descripción:** Activa o desactiva todas las protecciones.
+
+**Request:**
+```json
+{
+  "enable": true,
+  "domain": "demo.tudominio.com"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "message": "Protecciones activadas exitosamente",
+  "toggle_result": {
+    "success": true,
+    "results": {
+      "waf": true,
+      "https_redirect": true,
+      "security_level": true,
+      "firewall_rules": true,
+      "dns_proxy": true
+    },
+    "logs": ["..."]
+  },
+  "protection_status": { "..." }
+}
+```
+
+---
+
+### 3. API de Verificación de Delegación DNS (NUEVO)
+
+**Endpoint:** `GET /api/verificar-delegacion`
+
+**Descripción:** Health check del endpoint.
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "message": "API de verificación de delegación DNS funcionando",
+  "has_cloudflare_config": true
+}
+```
+
+**Endpoint:** `POST /api/verificar-delegacion`
+
+**Descripción:** Verifica si un dominio está delegado correctamente a Cloudflare.
+
+**Request:**
+```json
+{
+  "dominio": "demo.tudominio.com"
+}
+```
+
+**Response (Delegado):**
+```json
+{
+  "status": "ok",
+  "dominio": "demo.tudominio.com",
+  "zona_cloudflare": "tudominio.com",
+  "delegado": true,
+  "puede_continuar": true,
+  "nameservers_esperados": ["ns1.cloudflare.com", "ns2.cloudflare.com"],
+  "nameservers_actuales": ["ns1.cloudflare.com", "ns2.cloudflare.com"],
+  "mensaje": "✅ El dominio está correctamente delegado a Cloudflare...",
+  "timestamp": "2026-01-22T10:30:00Z"
+}
+```
+
+**Response (No Delegado):**
+```json
+{
+  "status": "ok",
+  "dominio": "demo.tudominio.com",
+  "delegado": false,
+  "puede_continuar": false,
+  "nameservers_esperados": ["ns1.cloudflare.com", "ns2.cloudflare.com"],
+  "nameservers_actuales": ["ns1.registrador.com", "ns2.registrador.com"],
+  "mensaje": "⏳ El dominio aún NO está delegado a Cloudflare...",
+  "timestamp": "2026-01-22T10:30:00Z"
+}
+```
+
+---
+
+### 4. API de Diagnóstico
+
+**Endpoint:** `GET /api/diagnostico`
+
+**Descripción:** Muestra el estado de configuración del sistema.
+
+**Response:**
+```json
+{
+  "modo_actual": "REAL",
+  "configuracion": {
+    "CF_API_TOKEN": {
+      "configurado": true,
+      "preview": "1234567890...",
+      "longitud": 40
+    },
+    "CF_ZONE_ID": {
+      "configurado": true,
+      "preview": "abcdef12...",
+      "longitud": 32
+    },
+    "TURNSTILE_SECRET_KEY": {
+      "configurado": true,
+      "preview": "0x4AAAA...",
+      "longitud": 40
+    }
+  },
+  "estado": {
+    "puede_validar_turnstile": true,
+    "puede_aplicar_proteccion_real": true,
+    "modo_simulacion_activo": false
+  },
+  "instrucciones": []
+}
+```
 
 ---
 
@@ -449,11 +773,16 @@ POST /zones/{zone_id}/firewall/rules
 cuban-cas/
 ├── api/
 │   ├── solicitar-proteccion.py    # API principal de protección
+│   ├── toggle-protection.py        # API de control de protecciones (NUEVO)
+│   ├── verificar-delegacion.py    # API de verificación DNS (NUEVO)
 │   └── diagnostico.py              # API de diagnóstico
 ├── src/
 │   ├── components/
 │   │   ├── ServiceRequestForm.tsx  # Formulario de solicitud
 │   │   ├── ProcessInfoPage.tsx     # Página de resultados
+│   │   ├── ControlPanelPage.tsx    # Panel de control (NUEVO)
+│   │   ├── ProtectionControl.tsx   # Control de protecciones (NUEVO)
+│   │   ├── DelegationChecker.tsx   # Verificador de DNS (NUEVO)
 │   │   ├── layout.tsx              # Layout principal
 │   │   ├── log-terminal.tsx        # Terminal de logs
 │   │   └── ui/                     # Componentes UI
@@ -466,21 +795,36 @@ cuban-cas/
 │   │   └── use-toast.ts            # Hook de notificaciones
 │   ├── lib/
 │   │   └── utils.ts                # Utilidades
-│   ├── App.tsx                     # Componente principal
+│   ├── App.tsx                     # Componente principal (ACTUALIZADO)
 │   ├── main.tsx                    # Entry point
 │   └── index.css                   # Estilos globales
 ├── public/                         # Archivos estáticos
-├── docs/                           # Documentación adicional
+├── docs/                           # Documentación adicional (NUEVO)
+│   ├── VERIFICACION_DELEGACION.md  # Doc de verificación DNS
+│   ├── DEPLOYMENT_VERIFICACION_DELEGACION.md
+│   ├── RESUMEN_EJECUTIVO_VERIFICACION.md
+│   ├── DIAGRAMA_VERIFICACION_DELEGACION.md
+│   ├── UI_MOCKUPS_VERIFICACION.md
 │   ├── GUIA_SUBDOMINIOS_DEMO.md
 │   ├── CONFIRMACION_FINAL.md
 │   ├── FUNCIONAMIENTO_REAL_SERVICIO.md
+│   ├── DIAGRAMA_FLUJO_SERVICIO.md
+│   ├── PROTECTION_VERIFICATION.md
+│   ├── IMPLEMENTACION_MULTI_TENANT.md
+│   ├── COMO_DIAGNOSTICAR_CONSOLA.md
+│   ├── README_DIAGNOSTICO.md
+│   ├── CLOUDFLARE_INTEGRATION.md
+│   ├── DEPLOYMENT.md
+│   ├── DESIGN_IMPROVEMENTS.md
+│   ├── RESPONSIVE_IMPROVEMENTS.md
 │   └── ...
+├── test-toggle-protection.html     # Test del API de toggle (NUEVO)
 ├── cloudflare_protect.py           # Script original de protección
 ├── verificar_proteccion_aplicada.py # Script de verificación
 ├── diagnostico.html                # Página de diagnóstico
 ├── vercel.json                     # Configuración de Vercel
 ├── package.json                    # Dependencias Node.js
-├── requirements.txt                # Dependencias Python
+├── requirements.txt                # Dependencias Python (ACTUALIZADO)
 ├── tsconfig.json                   # Configuración TypeScript
 ├── tailwind.config.js              # Configuración Tailwind
 ├── vite.config.ts                  # Configuración Vite
@@ -783,16 +1127,44 @@ Subdominios protegidos:
 
 ## 📚 Documentación Adicional
 
-### Documentos Disponibles
+Toda la documentación adicional se encuentra en la carpeta **`docs/`**.
 
-- **`GUIA_SUBDOMINIOS_DEMO.md`** - Guía para usar subdominios en demostración
-- **`CONFIRMACION_FINAL.md`** - Confirmación de implementación correcta
-- **`FUNCIONAMIENTO_REAL_SERVICIO.md`** - Explicación detallada del funcionamiento
-- **`DIAGRAMA_FLUJO_SERVICIO.md`** - Diagramas de flujo del sistema
-- **`PROTECTION_VERIFICATION.md`** - Verificación de protecciones
-- **`IMPLEMENTACION_MULTI_TENANT.md`** - Guía para implementar multi-tenant
-- **`COMO_DIAGNOSTICAR_CONSOLA.md`** - Diagnóstico usando consola del navegador
-- **`README_DIAGNOSTICO.md`** - Guía de diagnóstico completa
+📖 **[Ver Índice Completo de Documentación](./docs/INDEX.md)**
+
+### Documentos Principales
+
+#### Verificación y Delegación DNS
+- **`docs/VERIFICACION_DELEGACION.md`** - Documentación técnica completa de verificación DNS
+- **`docs/DEPLOYMENT_VERIFICACION_DELEGACION.md`** - Guía de despliegue de verificación
+- **`docs/RESUMEN_EJECUTIVO_VERIFICACION.md`** - Resumen ejecutivo de la funcionalidad
+- **`docs/DIAGRAMA_VERIFICACION_DELEGACION.md`** - Diagramas de flujo de verificación
+- **`docs/UI_MOCKUPS_VERIFICACION.md`** - Mockups de interfaz de usuario
+
+#### Guías de Uso
+- **`docs/GUIA_SUBDOMINIOS_DEMO.md`** - Guía para usar subdominios en demostración
+- **`docs/COMO_DIAGNOSTICAR_CONSOLA.md`** - Diagnóstico usando consola del navegador
+- **`docs/README_DIAGNOSTICO.md`** - Guía de diagnóstico completa
+
+#### Funcionamiento del Sistema
+- **`docs/CONFIRMACION_FINAL.md`** - Confirmación de implementación correcta
+- **`docs/FUNCIONAMIENTO_REAL_SERVICIO.md`** - Explicación detallada del funcionamiento
+- **`docs/DIAGRAMA_FLUJO_SERVICIO.md`** - Diagramas de flujo del sistema
+- **`docs/SERVICIO_REAL_VERIFICACION.md`** - Verificación del servicio real
+
+#### Protección y Seguridad
+- **`docs/PROTECTION_VERIFICATION.md`** - Verificación de protecciones
+- **`docs/CLOUDFLARE_INTEGRATION.md`** - Integración con Cloudflare
+
+#### Implementación y Despliegue
+- **`docs/IMPLEMENTACION_MULTI_TENANT.md`** - Guía para implementar multi-tenant
+- **`docs/SOLUCION_MULTI_TENANT.md`** - Solución multi-tenant detallada
+- **`docs/DEPLOYMENT.md`** - Guía de despliegue general
+- **`docs/DEPLOYMENT_FIX.md`** - Correcciones de despliegue
+
+#### Mejoras y Diseño
+- **`docs/DESIGN_IMPROVEMENTS.md`** - Mejoras de diseño implementadas
+- **`docs/RESPONSIVE_IMPROVEMENTS.md`** - Mejoras de responsive design
+- **`docs/DIAGNOSTICO_MODO_ACTUAL.md`** - Diagnóstico del modo actual
 
 ---
 
@@ -851,6 +1223,63 @@ Subdominios protegidos:
 1. Crea archivo `.env` en la raíz
 2. Agrega: `VITE_TURNSTILE_SITE_KEY=tu_site_key`
 3. Reinicia el servidor de desarrollo
+
+---
+
+### Problema: Botón "Activar Protección" no hace nada (NUEVO)
+
+**Causa:** Posibles causas:
+- Endpoint no está respondiendo
+- Error en la consola del navegador
+- Credenciales de Cloudflare incorrectas
+
+**Solución:**
+1. Abre la consola del navegador (F12)
+2. Busca logs que empiecen con `[ProtectionControl]`
+3. Verifica el estado de la petición HTTP
+4. Usa `test-toggle-protection.html` para probar el endpoint directamente
+5. Verifica que `CF_API_TOKEN` y `CF_ZONE_ID` estén configurados correctamente
+
+---
+
+### Problema: "No se pudo verificar nameservers actuales" (NUEVO)
+
+**Causa:** El servidor no puede hacer DNS lookups o el dominio no existe
+
+**Solución:**
+- Verifica que el dominio exista y tenga registros NS
+- Espera unos minutos y vuelve a intentar
+- Si persiste, verifica manualmente comparando los nameservers
+- Asegúrate de que `dnspython` esté instalado: `pip install dnspython==2.4.2`
+
+---
+
+### Problema: Verificación DNS muestra "Delegación Pendiente" pero ya actualicé los nameservers (NUEVO)
+
+**Causa:** Propagación DNS aún en proceso
+
+**Solución:**
+- La propagación DNS puede tardar de 15 minutos a 48 horas
+- Típicamente toma 1-2 horas
+- Espera un poco más y vuelve a verificar
+- Usa herramientas como https://dnschecker.org para verificar la propagación global
+- Verifica que actualizaste los nameservers en el registrador correcto
+
+---
+
+### Problema: Panel de Control muestra "Protección Inactiva" pero debería estar activa (NUEVO)
+
+**Causa:** Alguna protección no está configurada correctamente
+
+**Solución:**
+1. Haz clic en el botón de refresh (🔄) para actualizar el estado
+2. Verifica cada componente individual:
+   - WAF debe estar ON
+   - HTTPS Redirect debe estar ON
+   - Security Level debe estar HIGH
+   - Firewall Rules deben estar ENABLED
+3. Si alguno está incorrecto, usa el botón "Activar Protección"
+4. Verifica en Cloudflare Dashboard que las configuraciones se aplicaron
 
 ---
 
@@ -914,26 +1343,44 @@ Para soporte, abre un issue en GitHub o contacta a través de:
 
 ## 📊 Estado del Proyecto
 
-- ✅ **Versión:** 1.0.0
+- ✅ **Versión:** 2.0.0
 - ✅ **Estado:** Producción
 - ✅ **Última actualización:** Enero 2026
 - ✅ **Mantenimiento:** Activo
+
+### Nuevas Funcionalidades (v2.0.0 - Enero 2026)
+- ✅ Panel de Control de Protección
+- ✅ Activar/Desactivar protecciones en tiempo real
+- ✅ Verificación automática de delegación DNS
+- ✅ Instrucciones detalladas de delegación DNS
+- ✅ Navegación mejorada entre vistas
+- ✅ Estado visual de todas las protecciones
+- ✅ API de toggle protection
+- ✅ API de verificación de delegación
 
 ---
 
 ## 🎯 Roadmap
 
-### Versión 1.1 (Próxima)
-- [ ] Soporte multi-tenant
-- [ ] Dashboard de administración
-- [ ] Historial de solicitudes
-- [ ] Notificaciones por email
+### Versión 2.1 (Próxima)
+- [ ] Historial de cambios de protección
+- [ ] Notificaciones por email cuando delegación se complete
+- [ ] Polling automático de verificación DNS
+- [ ] Dashboard de métricas y estadísticas
+- [ ] Exportar configuración como código (IaC)
 
-### Versión 2.0 (Futuro)
+### Versión 2.2 (Q2 2026)
+- [ ] Soporte multi-tenant completo
+- [ ] Gestión de múltiples dominios
+- [ ] Roles y permisos de usuario
+- [ ] Audit log de todas las operaciones
+
+### Versión 3.0 (Futuro)
 - [ ] Soporte para múltiples proveedores (AWS, Azure)
-- [ ] API pública
-- [ ] Webhooks
+- [ ] API pública REST
+- [ ] Webhooks para eventos
 - [ ] Integración con CI/CD
+- [ ] CLI para automatización
 
 ---
 
