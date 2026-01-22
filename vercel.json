@@ -9,7 +9,7 @@
       }
     },
     {
-      "src": "api/solicitar-proteccion.py",
+      "src": "api/**/*.py",
       "use": "@vercel/python"
     }
   ],
@@ -17,6 +17,18 @@
     {
       "src": "/api/solicitar-proteccion",
       "dest": "api/solicitar-proteccion.py"
+    },
+    {
+      "src": "/api/toggle-protection",
+      "dest": "api/toggle-protection.py"
+    },
+    {
+      "src": "/api/verificar-delegacion",
+      "dest": "api/verificar-delegacion.py"
+    },
+    {
+      "src": "/api/diagnostico",
+      "dest": "api/diagnostico.py"
     },
     {
       "handle": "filesystem"

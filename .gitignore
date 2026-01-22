@@ -32,3 +32,17 @@ env/
 venv/
 ENV/
 .venv
+
+# IDE configs
+.bolt/
+.kiro/*.md
+
+# Test files
+*.test.html
+test-*.html
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~

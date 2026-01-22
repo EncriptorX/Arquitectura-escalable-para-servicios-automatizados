@@ -1,7 +1,8 @@
 {
-  "name": "vite-react-typescript-starter",
+  "name": "cloudflare-perimeter-protection",
+  "version": "1.0.0",
+  "description": "Sistema automatizado de protección perimetral con Cloudflare",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +10,8 @@
     "vercel-build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "verify": "python scripts/verificar_proteccion_aplicada.py"
   },
   "dependencies": {
     "clsx": "^2.1.1",
