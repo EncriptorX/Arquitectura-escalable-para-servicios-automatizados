@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Toggle Protection API</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        button.danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        input {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 300px;
+            margin-right: 10px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .info-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        .info-card h4 {
+            margin: 0 0 5px 0;
+            color: #667eea;
+            font-size: 14px;
+        }
+        .info-card p {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        .check {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .cross {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ Test Toggle Protection API</h1>
+        <p class="subtitle">Prueba el endpoint de control de protecciones de Cloudflare</p>
+
+        <!-- Get Status Section -->
+        <div class="section">
+            <h2>📊 Obtener Estado Actual</h2>
+            <button onclick="getStatus()">🔍 Obtener Estado</button>
+            <span id="statusLoading"></span>
+            <div id="statusResult"></div>
+        </div>
+
+        <!-- Toggle Protection Section -->
+        <div class="section">
+            <h2>⚙️ Activar/Desactivar Protección</h2>
+            <div style="margin-bottom: 15px;">
+                <label>Dominio (opcional):</label><br>
+                <input type="text" id="domainInput" placeholder="ejemplo.com" />
+            </div>
+            <button onclick="toggleProtection(true)">✅ Activar Protección</button>
+            <button onclick="toggleProtection(false)" class="danger">❌ Desactivar Protección</button>
+            <span id="toggleLoading"></span>
+            <div id="toggleResult"></div>
+        </div>
+
+        <!-- Logs Section -->
+        <div class="section">
+            <h2>📝 Logs de Respuesta</h2>
+            <pre id="logs">Esperando peticiones...</pre>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/toggle-protection';
+
+        function log(message, data = null) {
+            const logsEl = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            let logText = `[${timestamp}] ${message}\n`;
+            
+            if (data) {
+                logText += JSON.stringify(data, null, 2) + '\n';
+            }
+            
+            logsEl.textContent = logText + '\n' + logsEl.textContent;
+        }
+
+        async function getStatus() {
+            const loadingEl = document.getElementById('statusLoading');
+            const resultEl = document.getElementById('statusResult');
+            
+            loadingEl.innerHTML = '<div class="loading"></div>';
+            resultEl.innerHTML = '';
+            
+            log('GET /api/toggle-protection');
+            
+            try {
+                const response = await fetch(API_BASE, {
+                    method: 'GET'
+                });
+                
+                const data = await response.json();
+                log('Response received', data);
+                
+                if (data.status === 'ok') {
+                    const status = data.protection_status;
+                    const isEnabled = status.overall_enabled;
+                    
+                    resultEl.innerHTML = `
+                        <h3>Estado de Protección 
+                            <span class="status-badge ${isEnabled ? 'status-active' : 'status-inactive'}">
+                                ${isEnabled ? '✅ ACTIVO' : '⏸️ INACTIVO'}
+                            </span>
+                        </h3>
+                        <div class="info-grid">
+                            <div class="info-card">
+                                <h4>WAF</h4>
+                                <p>${status.waf === true ? '<span class="check">✓ ON</span>' : status.waf === false ? '<span class="cross">✗ OFF</span>' : '? Unknown'}</p>
+                            </div>
+                            <div class="info-card">
+                                <h4>HTTPS Redirect</h4>
+                                <p>${status.https_redirect === true ? '<span class="check">✓ ON</span>' : status.https_redirect === false ? '<span class="cross">✗ OFF</span>' : '? Unknown'}</p>
+                            </div>
+                            <div class="info-card">
+                                <h4>Security Level</h4>
+                                <p>${status.security_level || 'Unknown'}</p>
+                            </div>
+                            <div class="info-card">
+                                <h4>Firewall Rules</h4>
+                                <p>${status.firewall_rules.length} regla(s)</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultEl.innerHTML = `<p style="color: red;">❌ Error: ${data.message}</p>`;
+                }
+            } catch (error) {
+                log('Error', { error: error.message });
+                resultEl.innerHTML = `<p style="color: red;">❌ Error: ${error.message}</p>`;
+            } finally {
+                loadingEl.innerHTML = '';
+            }
+        }
+
+        async function toggleProtection(enable) {
+            const loadingEl = document.getElementById('toggleLoading');
+            const resultEl = document.getElementById('toggleResult');
+            const domain = document.getElementById('domainInput').value.trim();
+            
+            loadingEl.innerHTML = '<div class="loading"></div>';
+            resultEl.innerHTML = '';
+            
+            const requestBody = { enable };
+            if (domain) {
+                requestBody.domain = domain;
+            }
+            
+            log(`POST /api/toggle-protection (${enable ? 'ENABLE' : 'DISABLE'})`, requestBody);
+            
+            try {
+                const response = await fetch(API_BASE, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const data = await response.json();
+                log('Response received', data);
+                
+                if (data.status === 'ok') {
+                    resultEl.innerHTML = `
+                        <p style="color: green; font-weight: bold; margin-top: 15px;">
+                            ✅ ${data.message}
+                        </p>
+                        <p style="margin-top: 10px;">
+                            Estado actualizado: 
+                            <span class="status-badge ${data.protection_status.overall_enabled ? 'status-active' : 'status-inactive'}">
+                                ${data.protection_status.overall_enabled ? '✅ ACTIVO' : '⏸️ INACTIVO'}
+                            </span>
+                        </p>
+                    `;
+                    
+                    // Auto-refresh status
+                    setTimeout(() => getStatus(), 1000);
+                } else {
+                    resultEl.innerHTML = `<p style="color: red; margin-top: 15px;">❌ Error: ${data.message}</p>`;
+                }
+            } catch (error) {
+                log('Error', { error: error.message });
+                resultEl.innerHTML = `<p style="color: red; margin-top: 15px;">❌ Error: ${error.message}</p>`;
+            } finally {
+                loadingEl.innerHTML = '';
+            }
+        }
+
+        // Auto-load status on page load
+        window.addEventListener('load', () => {
+            getStatus();
+        });
+    </script>
+</body>
+</html>

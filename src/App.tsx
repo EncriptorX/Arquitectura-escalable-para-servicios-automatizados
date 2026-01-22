@@ -456,8 +456,8 @@ function App() {
             <div>
               <h4 className="font-semibold mb-4 text-white">Contacto</h4>
               <div className="space-y-2 text-sm text-gray-400">
-                <p>contacto@secureperimeter.com</p>
-                <p>+34 900 000 000</p>
+                <p>kevinf@estudiantes.uci.cu</p>
+                <p>+53 5695 42 00</p>
                 <p>Lun-Vie, 9:00 - 18:00</p>
               </div>
             </div>
@@ -471,7 +471,7 @@ function App() {
           </div>
 
           <div className="border-t border-white/10 pt-8 text-center text-sm text-gray-500">
-            <p>© 2024 SecurePerimeter. Todos los derechos reservados.</p>
+            <p>© 2026 SecurePerimeter. Todos los derechos reservados.</p>
             <p className="mt-2">Cloudflare® es una marca registrada de Cloudflare, Inc.</p>
           </div>
         </div>

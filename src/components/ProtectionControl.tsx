@@ -42,26 +42,34 @@ export default function ProtectionControl({ domain }: ProtectionControlProps) {
 
   const fetchStatus = async () => {
     setLoading(true);
+    console.log('[ProtectionControl] Fetching protection status...');
+    
     try {
       const response = await fetch("/api/toggle-protection", {
         method: "GET",
       });
 
+      console.log('[ProtectionControl] Status response:', response.status);
+      
       const data = await response.json();
+      console.log('[ProtectionControl] Status data:', data);
       
       if (data.status === "ok") {
         setStatus(data.protection_status);
         setLastUpdate(new Date());
+        console.log('[ProtectionControl] Status updated successfully');
       } else {
+        console.error('[ProtectionControl] Error fetching status:', data);
         toast({
           title: "Error",
           description: data.message || "No se pudo obtener el estado de protecciones",
         });
       }
     } catch (error) {
+      console.error('[ProtectionControl] Exception fetching status:', error);
       toast({
         title: "Error",
-        description: "Error al conectar con el servidor",
+        description: error instanceof Error ? error.message : "Error al conectar con el servidor",
       });
     } finally {
       setLoading(false);
@@ -70,19 +78,30 @@ export default function ProtectionControl({ domain }: ProtectionControlProps) {
 
   const toggleProtection = async (enable: boolean) => {
     setToggling(true);
+    
+    console.log(`[ProtectionControl] Toggling protection to: ${enable}`);
+    console.log(`[ProtectionControl] Domain: ${domain || 'none'}`);
+    
     try {
+      const requestBody = { 
+        enable,
+        domain 
+      };
+      
+      console.log('[ProtectionControl] Request body:', requestBody);
+      
       const response = await fetch("/api/toggle-protection", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ 
-          enable,
-          domain 
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('[ProtectionControl] Response status:', response.status);
+      
       const data = await response.json();
+      console.log('[ProtectionControl] Response data:', data);
       
       if (data.status === "ok") {
         setStatus(data.protection_status);
@@ -93,15 +112,17 @@ export default function ProtectionControl({ domain }: ProtectionControlProps) {
           description: data.message,
         });
       } else {
+        console.error('[ProtectionControl] Error response:', data);
         toast({
           title: "Error",
           description: data.message || "No se pudo cambiar el estado de protecciones",
         });
       }
     } catch (error) {
+      console.error('[ProtectionControl] Exception:', error);
       toast({
         title: "Error",
-        description: "Error al conectar con el servidor",
+        description: error instanceof Error ? error.message : "Error al conectar con el servidor",
       });
     } finally {
       setToggling(false);
@@ -149,10 +170,19 @@ export default function ProtectionControl({ domain }: ProtectionControlProps) {
             className="glass glass-hover p-2 rounded-lg disabled:opacity-50"
             whileHover={{ scale: loading ? 1 : 1.1 }}
             whileTap={{ scale: loading ? 1 : 0.9 }}
+            title="Actualizar estado"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </motion.button>
         </div>
+
+        {/* Loading State */}
+        {loading && !status && (
+          <div className="text-center py-8">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-cyan-400 mb-2" />
+            <p className="text-sm text-gray-400">Cargando estado de protecciones...</p>
+          </div>
+        )}
 
         {/* Estado General */}
         {status && (
@@ -279,11 +309,15 @@ export default function ProtectionControl({ domain }: ProtectionControlProps) {
         {/* Botones de Control */}
         <div className="flex gap-3 pt-2">
           <motion.button
-            onClick={() => toggleProtection(true)}
-            disabled={toggling || isEnabled}
+            onClick={() => {
+              console.log('[ProtectionControl] Activar button clicked');
+              toggleProtection(true);
+            }}
+            disabled={toggling || isEnabled || loading}
             className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-3 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            whileHover={{ scale: (toggling || isEnabled) ? 1 : 1.02 }}
-            whileTap={{ scale: (toggling || isEnabled) ? 1 : 0.98 }}
+            whileHover={{ scale: (toggling || isEnabled || loading) ? 1 : 1.02 }}
+            whileTap={{ scale: (toggling || isEnabled || loading) ? 1 : 0.98 }}
+            title={isEnabled ? "La protección ya está activa" : loading ? "Cargando..." : "Activar todas las protecciones"}
           >
             {toggling ? (
               <>
@@ -293,17 +327,21 @@ export default function ProtectionControl({ domain }: ProtectionControlProps) {
             ) : (
               <>
                 <Shield className="w-4 h-4" />
-                Activar Protección
+                {isEnabled ? "Protección Activa" : "Activar Protección"}
               </>
             )}
           </motion.button>
 
           <motion.button
-            onClick={() => toggleProtection(false)}
-            disabled={toggling || !isEnabled}
+            onClick={() => {
+              console.log('[ProtectionControl] Desactivar button clicked');
+              toggleProtection(false);
+            }}
+            disabled={toggling || !isEnabled || loading}
             className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-semibold py-3 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            whileHover={{ scale: (toggling || !isEnabled) ? 1 : 1.02 }}
-            whileTap={{ scale: (toggling || !isEnabled) ? 1 : 0.98 }}
+            whileHover={{ scale: (toggling || !isEnabled || loading) ? 1 : 1.02 }}
+            whileTap={{ scale: (toggling || !isEnabled || loading) ? 1 : 0.98 }}
+            title={!isEnabled ? "La protección ya está desactivada" : loading ? "Cargando..." : "Desactivar todas las protecciones"}
           >
             {toggling ? (
               <>
@@ -313,11 +351,18 @@ export default function ProtectionControl({ domain }: ProtectionControlProps) {
             ) : (
               <>
                 <ShieldOff className="w-4 h-4" />
-                Desactivar Protección
+                {!isEnabled ? "Protección Inactiva" : "Desactivar Protección"}
               </>
             )}
           </motion.button>
         </div>
+
+        {/* Debug info - solo en desarrollo */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="text-xs text-gray-500 text-center">
+            Debug: isEnabled={String(isEnabled)}, loading={String(loading)}, toggling={String(toggling)}, hasStatus={String(!!status)}
+          </div>
+        )}
 
         {/* Última actualización */}
         {lastUpdate && (
