@@ -62,7 +62,12 @@ function App() {
   ];
 
   if (currentView === 'control-panel') {
-    return <ControlPanelPage onBack={handleBackHome} />;
+    return (
+      <ControlPanelPage 
+        onBack={handleBackHome}
+        onRequestProtection={() => setCurrentView('form')}
+      />
+    );
   }
 
   if (currentView === 'process' && processInfo) {

@@ -1,12 +1,13 @@
-import { Shield, ArrowLeft, Settings } from "lucide-react";
+import { Shield, ArrowLeft, Settings, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import ProtectionControl from "@/components/ProtectionControl";
 
 interface ControlPanelPageProps {
   onBack: () => void;
+  onRequestProtection: () => void;
 }
 
-export default function ControlPanelPage({ onBack }: ControlPanelPageProps) {
+export default function ControlPanelPage({ onBack, onRequestProtection }: ControlPanelPageProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900">
       {/* Header */}
@@ -32,16 +33,29 @@ export default function ControlPanelPage({ onBack }: ControlPanelPageProps) {
               <span className="text-xl font-bold gradient-text">SecurePerimeter</span>
             </motion.div>
             
-            <motion.button
-              onClick={onBack}
-              className="glass glass-hover px-4 py-2 rounded-full text-sm font-medium"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <ArrowLeft className="w-4 h-4 inline mr-2" />
-              <span className="hidden sm:inline">Volver al Inicio</span>
-              <span className="sm:hidden">Volver</span>
-            </motion.button>
+            <div className="flex items-center gap-3">
+              <motion.button
+                onClick={onRequestProtection}
+                className="glass glass-hover px-4 py-2.5 rounded-full font-medium text-sm group"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Plus className="inline-block mr-2 w-4 h-4 text-cyan-400" />
+                <span className="gradient-text hidden sm:inline">Solicitar Protección</span>
+                <span className="gradient-text sm:hidden">Solicitar</span>
+              </motion.button>
+              
+              <motion.button
+                onClick={onBack}
+                className="glass glass-hover px-4 py-2 rounded-full text-sm font-medium"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <ArrowLeft className="w-4 h-4 inline mr-2" />
+                <span className="hidden sm:inline">Volver al Inicio</span>
+                <span className="sm:hidden">Volver</span>
+              </motion.button>
+            </div>
           </div>
         </div>
       </motion.header>
@@ -97,6 +111,30 @@ export default function ControlPanelPage({ onBack }: ControlPanelPageProps) {
             transition={{ delay: 0.2 }}
           >
             <ProtectionControl />
+          </motion.div>
+
+          {/* Call to Action - Solicitar Protección */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="glass p-6 rounded-xl text-center border-2 border-cyan-400/30"
+          >
+            <h3 className="text-lg font-semibold mb-2 text-white">
+              ¿Necesitas proteger un nuevo dominio?
+            </h3>
+            <p className="text-sm text-gray-400 mb-4">
+              Solicita protección perimetral para tus dominios adicionales
+            </p>
+            <motion.button
+              onClick={onRequestProtection}
+              className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg hover-glow inline-flex items-center gap-2"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Plus className="w-5 h-5" />
+              Solicitar Protección para Nuevo Dominio
+            </motion.button>
           </motion.div>
 
           {/* Help Section */}
