@@ -279,31 +279,88 @@ export default function ProcessInfoPage({
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-base sm:text-lg font-bold text-yellow-200 mb-1.5 sm:mb-2">
-                      Action Required: Update Nameservers
+                      🔧 Acción Requerida: Delegación DNS
                     </h3>
-                    <p className="text-yellow-300 text-sm sm:text-base mb-3 sm:mb-4">
-                      To complete the setup, please log in to your domain registrar and replace your existing
-                      nameservers with the ones below. This delegates authority to Cloudflare.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      {nameservers.map((ns: string, idx: number) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between p-2.5 sm:p-3 bg-gray-900 border border-yellow-800 rounded-md shadow-sm group hover:border-yellow-400 transition-colors"
-                        >
-                          <code className="font-mono text-xs sm:text-sm text-gray-200 truncate pr-2">{ns}</code>
-                          <button
-                            onClick={() => copyToClipboard(ns)}
-                            className="p-1.5 hover:bg-gray-800 rounded text-gray-400 hover:text-gray-200 transition-colors flex-shrink-0"
-                          >
-                            <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                          </button>
+                    
+                    <div className="space-y-4">
+                      {/* Explicación */}
+                      <div className="text-yellow-300 text-sm sm:text-base">
+                        <p className="mb-2">
+                          <strong>¿Qué es la delegación DNS?</strong> Es el proceso de transferir el control de tu dominio a los servidores de Cloudflare para que la protección funcione correctamente.
+                        </p>
+                        <p>
+                          Para completar la configuración, debes actualizar los <strong>nameservers</strong> en tu registrador de dominios (donde compraste el dominio).
+                        </p>
+                      </div>
+
+                      {/* Nameservers asignados */}
+                      <div>
+                        <h4 className="text-yellow-200 font-semibold mb-2 text-sm">
+                          📋 Nameservers asignados por Cloudflare:
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                          {nameservers.map((ns: string, idx: number) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between p-2.5 sm:p-3 bg-gray-900 border border-yellow-800 rounded-md shadow-sm group hover:border-yellow-400 transition-colors"
+                            >
+                              <code className="font-mono text-xs sm:text-sm text-gray-200 truncate pr-2">{ns}</code>
+                              <button
+                                onClick={() => copyToClipboard(ns)}
+                                className="p-1.5 hover:bg-gray-800 rounded text-gray-400 hover:text-gray-200 transition-colors flex-shrink-0"
+                                title="Copiar nameserver"
+                              >
+                                <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                    <div className="mt-3 sm:mt-4 flex items-center text-xs text-yellow-400">
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin flex-shrink-0" />
-                      <span>Waiting for DNS propagation... this may take a few minutes to several hours.</span>
+                      </div>
+
+                      {/* Pasos detallados */}
+                      <div className="bg-gray-900/50 rounded-lg p-4 border border-yellow-800/30">
+                        <h4 className="text-yellow-200 font-semibold mb-3 text-sm">
+                          📝 Pasos a seguir:
+                        </h4>
+                        <ol className="space-y-2 text-yellow-300 text-xs sm:text-sm">
+                          <li className="flex items-start">
+                            <span className="font-bold mr-2 text-yellow-400">1.</span>
+                            <span>Accede al panel de control de tu <strong>registrador de dominios</strong> (GoDaddy, Namecheap, Google Domains, etc.)</span>
+                          </li>
+                          <li className="flex items-start">
+                            <span className="font-bold mr-2 text-yellow-400">2.</span>
+                            <span>Busca la sección de <strong>"DNS"</strong>, <strong>"Nameservers"</strong> o <strong>"Servidores de nombres"</strong></span>
+                          </li>
+                          <li className="flex items-start">
+                            <span className="font-bold mr-2 text-yellow-400">3.</span>
+                            <span><strong>Elimina</strong> los nameservers actuales de tu dominio</span>
+                          </li>
+                          <li className="flex items-start">
+                            <span className="font-bold mr-2 text-yellow-400">4.</span>
+                            <span><strong>Agrega</strong> los nameservers de Cloudflare mostrados arriba (usa el botón de copiar)</span>
+                          </li>
+                          <li className="flex items-start">
+                            <span className="font-bold mr-2 text-yellow-400">5.</span>
+                            <span><strong>Guarda</strong> los cambios en tu registrador</span>
+                          </li>
+                          <li className="flex items-start">
+                            <span className="font-bold mr-2 text-yellow-400">6.</span>
+                            <span><strong>Espera</strong> la propagación DNS (puede tomar de 15 minutos a 48 horas, típicamente 1-2 horas)</span>
+                          </li>
+                        </ol>
+                      </div>
+
+                      {/* Nota importante */}
+                      <div className="flex items-start space-x-2 text-xs text-yellow-400 bg-yellow-900/20 rounded p-3 border border-yellow-800/30">
+                        <Loader2 className="w-4 h-4 mt-0.5 animate-spin flex-shrink-0" />
+                        <div>
+                          <p className="font-semibold mb-1">⏳ Esperando propagación DNS...</p>
+                          <p className="text-yellow-300/90">
+                            Una vez actualices los nameservers, la protección se activará automáticamente cuando la propagación DNS se complete. 
+                            No necesitas hacer nada más en este sistema.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
