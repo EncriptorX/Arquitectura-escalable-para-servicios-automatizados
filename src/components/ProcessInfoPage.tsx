@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import DelegationChecker from "@/components/DelegationChecker";
+import ProtectionControl from "@/components/ProtectionControl";
 
 interface ProcessInfoPageProps {
   urls: string[];
@@ -379,6 +380,19 @@ export default function ProcessInfoPage({
               <DelegationChecker 
                 dominio={urls[0].replace("https://", "").replace("http://", "").split("/")[0]}
                 nameserversEsperados={nameservers}
+              />
+            </motion.div>
+          )}
+
+          {/* Protection Control - Mostrar cuando la protección está configurada */}
+          {isComplete && urls.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <ProtectionControl 
+                domain={urls[0].replace("https://", "").replace("http://", "").split("/")[0]}
               />
             </motion.div>
           )}
