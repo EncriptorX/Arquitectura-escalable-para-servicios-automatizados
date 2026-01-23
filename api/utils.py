@@ -126,11 +126,23 @@ def validate_url(url: str) -> Tuple[bool, Optional[str], Optional[str]]:
     if not url or not isinstance(url, str):
         return False, None, "URL vacía o inválida"
     
-    # Remover protocolo y path
-    domain = url.replace("https://", "").replace("http://", "").split("/")[0].strip()
+    # Rechazar URLs con esquemas (http://, https://, etc.)
+    if "://" in url:
+        return False, None, "No se permiten esquemas (http://, https://). Use solo el dominio FQDN"
+    
+    # Rechazar URLs con rutas
+    if "/" in url:
+        return False, None, "No se permiten rutas. Use solo el dominio FQDN"
+    
+    domain = url.strip()
     
     if not domain:
-        return False, None, "No se pudo extraer el dominio de la URL"
+        return False, None, "Dominio vacío"
+    
+    # Verificar si es una dirección IP
+    ip_pattern = r"^(\d{1,3}\.){3}\d{1,3}$"
+    if re.match(ip_pattern, domain):
+        return False, None, "No se permiten direcciones IP. Use un dominio FQDN"
     
     if not validate_domain(domain):
         return False, None, f"Formato de dominio inválido: {domain}"

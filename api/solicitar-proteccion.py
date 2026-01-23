@@ -218,11 +218,28 @@ class CloudflareEdgeProtector:
 # Utilidades
 # ===============================
 def validar_url(url):
-    """Valida que la URL tenga un formato correcto"""
-    regex = re.compile(
-        r'^(https?:\/\/)?(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(\/.*)?$'
-    )
-    return re.match(regex, url) is not None
+    """Valida que la URL tenga un formato correcto de dominio FQDN"""
+    if not url or not isinstance(url, str):
+        return False
+    
+    # Rechazar URLs con esquemas
+    if "://" in url:
+        return False
+    
+    # Rechazar URLs con rutas
+    if "/" in url:
+        return False
+    
+    domain = url.strip()
+    
+    # Verificar si es una dirección IP
+    ip_pattern = r"^(\d{1,3}\.){3}\d{1,3}$"
+    if re.match(ip_pattern, domain):
+        return False
+    
+    # Validar formato FQDN
+    fqdn_pattern = r"^(?=.{1,253}$)(?!-)([A-Za-z0-9-]{1,63}(?<!-)\.)+[A-Za-z]{2,63}$"
+    return bool(re.match(fqdn_pattern, domain))
 
 
 def obtener_ip_origen(dominio):
@@ -231,11 +248,8 @@ def obtener_ip_origen(dominio):
     Esto es CRÍTICO para que la protección funcione correctamente.
     """
     try:
-        # Limpiar el dominio (remover protocolo y path)
-        dominio_limpio = dominio.replace("https://", "").replace("http://", "").split("/")[0]
-        
-        # Realizar DNS lookup
-        ip = socket.gethostbyname(dominio_limpio)
+        # El dominio ya viene limpio (solo FQDN, sin esquemas ni rutas)
+        ip = socket.gethostbyname(dominio)
         return ip, None
     except socket.gaierror as e:
         return None, f"No se pudo resolver el dominio {dominio}: {str(e)}"

@@ -127,10 +127,44 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
       setError('Un correo electrónico válido es requerido');
       return false;
     }
-    if (urls.filter(url => url.trim()).length === 0) {
-      setError('Debe proporcionar al menos una URL');
+    
+    const validUrls = urls.filter(url => url.trim());
+    if (validUrls.length === 0) {
+      setError('Debe proporcionar al menos un dominio');
       return false;
     }
+    
+    // Validar formato FQDN de cada URL
+    for (const url of validUrls) {
+      const domain = url.trim();
+      
+      // Rechazar esquemas
+      if (domain.includes('://')) {
+        setError(`No se permiten esquemas (http://, https://). Use solo el dominio: ${domain}`);
+        return false;
+      }
+      
+      // Rechazar rutas
+      if (domain.includes('/')) {
+        setError(`No se permiten rutas. Use solo el dominio: ${domain}`);
+        return false;
+      }
+      
+      // Rechazar IPs
+      const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+      if (ipPattern.test(domain)) {
+        setError(`No se permiten direcciones IP. Use un dominio FQDN: ${domain}`);
+        return false;
+      }
+      
+      // Validar formato FQDN básico
+      const fqdnPattern = /^(?=.{1,253}$)(?!-)([A-Za-z0-9-]{1,63}(?<!-)\.)+[A-Za-z]{2,63}$/;
+      if (!fqdnPattern.test(domain)) {
+        setError(`Formato de dominio inválido: ${domain}. Use formato FQDN (ej: ejemplo.com)`);
+        return false;
+      }
+    }
+    
     return true;
   };
 
@@ -352,8 +386,11 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
             transition={{ delay: 0.3 }}
           >
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              URLs a Proteger *
+              Dominios a Proteger (FQDN) *
             </label>
+            <p className="text-xs text-gray-400 mb-3">
+              Ingrese solo el dominio sin esquemas ni rutas (ej: ejemplo.com, app.ejemplo.com)
+            </p>
             <div className="space-y-3">
               <AnimatePresence>
                 {urls.map((url, index) => (
@@ -365,10 +402,10 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
                     className="flex gap-2"
                   >
                     <input
-                      type="url"
+                      type="text"
                       value={url}
                       onChange={(e) => updateUrl(index, e.target.value)}
-                      placeholder="https://ejemplo.com"
+                      placeholder="ejemplo.com"
                       className="flex-1 px-4 py-3 glass border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 transition-all"
                     />
                     {urls.length > 1 && (

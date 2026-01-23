@@ -20,15 +20,14 @@ def obtener_nameservers_actuales(dominio):
     Retorna una lista de nameservers o None si hay error.
     """
     try:
-        # Limpiar el dominio
-        dominio_limpio = dominio.replace("https://", "").replace("http://", "").split("/")[0]
+        # El dominio ya viene en formato FQDN puro (sin esquemas ni rutas)
         
         # Obtener nameservers usando socket
         import dns.resolver
         resolver = dns.resolver.Resolver()
         
         # Consultar NS records
-        answers = resolver.resolve(dominio_limpio, 'NS')
+        answers = resolver.resolve(dominio, 'NS')
         nameservers = [str(rdata.target).rstrip('.') for rdata in answers]
         
         return nameservers, None
@@ -46,12 +45,12 @@ def obtener_nameservers_alternativo(dominio):
     """
     try:
         import subprocess
-        dominio_limpio = dominio.replace("https://", "").replace("http://", "").split("/")[0]
+        # El dominio ya viene en formato FQDN puro
         
         # Intentar con nslookup (disponible en Windows y Unix)
         try:
             result = subprocess.run(
-                ['nslookup', '-type=ns', dominio_limpio],
+                ['nslookup', '-type=ns', dominio],
                 capture_output=True,
                 text=True,
                 timeout=10
