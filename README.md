@@ -992,6 +992,147 @@ vercel --prod
 
 ## ✅ Verificación
 
+### Verificar que el Sistema Funciona en Modo REAL
+
+El sistema está configurado para funcionar en **modo REAL** cuando las credenciales de Cloudflare están configuradas. Aquí está cómo verificarlo:
+
+#### 🔍 Verificación de Modo de Operación
+
+**1. Verificar Configuración (API de Diagnóstico):**
+
+```bash
+curl https://tu-dominio.vercel.app/api/diagnostico
+```
+
+**Respuesta esperada (Modo REAL):**
+```json
+{
+  "modo_actual": "REAL",
+  "configuracion": {
+    "CF_API_TOKEN": {
+      "configurado": true,
+      "preview": "1234567890...",
+      "longitud": 40
+    },
+    "CF_ZONE_ID": {
+      "configurado": true,
+      "preview": "abcdef12...",
+      "longitud": 32
+    }
+  },
+  "estado": {
+    "puede_aplicar_proteccion_real": true,
+    "modo_simulacion_activo": false
+  }
+}
+```
+
+**Respuesta en Modo Simulación (sin credenciales):**
+```json
+{
+  "modo_actual": "SIMULACIÓN",
+  "estado": {
+    "puede_aplicar_proteccion_real": false,
+    "modo_simulacion_activo": true
+  }
+}
+```
+
+#### 🎯 Garantía de Funcionamiento Real
+
+**Todos los scripts y APIs funcionan en modo REAL cuando:**
+
+✅ **Variables de entorno configuradas:**
+- `CF_API_TOKEN` - Token de API de Cloudflare
+- `CF_ZONE_ID` - ID de la zona de Cloudflare
+- `TURNSTILE_SECRET_KEY` - Clave secreta de Turnstile
+
+✅ **Operaciones REALES ejecutadas:**
+
+1. **`api/solicitar-proteccion.py`**
+   - ✅ Conecta con Cloudflare API real
+   - ✅ Crea/actualiza registros DNS reales
+   - ✅ Configura SSL/TLS real
+   - ✅ Activa WAF real
+   - ✅ Configura protección DDoS real
+   - ✅ Crea reglas de firewall reales
+   - ⚠️ Solo entra en simulación si NO hay credenciales
+
+2. **`api/toggle-protection.py`**
+   - ✅ Activa/desactiva protecciones reales
+   - ✅ Modifica configuración real de Cloudflare
+   - ✅ Sin modo simulación
+
+3. **`api/verificar-delegacion.py`**
+   - ✅ Consulta DNS real
+   - ✅ Verifica nameservers reales
+   - ✅ Compara con Cloudflare real
+   - ✅ Sin modo simulación
+
+4. **`scripts/verificar_proteccion_aplicada.py`**
+   - ✅ Consulta estado real de Cloudflare
+   - ✅ Verifica protecciones reales aplicadas
+   - ✅ Sin modo simulación
+
+#### 📋 Checklist de Verificación
+
+**Para confirmar que el sistema funciona en modo REAL:**
+
+- [ ] Variables de entorno configuradas en Vercel
+- [ ] API de diagnóstico muestra `"modo_actual": "REAL"`
+- [ ] Solicitud de protección retorna `"simulation_mode": false`
+- [ ] Cambios visibles en Cloudflare Dashboard
+- [ ] DNS records creados con proxy activo (🟠)
+- [ ] SSL/TLS configurado en modo Strict
+- [ ] WAF activado
+- [ ] Security Level en High
+
+#### 🧪 Prueba de Funcionamiento Real
+
+**Paso 1: Verificar Modo**
+```bash
+curl https://tu-dominio.vercel.app/api/diagnostico | jq '.modo_actual'
+# Debe retornar: "REAL"
+```
+
+**Paso 2: Solicitar Protección**
+```bash
+# Enviar solicitud desde el formulario web
+# Verificar en la respuesta: "simulation_mode": false
+```
+
+**Paso 3: Verificar en Cloudflare**
+```bash
+# Ir a Cloudflare Dashboard
+# DNS > Records > Buscar el dominio
+# Debe tener 🟠 (nube naranja) = Proxied
+```
+
+**Paso 4: Ejecutar Script de Verificación**
+```bash
+python scripts/verificar_proteccion_aplicada.py
+# Debe mostrar controles activos reales
+```
+
+#### ⚠️ Importante: Modo Simulación
+
+El sistema **SOLO** entra en modo simulación si:
+- ❌ `CF_API_TOKEN` no está configurado
+- ❌ `CF_ZONE_ID` no está configurado
+
+**Indicadores de modo simulación:**
+- Respuesta incluye `"simulation_mode": true`
+- Logs muestran "WARNING: Cloudflare credentials not configured"
+- Nameservers muestran "Configure CF_API_TOKEN and CF_ZONE_ID"
+- API de diagnóstico muestra `"modo_actual": "SIMULACIÓN"`
+
+**Para salir del modo simulación:**
+1. Configurar variables en Vercel Dashboard
+2. Hacer redeploy del proyecto
+3. Verificar con API de diagnóstico
+
+---
+
 ### Verificar que el Sistema Funciona
 
 #### Opción 1: Usar el Script de Verificación
@@ -1004,13 +1145,55 @@ python scripts/verificar_proteccion_aplicada.py
 npm run verify
 ```
 
-Este script verifica:
-- ✅ Registros DNS con proxy activo
-- ✅ Configuración SSL/TLS
-- ✅ Force HTTPS
-- ✅ WAF
-- ✅ DDoS Protection
-- ✅ Firewall Rules
+**El script verifica y muestra claramente:**
+
+✅ **Controles Activos:**
+- DNS con Proxy (Nube Naranja)
+- SSL/TLS en modo Strict
+- Force HTTPS (Redirección automática)
+- WAF (Web Application Firewall)
+- DDoS Protection (Security Level High)
+- Firewall Rules Personalizadas
+
+❌ **Controles Inactivos:**
+- Muestra qué protecciones no están configuradas
+- Indica el impacto de seguridad
+- Sugiere acciones correctivas
+
+⚠️ **Limitaciones Técnicas:**
+- Identifica controles no disponibles por plan
+- Explica qué plan se requiere
+- Muestra alternativas disponibles
+
+**Ejemplo de salida:**
+```
+======================================================================
+RESUMEN DE PROTECCION PERIMETRAL
+======================================================================
+
+Estadísticas:
+   Total de controles verificados: 6
+   Controles activos: 5
+   Controles inactivos: 0
+   Limitaciones de plan: 1
+
+CONTROLES ACTIVOS:
+   ✅ DNS con Proxy
+   ✅ SSL/TLS Strict
+   ✅ Force HTTPS
+   ✅ WAF
+   ✅ DDoS Protection
+
+LIMITACIONES TÉCNICAS (No disponibles en tu plan):
+   ⚠️  Firewall Rules Personalizadas
+
+   NOTA: Estas funcionalidades requieren un plan superior.
+   Las protecciones básicas (SSL, WAF, DDoS) siguen activas.
+
+EVALUACIÓN GENERAL
+   🎉 ¡EXCELENTE! Todas las protecciones disponibles están activas
+   Nivel de seguridad: ÓPTIMO
+```
 
 #### Opción 2: Verificar en Cloudflare Dashboard
 

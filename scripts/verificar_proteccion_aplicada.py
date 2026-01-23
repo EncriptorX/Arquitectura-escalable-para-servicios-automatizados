@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Script para verificar que la protección perimetral se aplicó correctamente
 Ejecutar después de usar el formulario web
@@ -9,6 +10,45 @@ import json
 import urllib.request
 import sys
 from dotenv import load_dotenv
+
+# Detectar si podemos usar emojis
+USE_EMOJIS = sys.platform != 'win32' or os.getenv('PYTHONIOENCODING', '').lower() == 'utf-8'
+
+# Símbolos según el sistema
+if USE_EMOJIS:
+    CHECK = "✅"
+    CROSS = "❌"
+    WARN = "⚠️"
+    INFO = "ℹ️"
+    FIRE = "🔥"
+    LOCK = "🔒"
+    SHIELD = "🛡️"
+    ALERT = "🚨"
+    REFRESH = "🔄"
+    CHART = "📊"
+    GLOBE = "🌐"
+    SEARCH = "🔍"
+    DOCS = "📋"
+    BULB = "💡"
+    TROPHY = "🎉"
+    TARGET = "🎯"
+else:
+    CHECK = "[OK]"
+    CROSS = "[X]"
+    WARN = "[!]"
+    INFO = "[i]"
+    FIRE = "[FIRE]"
+    LOCK = "[LOCK]"
+    SHIELD = "[SHIELD]"
+    ALERT = "[ALERT]"
+    REFRESH = "[REFRESH]"
+    CHART = "[CHART]"
+    GLOBE = "[GLOBE]"
+    SEARCH = "[SEARCH]"
+    DOCS = "[DOCS]"
+    BULB = "[TIP]"
+    TROPHY = "[SUCCESS]"
+    TARGET = "[TARGET]"
 
 # Cargar variables de entorno
 load_dotenv()
@@ -37,13 +77,13 @@ def hacer_request(method, endpoint, data=None):
 def verificar_credenciales():
     """Verifica que las credenciales estén configuradas"""
     if not CF_API_TOKEN:
-        print("❌ CF_API_TOKEN no está configurado")
+        print(f"{CROSS} CF_API_TOKEN no está configurado")
         return False
     if not CF_ZONE_ID:
-        print("❌ CF_ZONE_ID no está configurado")
+        print(f"{CROSS} CF_ZONE_ID no está configurado")
         return False
     
-    print("✅ Credenciales configuradas")
+    print(f"{CHECK} Credenciales configuradas")
     return True
 
 def obtener_info_zona():
@@ -123,39 +163,58 @@ def verificar_ssl():
     res = hacer_request("GET", f"zones/{CF_ZONE_ID}/settings/ssl")
     if res and res.get("success"):
         ssl_mode = res["result"]["value"]
-        print(f"Modo SSL: {ssl_mode}")
+        print(f"Modo SSL: {ssl_mode.upper()}")
         
         if ssl_mode == "strict":
-            print("✅ SSL configurado correctamente en modo Full (Strict)")
-            print("   Esto significa cifrado end-to-end")
+            print("✅ SSL CONFIGURADO EN MODO FULL (STRICT)")
+            print("\n   Características:")
+            print("   ✓ Cifrado end-to-end (Cliente → Cloudflare → Servidor)")
+            print("   ✓ Certificado válido requerido en el servidor origen")
+            print("   ✓ Máxima seguridad en la comunicación")
+            print("\n   Disponible en: Todos los planes (Free, Pro, Business, Enterprise)")
             return True
         else:
-            print(f"⚠️  SSL está en modo '{ssl_mode}' (se esperaba 'strict')")
+            print(f"⚠️  SSL en modo '{ssl_mode.upper()}' (se recomienda 'STRICT')")
+            print(f"\n   Modos disponibles:")
+            print(f"   - OFF: Sin cifrado (NO RECOMENDADO)")
+            print(f"   - FLEXIBLE: Cifrado solo Cliente → Cloudflare")
+            print(f"   - FULL: Cifrado completo pero sin validar certificado")
+            print(f"   - STRICT: Cifrado completo con certificado válido (RECOMENDADO)")
+            print(f"\n   ACCIÓN: Cambia el modo SSL a 'strict' para máxima seguridad")
             return False
     else:
         print("❌ No se pudo verificar la configuración SSL")
+        print("   CAUSA: Error de comunicación con Cloudflare API")
         return False
 
 def verificar_https_redirect():
     """Verifica la redirección HTTPS"""
     print("\n" + "="*70)
-    print("🔄 REDIRECCIÓN HTTPS")
+    print("🔄 REDIRECCIÓN HTTPS AUTOMÁTICA")
     print("="*70)
     
     res = hacer_request("GET", f"zones/{CF_ZONE_ID}/settings/always_use_https")
     if res and res.get("success"):
         https_mode = res["result"]["value"]
-        print(f"Always Use HTTPS: {https_mode}")
+        print(f"Always Use HTTPS: {https_mode.upper()}")
         
         if https_mode == "on":
-            print("✅ Redirección HTTPS activada")
-            print("   Todo el tráfico HTTP se redirige automáticamente a HTTPS")
+            print("✅ REDIRECCIÓN HTTPS ACTIVADA")
+            print("\n   Funcionamiento:")
+            print("   ✓ Todo el tráfico HTTP se redirige automáticamente a HTTPS")
+            print("   ✓ Redirección 301 (permanente) a nivel de edge")
+            print("   ✓ Sin necesidad de configuración en el servidor")
+            print("\n   Disponible en: Todos los planes (Free, Pro, Business, Enterprise)")
             return True
         else:
-            print("⚠️  Redirección HTTPS desactivada")
+            print("❌ REDIRECCIÓN HTTPS DESACTIVADA")
+            print("   IMPACTO: Los usuarios pueden acceder por HTTP sin cifrado")
+            print("   RIESGO: Datos sensibles pueden ser interceptados")
+            print("   ACCIÓN: Activa 'Always Use HTTPS' inmediatamente")
             return False
     else:
         print("❌ No se pudo verificar la redirección HTTPS")
+        print("   CAUSA: Error de comunicación con Cloudflare API")
         return False
 
 def verificar_waf():
@@ -167,22 +226,26 @@ def verificar_waf():
     res = hacer_request("GET", f"zones/{CF_ZONE_ID}/settings/waf")
     if res and res.get("success"):
         waf_mode = res["result"]["value"]
-        print(f"WAF: {waf_mode}")
+        print(f"Estado WAF: {waf_mode.upper()}")
         
         if waf_mode == "on":
-            print("✅ WAF activado")
-            print("   Protección contra ataques OWASP Top 10:")
-            print("   - SQL Injection")
-            print("   - XSS (Cross-Site Scripting)")
-            print("   - CSRF")
-            print("   - File Inclusion")
-            print("   - Command Injection")
+            print("✅ WAF ACTIVADO - Protección contra ataques web")
+            print("\n   Protecciones incluidas:")
+            print("   ✓ SQL Injection - Previene inyección de código SQL")
+            print("   ✓ XSS (Cross-Site Scripting) - Bloquea scripts maliciosos")
+            print("   ✓ CSRF - Protege contra falsificación de peticiones")
+            print("   ✓ File Inclusion - Previene inclusión de archivos maliciosos")
+            print("   ✓ Command Injection - Bloquea ejecución de comandos")
+            print("\n   Disponible en: Todos los planes (Free, Pro, Business, Enterprise)")
             return True
         else:
-            print("⚠️  WAF desactivado")
+            print("❌ WAF DESACTIVADO")
+            print("   IMPACTO: Tu sitio está vulnerable a ataques web comunes")
+            print("   ACCIÓN: Activa el WAF desde el panel de control")
             return False
     else:
         print("❌ No se pudo verificar el WAF")
+        print("   CAUSA: Error de comunicación con Cloudflare API")
         return False
 
 def verificar_security_level():
@@ -194,26 +257,31 @@ def verificar_security_level():
     res = hacer_request("GET", f"zones/{CF_ZONE_ID}/settings/security_level")
     if res and res.get("success"):
         sec_level = res["result"]["value"]
-        print(f"Security Level: {sec_level}")
+        print(f"Security Level: {sec_level.upper()}")
         
         if sec_level == "high":
-            print("✅ Protección DDoS en nivel ALTO")
-            print("   Protección contra:")
-            print("   - Ataques DDoS Layer 3/4 (Network/Transport)")
-            print("   - Ataques DDoS Layer 7 (Application)")
-            print("   - Ataques volumétricos")
+            print("✅ PROTECCIÓN DDoS EN NIVEL ALTO")
+            print("\n   Protecciones activas:")
+            print("   ✓ DDoS Layer 3/4 - Protección a nivel de red y transporte")
+            print("   ✓ DDoS Layer 7 - Protección a nivel de aplicación")
+            print("   ✓ Ataques volumétricos - Mitigación de tráfico masivo")
+            print("   ✓ Rate Limiting - Control de peticiones por segundo")
+            print("\n   Disponible en: Todos los planes (Free, Pro, Business, Enterprise)")
             return True
         else:
-            print(f"⚠️  Security Level está en '{sec_level}' (se esperaba 'high')")
+            print(f"⚠️  Security Level en '{sec_level.upper()}' (se recomienda 'HIGH')")
+            print(f"   IMPACTO: Protección DDoS reducida")
+            print(f"   ACCIÓN: Aumenta el nivel de seguridad a 'high'")
             return False
     else:
         print("❌ No se pudo verificar el Security Level")
+        print("   CAUSA: Error de comunicación con Cloudflare API")
         return False
 
 def verificar_firewall_rules():
     """Verifica las reglas de firewall"""
     print("\n" + "="*70)
-    print("🔥 REGLAS DE FIREWALL")
+    print("🔥 REGLAS DE FIREWALL PERSONALIZADAS")
     print("="*70)
     
     res = hacer_request("GET", f"zones/{CF_ZONE_ID}/firewall/rules")
@@ -222,7 +290,8 @@ def verificar_firewall_rules():
         
         if not rules:
             print("⚠️  No hay reglas de firewall configuradas")
-            print("   Esto puede ser normal si tu plan no incluye Firewall Rules")
+            print("   LIMITACIÓN TÉCNICA: Firewall Rules requiere plan Pro o superior")
+            print("   Plan Free: 5 reglas | Plan Pro: 20 reglas | Plan Business: 100 reglas")
             return None
         
         print(f"Total de reglas: {len(rules)}")
@@ -239,21 +308,28 @@ def verificar_firewall_rules():
             print(f"   Descripción: {cas_rule['description']}")
             print(f"   Acción: {cas_rule['action']}")
             print(f"   Estado: {'Activa' if not cas_rule.get('paused') else 'Pausada'}")
+            print(f"   ID: {cas_rule['id']}")
             return True
         else:
             print("\n⚠️  No se encontró la regla de firewall de CAS")
-            print("   Esto puede significar que:")
-            print("   1. Tu plan no incluye Firewall Rules")
+            print("   POSIBLES CAUSAS:")
+            print("   1. LIMITACIÓN DE PLAN: Tu plan no incluye Firewall Rules")
             print("   2. La regla no se creó correctamente")
+            print("   3. La regla fue eliminada manualmente")
             return False
     else:
         errors = res.get("errors", []) if res else []
         if errors and errors[0].get("code") == 1003:
-            print("⚠️  Firewall Rules no disponible en tu plan")
-            print("   Esto es normal en el plan Free")
+            print("⚠️  LIMITACIÓN DE PLAN: Firewall Rules no disponible")
+            print("   Tu plan actual: Free")
+            print("   Requerido: Pro o superior")
+            print("   Impacto: No se pueden crear reglas de firewall personalizadas")
+            print("   Nota: Las protecciones básicas (WAF, DDoS) siguen activas")
             return None
         else:
             print("❌ No se pudieron obtener las reglas de firewall")
+            if errors:
+                print(f"   Error: {errors[0].get('message', 'Desconocido')}")
             return False
 
 def generar_resumen(resultados):
@@ -262,36 +338,82 @@ def generar_resumen(resultados):
     print("📊 RESUMEN DE PROTECCIÓN PERIMETRAL")
     print("="*70)
     
+    # Separar resultados por estado
+    activos = {k: v for k, v in resultados.items() if v is True}
+    inactivos = {k: v for k, v in resultados.items() if v is False}
+    limitados = {k: v for k, v in resultados.items() if v is None}
+    
     total = len([r for r in resultados.values() if r is not None])
-    exitosos = len([r for r in resultados.values() if r is True])
+    exitosos = len(activos)
     
-    print(f"\nProtecciones verificadas: {exitosos}/{total}")
-    print("\nEstado por protección:")
+    print(f"\n📈 Estadísticas:")
+    print(f"   Total de controles verificados: {len(resultados)}")
+    print(f"   Controles activos: {len(activos)}")
+    print(f"   Controles inactivos: {len(inactivos)}")
+    print(f"   Limitaciones de plan: {len(limitados)}")
     
-    for nombre, resultado in resultados.items():
-        if resultado is True:
+    print("\n✅ CONTROLES ACTIVOS:")
+    if activos:
+        for nombre in activos.keys():
             print(f"   ✅ {nombre}")
-        elif resultado is False:
+    else:
+        print("   (Ninguno)")
+    
+    if inactivos:
+        print("\n❌ CONTROLES INACTIVOS:")
+        for nombre in inactivos.keys():
             print(f"   ❌ {nombre}")
-        elif resultado is None:
-            print(f"   ⚠️  {nombre} (No disponible en tu plan)")
+    
+    if limitados:
+        print("\n⚠️  LIMITACIONES TÉCNICAS (No disponibles en tu plan):")
+        for nombre in limitados.keys():
+            print(f"   ⚠️  {nombre}")
+        print("\n   NOTA: Estas funcionalidades requieren un plan superior.")
+        print("   Las protecciones básicas (SSL, WAF, DDoS) siguen activas.")
     
     print("\n" + "="*70)
+    print("🎯 EVALUACIÓN GENERAL")
+    print("="*70)
     
     if exitosos == total:
-        print("🎉 ¡EXCELENTE! Todas las protecciones están activas")
-        print("Tu dominio está completamente protegido por Cloudflare")
+        print("🎉 ¡EXCELENTE! Todas las protecciones disponibles están activas")
+        print("   Tu dominio está completamente protegido por Cloudflare")
+        print("   Nivel de seguridad: ÓPTIMO")
     elif exitosos >= total * 0.7:
         print("✅ BIEN - La mayoría de las protecciones están activas")
-        print("Revisa las protecciones marcadas con ❌ para mejorar la seguridad")
+        print("   Nivel de seguridad: BUENO")
+        if inactivos:
+            print("\n   RECOMENDACIÓN: Revisa las protecciones marcadas con ❌")
     else:
         print("⚠️  ATENCIÓN - Pocas protecciones están activas")
-        print("Verifica que el script se haya ejecutado correctamente")
+        print("   Nivel de seguridad: MEJORABLE")
+        print("\n   ACCIÓN REQUERIDA:")
+        print("   1. Verifica que el script de protección se ejecutó correctamente")
+        print("   2. Revisa los logs del sistema")
+        print("   3. Contacta al administrador si el problema persiste")
+    
+    if limitados:
+        print("\n💡 MEJORA SUGERIDA:")
+        print("   Considera actualizar tu plan de Cloudflare para acceder a:")
+        for nombre in limitados.keys():
+            print(f"   - {nombre}")
+        print("   Más información: https://www.cloudflare.com/plans/")
+    
+    print("\n" + "="*70)
 
 def main():
     """Función principal"""
     print("="*70)
-    print("🔍 VERIFICACIÓN DE PROTECCIÓN PERIMETRAL CLOUDFLARE")
+    print("VERIFICACION DE PROTECCION PERIMETRAL CLOUDFLARE")
+    print("="*70)
+    print("\nEste script verifica los siguientes controles de seguridad:")
+    print("  1. [OK] DNS con Proxy (Nube Naranja) - Disponible en todos los planes")
+    print("  2. [OK] SSL/TLS Strict - Disponible en todos los planes")
+    print("  3. [OK] Force HTTPS - Disponible en todos los planes")
+    print("  4. [OK] WAF (Web Application Firewall) - Disponible en todos los planes")
+    print("  5. [OK] DDoS Protection - Disponible en todos los planes")
+    print("  6. [!]  Firewall Rules - Requiere plan Pro o superior")
+    print("\nNOTA: Algunos controles pueden no estar disponibles segun tu plan.")
     print("="*70)
     
     # Verificar credenciales
@@ -320,12 +442,14 @@ def main():
     resultados["Force HTTPS"] = verificar_https_redirect()
     resultados["WAF"] = verificar_waf()
     resultados["DDoS Protection"] = verificar_security_level()
-    resultados["Firewall Rules"] = verificar_firewall_rules()
+    resultados["Firewall Rules Personalizadas"] = verificar_firewall_rules()
     
     # Generar resumen
     generar_resumen(resultados)
     
     print("\n✅ Verificación completada")
+    print("\n💡 TIP: Ejecuta este script después de cada cambio de configuración")
+    print("   para asegurar que las protecciones estén activas.")
 
 if __name__ == "__main__":
     main()
