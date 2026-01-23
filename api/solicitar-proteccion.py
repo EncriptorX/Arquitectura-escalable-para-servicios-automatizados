@@ -55,8 +55,24 @@ class CloudflareEdgeProtector:
             try:
                 error_body = json.loads(err.read().decode('utf-8'))
                 self._log(f"Detalle: {json.dumps(error_body)}", "ERROR")
+                
+                # Proporcionar contexto adicional según el código de error
+                if err.code == 403:
+                    self._log("Posible causa: Token de API sin permisos suficientes", "WARN")
+                    self._log("Solución: Verifica que el token tenga permisos para esta operación", "WARN")
+                elif err.code == 429:
+                    self._log("Posible causa: Límite de rate limit alcanzado", "WARN")
+                    self._log("Solución: Espera unos minutos antes de reintentar", "WARN")
+                elif err.code == 404:
+                    self._log("Posible causa: Recurso no encontrado o zona incorrecta", "WARN")
+                    self._log("Solución: Verifica el CF_ZONE_ID en la configuración", "WARN")
             except:
                 pass
+            return None
+        except urllib.error.URLError as e:
+            self._log(f"Error de conexión: {str(e.reason)}", "ERROR")
+            self._log("Posible causa: Problemas de red o API de Cloudflare no disponible", "WARN")
+            self._log("Solución: Verifica tu conexión a internet y reintenta", "WARN")
             return None
         except Exception as e:
             self._log(f"Error en request: {str(e)}", "ERROR")
@@ -77,6 +93,8 @@ class CloudflareEdgeProtector:
                 "nameservers": nameservers
             }
         self._log("No se pudo obtener información de la zona", "ERROR")
+        self._log("Posible causa: CF_ZONE_ID incorrecto o token sin permisos", "WARN")
+        self._log("Solución: Verifica CF_ZONE_ID en la configuración de Vercel", "WARN")
         return None
     
     def validate_domain_in_zone(self, domain, zone_name):
@@ -115,12 +133,30 @@ class CloudflareEdgeProtector:
             self._log(f"✓ Registro DNS {action} exitosamente con Proxy activado")
             return True
         else:
-            self._log(f"Fallo en configuración DNS", "ERROR")
+            self._log(f"Error al configurar DNS Proxy", "ERROR")
+            self._log(f"Impacto: El dominio {name} NO estará protegido por Cloudflare", "ERROR")
+            self._log("Posible causa: Permisos insuficientes o error de API", "WARN")
             return False
 
     def configure_ssl_strict(self):
-        """Configura SSL/TLS en modo Full (Strict)"""
-        self._log("Configurando modo SSL a Full (Strict)...")
+        """Configura SSL/TLS en modo Full (Strict) - IDEMPOTENTE"""
+        self._log("Verificando configuración SSL...")
+        
+        # Primero verificar el estado actual
+        get_res = self._request("GET", f"zones/{self.zone_id}/settings/ssl")
+        
+        if get_res and get_res.get("success"):
+            current_value = get_res["result"].get("value")
+            
+            if current_value == "strict":
+                self._log("✓ Modo SSL ya está configurado en Full (Strict)")
+                return True
+            
+            self._log(f"Modo SSL actual: {current_value}, cambiando a 'strict'...")
+        else:
+            self._log("Configurando modo SSL a Full (Strict)...")
+        
+        # Aplicar configuración
         payload = {"value": "strict"}
         res = self._request("PATCH", f"zones/{self.zone_id}/settings/ssl", payload)
         
@@ -128,40 +164,149 @@ class CloudflareEdgeProtector:
             self._log("✓ Modo SSL configurado a Full (Strict)")
             return True
         else:
-            self._log("Fallo al configurar SSL", "ERROR")
+            self._log("Advertencia: No se pudo configurar SSL", "WARN")
+            self._log("Impacto: Conexiones pueden no estar completamente cifradas", "WARN")
+            self._log("Recomendación: Configura SSL manualmente en el panel de Cloudflare", "WARN")
             return False
 
     def enable_https_force_redirect(self):
-        """Fuerza la redirección de HTTP a HTTPS"""
-        self._log("Activando 'Always Use HTTPS'...")
+        """Fuerza la redirección de HTTP a HTTPS - IDEMPOTENTE"""
+        self._log("Verificando redirección HTTPS...")
+        
+        # Verificar estado actual
+        get_res = self._request("GET", f"zones/{self.zone_id}/settings/always_use_https")
+        
+        if get_res and get_res.get("success"):
+            current_value = get_res["result"].get("value")
+            
+            if current_value == "on":
+                self._log("✓ Redirección HTTPS ya está activada")
+                return True
+            
+            self._log("Activando 'Always Use HTTPS'...")
+        else:
+            self._log("Activando 'Always Use HTTPS'...")
+        
+        # Aplicar configuración
         payload = {"value": "on"}
         res = self._request("PATCH", f"zones/{self.zone_id}/settings/always_use_https", payload)
         
         if res and res.get("success"):
             self._log("✓ Redirección HTTPS forzada activada")
             return True
-        return False
+        else:
+            self._log("Advertencia: No se pudo activar redirección HTTPS", "WARN")
+            return False
 
     def enable_security_features(self):
-        """Activa WAF y configuraciones de seguridad DDoS"""
-        self._log("Optimizando configuraciones de Seguridad y DDoS...")
+        """Activa WAF y configuraciones de seguridad DDoS - IDEMPOTENTE"""
+        self._log("Verificando configuraciones de Seguridad y DDoS...")
         
-        waf_res = self._request("PATCH", f"zones/{self.zone_id}/settings/waf", {"value": "on"})
-        sec_res = self._request("PATCH", f"zones/{self.zone_id}/settings/security_level", {"value": "high"})
+        success_count = 0
+        total_count = 2
         
-        if waf_res and waf_res.get("success") and sec_res and sec_res.get("success"):
-            self._log("✓ WAF y protecciones DDoS base configuradas")
-            return True
+        # Verificar y configurar WAF
+        waf_get = self._request("GET", f"zones/{self.zone_id}/settings/waf")
+        if waf_get and waf_get.get("success"):
+            current_waf = waf_get["result"].get("value")
+            if current_waf == "on":
+                self._log("✓ WAF ya está activado")
+                success_count += 1
+            else:
+                self._log("Activando WAF...")
+                waf_res = self._request("PATCH", f"zones/{self.zone_id}/settings/waf", {"value": "on"})
+                if waf_res and waf_res.get("success"):
+                    self._log("✓ WAF activado")
+                    success_count += 1
+                else:
+                    self._log("Advertencia: No se pudo activar WAF", "WARN")
         else:
-            self._log("Advertencia: Algunas configuraciones de seguridad no se aplicaron completamente", "WARN")
+            # Intentar activar sin verificar
+            waf_res = self._request("PATCH", f"zones/{self.zone_id}/settings/waf", {"value": "on"})
+            if waf_res and waf_res.get("success"):
+                self._log("✓ WAF activado")
+                success_count += 1
+        
+        # Verificar y configurar Security Level
+        sec_get = self._request("GET", f"zones/{self.zone_id}/settings/security_level")
+        if sec_get and sec_get.get("success"):
+            current_sec = sec_get["result"].get("value")
+            if current_sec == "high":
+                self._log("✓ Security Level ya está en 'high'")
+                success_count += 1
+            else:
+                self._log(f"Security Level actual: {current_sec}, cambiando a 'high'...")
+                sec_res = self._request("PATCH", f"zones/{self.zone_id}/settings/security_level", {"value": "high"})
+                if sec_res and sec_res.get("success"):
+                    self._log("✓ Security Level configurado a 'high'")
+                    success_count += 1
+                else:
+                    self._log("Advertencia: No se pudo configurar Security Level", "WARN")
+        else:
+            # Intentar configurar sin verificar
+            sec_res = self._request("PATCH", f"zones/{self.zone_id}/settings/security_level", {"value": "high"})
+            if sec_res and sec_res.get("success"):
+                self._log("✓ Security Level configurado a 'high'")
+                success_count += 1
+        
+        if success_count == total_count:
+            self._log("✓ Todas las protecciones de seguridad configuradas")
+            return True
+        elif success_count > 0:
+            self._log(f"Advertencia: Solo {success_count}/{total_count} configuraciones aplicadas", "WARN")
+            return True  # Tolerante a fallos parciales
+        else:
+            self._log("Advertencia: No se pudieron aplicar configuraciones de seguridad", "WARN")
             return False
 
     def create_firewall_custom_rule(self):
-        """Crea una regla de firewall personalizada"""
-        self._log("Implementando Regla de Firewall Personalizada...")
+        """Crea o actualiza una regla de firewall personalizada (IDEMPOTENTE)"""
+        self._log("Verificando Regla de Firewall Personalizada...")
         
+        rule_description = "CAS Auto-Provisioned Block Rule"
         expression = '(ip.geoip.country eq "XX") or (http.user_agent contains "BadBot")'
         
+        # Primero, buscar si la regla ya existe
+        search_res = self._request("GET", f"zones/{self.zone_id}/firewall/rules")
+        
+        if search_res and search_res.get("success"):
+            existing_rules = search_res.get("result", [])
+            existing_rule = None
+            
+            # Buscar regla existente por descripción
+            for rule in existing_rules:
+                if rule.get("description") == rule_description:
+                    existing_rule = rule
+                    break
+            
+            if existing_rule:
+                # La regla ya existe, verificar si necesita actualización
+                rule_id = existing_rule["id"]
+                current_paused = existing_rule.get("paused", False)
+                
+                if current_paused:
+                    # Reactivar la regla si está pausada
+                    self._log(f"Regla existente encontrada (pausada), reactivando...")
+                    update_payload = {
+                        "filter": existing_rule["filter"],
+                        "action": existing_rule["action"],
+                        "description": rule_description,
+                        "paused": False
+                    }
+                    res = self._request("PUT", f"zones/{self.zone_id}/firewall/rules/{rule_id}", update_payload)
+                    
+                    if res and res.get("success"):
+                        self._log("✓ Regla de Firewall reactivada correctamente")
+                        return True
+                    else:
+                        self._log("Advertencia: No se pudo reactivar la regla de firewall", "WARN")
+                        return False
+                else:
+                    self._log("✓ Regla de Firewall ya existe y está activa")
+                    return True
+        
+        # Si no existe, crear nueva regla
+        self._log("Creando nueva Regla de Firewall...")
         legacy_payload = [
             {
                 "filter": {
@@ -169,7 +314,7 @@ class CloudflareEdgeProtector:
                     "paused": False
                 },
                 "action": "block",
-                "description": "CAS Auto-Provisioned Block Rule"
+                "description": rule_description
             }
         ]
         
@@ -179,11 +324,23 @@ class CloudflareEdgeProtector:
             self._log("✓ Regla de Firewall creada correctamente")
             return True
         else:
-            self._log("Nota: Regla de firewall no creada (puede requerir plan superior)", "WARN")
+            # Verificar si el error es por límite de plan
+            errors = res.get("errors", []) if res else []
+            if errors and any(err.get("code") in [1003, 10000] for err in errors):
+                self._log("Nota: Firewall Rules no disponible en tu plan actual", "WARN")
+                self._log("Restricción: Esta funcionalidad requiere plan Pro o superior", "WARN")
+                self._log("Impacto: No se aplicarán reglas de firewall personalizadas", "WARN")
+                self._log("Alternativa: Las protecciones básicas (WAF, DDoS) siguen activas", "WARN")
+            else:
+                self._log("Advertencia: No se pudo crear la regla de firewall", "WARN")
+                self._log("Posible causa: Permisos insuficientes o límite alcanzado", "WARN")
             return False
 
     def run_provisioning(self, dns_name, origin_ip, zone_name):
-        """Ejecuta el aprovisionamiento completo de protección perimetral"""
+        """
+        Ejecuta el aprovisionamiento completo de protección perimetral
+        IDEMPOTENTE y TOLERANTE A FALLOS
+        """
         self._log("=== INICIANDO PROVISIÓN DE SEGURIDAD PERIMETRAL ===")
         
         # Validar que el dominio pertenece a la zona
@@ -197,19 +354,87 @@ class CloudflareEdgeProtector:
             }
         
         self._log(f"✓ Dominio '{dns_name}' validado para la zona '{zone_name}'")
-        self._log(f"Configurando protección para dominio: {dns_name}")
-        self.configure_dns_proxy(dns_name, origin_ip)
         
-        self.configure_ssl_strict()
-        self.enable_https_force_redirect()
+        # Contador de operaciones exitosas
+        operations = {
+            "dns_proxy": False,
+            "ssl_strict": False,
+            "https_redirect": False,
+            "security_features": False,
+            "firewall_rules": False
+        }
         
-        self.enable_security_features()
-        self.create_firewall_custom_rule()
+        # 1. Configurar DNS con Proxy (crítico)
+        self._log(f"[1/5] Configurando DNS Proxy para dominio: {dns_name}")
+        try:
+            operations["dns_proxy"] = self.configure_dns_proxy(dns_name, origin_ip)
+        except Exception as e:
+            self._log(f"Error en DNS Proxy: {str(e)}", "ERROR")
+            operations["dns_proxy"] = False
         
-        self._log("=== PROVISIÓN COMPLETADA EXITOSAMENTE ===")
+        # 2. Configurar SSL/TLS (importante pero no crítico)
+        self._log("[2/5] Configurando SSL/TLS...")
+        try:
+            operations["ssl_strict"] = self.configure_ssl_strict()
+        except Exception as e:
+            self._log(f"Error en SSL: {str(e)}", "WARN")
+            operations["ssl_strict"] = False
+        
+        # 3. Activar redirección HTTPS (importante pero no crítico)
+        self._log("[3/5] Configurando redirección HTTPS...")
+        try:
+            operations["https_redirect"] = self.enable_https_force_redirect()
+        except Exception as e:
+            self._log(f"Error en HTTPS redirect: {str(e)}", "WARN")
+            operations["https_redirect"] = False
+        
+        # 4. Activar protecciones de seguridad (importante pero no crítico)
+        self._log("[4/5] Configurando protecciones de seguridad...")
+        try:
+            operations["security_features"] = self.enable_security_features()
+        except Exception as e:
+            self._log(f"Error en security features: {str(e)}", "WARN")
+            operations["security_features"] = False
+        
+        # 5. Crear reglas de firewall (opcional, puede fallar por plan)
+        self._log("[5/5] Configurando reglas de firewall...")
+        try:
+            operations["firewall_rules"] = self.create_firewall_custom_rule()
+        except Exception as e:
+            self._log(f"Error en firewall rules: {str(e)}", "WARN")
+            operations["firewall_rules"] = False
+        
+        # Evaluar resultado
+        critical_ops = ["dns_proxy"]
+        important_ops = ["ssl_strict", "https_redirect", "security_features"]
+        optional_ops = ["firewall_rules"]
+        
+        critical_success = all(operations[op] for op in critical_ops)
+        important_count = sum(operations[op] for op in important_ops)
+        
+        if not critical_success:
+            self._log("=== PROVISIÓN FALLIDA: Operaciones críticas no completadas ===", "ERROR")
+            return {
+                "success": False,
+                "error": "No se pudo configurar DNS Proxy (operación crítica)",
+                "operations": operations,
+                "logs": self.logs
+            }
+        
+        if important_count == len(important_ops):
+            self._log("=== PROVISIÓN COMPLETADA EXITOSAMENTE (100%) ===")
+            status = "complete"
+        elif important_count > 0:
+            self._log(f"=== PROVISIÓN COMPLETADA PARCIALMENTE ({important_count}/{len(important_ops)} operaciones importantes) ===", "WARN")
+            status = "partial"
+        else:
+            self._log("=== PROVISIÓN COMPLETADA CON ADVERTENCIAS (solo operaciones críticas) ===", "WARN")
+            status = "minimal"
         
         return {
             "success": True,
+            "status": status,
+            "operations": operations,
             "logs": self.logs
         }
 
