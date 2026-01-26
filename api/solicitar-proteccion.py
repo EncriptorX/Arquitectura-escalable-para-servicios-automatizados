@@ -167,19 +167,74 @@ class CloudflareClient:
                 return json.loads(response.read().decode('utf-8'))
         
         except urllib.error.HTTPError as err:
-            self.log(f"Error HTTP {err.code}: {err.reason}", "ERROR")
+            error_body = None
             try:
-                self.log(f"Detalle: {json.dumps(json.loads(err.read().decode('utf-8')))}", "ERROR")
+                error_body = json.loads(err.read().decode('utf-8'))
             except:
                 pass
+            
+            # Tolerancia a fallos: detectar errores específicos
+            if error_body and "errors" in error_body:
+                for error in error_body["errors"]:
+                    error_code = error.get("code")
+                    
+                    # Error 81058: Registro DNS ya existe (idempotencia)
+                    if error_code == 81058:
+                        self.log("⚠️ Registro DNS ya existe, continuando (idempotente)", "WARN")
+                        if LOGGING_AVAILABLE:
+                            protection_logger.info(
+                                "Registro DNS ya existe - operación idempotente",
+                                error_code=81058,
+                                endpoint=endpoint,
+                                method=method
+                            )
+                        return {"success": True, "idempotent": True}
+                    
+                    # Error 81057: Registro DNS no encontrado (tolerancia)
+                    elif error_code == 81057:
+                        self.log("⚠️ Registro DNS no encontrado, puede ser primera vez", "WARN")
+                        if LOGGING_AVAILABLE:
+                            protection_logger.info(
+                                "Registro DNS no encontrado",
+                                error_code=81057,
+                                endpoint=endpoint
+                            )
+                    
+                    # Error 1004: DNS validation error (tolerancia)
+                    elif error_code == 1004:
+                        self.log("⚠️ Error de validación DNS, verificar configuración", "WARN")
+                        if LOGGING_AVAILABLE:
+                            protection_logger.warning(
+                                "Error de validación DNS",
+                                error_code=1004,
+                                endpoint=endpoint
+                            )
+            
+            self.log(f"Error HTTP {err.code}: {err.reason}", "ERROR")
+            if error_body:
+                self.log(f"Detalle: {json.dumps(error_body)}", "ERROR")
+                if LOGGING_AVAILABLE:
+                    log_api_error(
+                        endpoint,
+                        f"HTTP {err.code}: {err.reason}",
+                        "HTTPError",
+                        status_code=err.code,
+                        error_body=error_body
+                    )
+            
             if err.code in Config.ERROR_HINTS:
                 self.log(Config.ERROR_HINTS[err.code], "WARN")
+            
             return None
         except urllib.error.URLError as e:
             self.log(f"Error de conexión: {str(e.reason)}", "ERROR")
+            if LOGGING_AVAILABLE:
+                log_api_error(endpoint, f"Conexión: {str(e.reason)}", "URLError")
             return None
         except Exception as e:
             self.log(f"Error en request: {str(e)}", "ERROR")
+            if LOGGING_AVAILABLE:
+                log_api_error(endpoint, str(e), type(e).__name__)
             return None
     
     def get_zone_info(self) -> Optional[Dict]:

@@ -316,7 +316,128 @@ Verifica si un dominio está delegado correctamente a Cloudflare usando verifica
 
 ---
 
-### 4. Diagnóstico
+### 5. Estado del Dominio (NUEVO)
+
+Consulta el estado actual de un dominio en Cloudflare. Demuestra evidencia técnica de idempotencia, recursos existentes y configuración actual.
+
+#### 5.1 Health Check
+
+**Endpoint:** `GET /api/status`
+
+**Response (200 OK):**
+```json
+{
+  "status": "ok",
+  "message": "API de estado de dominio funcionando",
+  "has_cloudflare_config": true
+}
+```
+
+#### 5.2 Consultar Estado de Dominio
+
+**Endpoint:** `POST /api/status`
+
+**Request Body:**
+```json
+{
+  "domain": "demo.tudominio.com"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "ok",
+  "domain": "demo.tudominio.com",
+  "timestamp": "2026-01-26T10:30:00Z",
+  "zone": {
+    "id": "abc123",
+    "name": "tudominio.com",
+    "status": "active",
+    "paused": false,
+    "type": "full",
+    "name_servers": ["ns1.cloudflare.com", "ns2.cloudflare.com"],
+    "created_on": "2026-01-20T10:00:00Z",
+    "modified_on": "2026-01-26T09:00:00Z"
+  },
+  "dns_records": {
+    "success": true,
+    "exists": true,
+    "count": 2,
+    "records": [{
+      "id": "rec123",
+      "type": "A",
+      "name": "demo.tudominio.com",
+      "content": "192.0.2.1",
+      "proxied": true,
+      "ttl": 1,
+      "created_on": "2026-01-26T09:00:00Z",
+      "modified_on": "2026-01-26T09:00:00Z"
+    }]
+  },
+  "security_settings": {
+    "waf": {
+      "value": "on",
+      "modified_on": "2026-01-26T09:00:00Z",
+      "editable": true
+    },
+    "ssl": {
+      "value": "strict",
+      "modified_on": "2026-01-26T09:00:00Z",
+      "editable": true
+    },
+    "always_use_https": {
+      "value": "on",
+      "modified_on": "2026-01-26T09:00:00Z",
+      "editable": true
+    },
+    "security_level": {
+      "value": "high",
+      "modified_on": "2026-01-26T09:00:00Z",
+      "editable": true
+    }
+  },
+  "firewall_rules": {
+    "success": true,
+    "total_rules": 5,
+    "cas_rules": 1,
+    "rules": [{
+      "id": "rule123",
+      "description": "CAS Auto-Provisioned Block Rule",
+      "action": "block",
+      "paused": false,
+      "filter": "(ip.geoip.country eq \"XX\")",
+      "created_on": "2026-01-26T09:00:00Z",
+      "modified_on": "2026-01-26T09:00:00Z"
+    }]
+  },
+  "evidence": {
+    "idempotent": true,
+    "protected": true,
+    "proxied": true
+  }
+}
+```
+
+**Evidencia Técnica:**
+- `idempotent: true` - Recursos ya existen (operación idempotente)
+- `protected: true` - Protecciones de seguridad activas
+- `proxied: true` - DNS está proxied a través de Cloudflare
+
+**Notas:**
+- Demuestra estado actual del dominio en Cloudflare
+- Detecta recursos existentes (idempotencia)
+- Muestra configuraciones de seguridad aplicadas
+- Útil para verificar provisión exitosa
+- Incluye timestamps de creación y modificación
+
+**Errores:**
+- `400` - Dominio no proporcionado
+- `500` - Cloudflare no configurado o error interno
+
+---
+
+### 6. Diagnóstico
 
 Muestra el estado de configuración del sistema.
 
