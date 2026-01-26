@@ -33,12 +33,34 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
   const [urls, setUrls] = useState(['']);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [serviceEnabled, setServiceEnabled] = useState(true);
+  const [checkingService, setCheckingService] = useState(true);
 
   // Estado para el token de Turnstile
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [isTurnstileReady, setIsTurnstileReady] = useState(false);
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileWidgetIdRef = useRef<string | number | null>(null);
+
+  // Verificar estado del servicio al montar
+  useEffect(() => {
+    checkServiceStatus();
+  }, []);
+
+  const checkServiceStatus = async () => {
+    try {
+      const response = await fetch('/api/toggle-service');
+      const data = await response.json();
+      
+      if (data.status === 'ok') {
+        setServiceEnabled(data.service_enabled);
+      }
+    } catch (error) {
+      console.error('Error verificando estado del servicio:', error);
+    } finally {
+      setCheckingService(false);
+    }
+  };
 
   useEffect(() => {
     const scriptId = 'cloudflare-turnstile-script';
@@ -303,6 +325,28 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
                 <p className="text-red-400 text-sm">{error}</p>
               </motion.div>
             )}
+            
+            {/* Service Disabled Warning */}
+            {!checkingService && !serviceEnabled && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="glass border-l-4 border-yellow-400 bg-yellow-900/20 p-4 rounded-r-xl"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="text-yellow-400 text-xl">⚠️</span>
+                  <div>
+                    <p className="text-yellow-300 text-sm font-semibold mb-1">
+                      Servicio Temporalmente Deshabilitado
+                    </p>
+                    <p className="text-yellow-300/80 text-xs">
+                      El servicio de protección está deshabilitado. No se procesarán solicitudes hasta que se reactive.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
 
           <motion.div
@@ -470,10 +514,10 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
 
           <motion.button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !serviceEnabled}
             className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-4 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover-glow"
-            whileHover={{ scale: isSubmitting ? 1 : 1.02 }}
-            whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
+            whileHover={{ scale: (isSubmitting || !serviceEnabled) ? 1 : 1.02 }}
+            whileTap={{ scale: (isSubmitting || !serviceEnabled) ? 1 : 0.98 }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.45 }}
@@ -482,6 +526,11 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
               <>
                 <Loader2 className="animate-spin w-5 h-5" />
                 <span>Procesando...</span>
+              </>
+            ) : !serviceEnabled ? (
+              <>
+                <X className="w-5 h-5" />
+                <span>Servicio Deshabilitado</span>
               </>
             ) : (
               <>

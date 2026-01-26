@@ -22,7 +22,56 @@ Content-Type: application/json
 
 ## 📋 Endpoints
 
-### 1. Solicitar Protección
+### 1. Control del Servicio
+
+Permite activar o desactivar el servicio de protección globalmente.
+
+#### 1.1 Obtener Estado del Servicio
+
+**Endpoint:** `GET /api/toggle-service`
+
+**Response (200 OK):**
+```json
+{
+  "status": "ok",
+  "service_enabled": true,
+  "message": "Servicio habilitado"
+}
+```
+
+#### 1.2 Activar/Desactivar Servicio
+
+**Endpoint:** `POST /api/toggle-service`
+
+**Request Body:**
+```json
+{
+  "enabled": true
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "ok",
+  "service_enabled": true,
+  "message": "Servicio habilitado exitosamente",
+  "previous_state": false
+}
+```
+
+**Errores:**
+- `400` - Parámetro 'enabled' faltante o inválido
+- `500` - Error interno del servidor
+
+**Notas:**
+- Cuando el servicio está deshabilitado, el endpoint `/api/solicitar-proteccion` retornará error 503
+- El estado del servicio es global y afecta a todas las solicitudes
+- El estado se mantiene en memoria (se reinicia al reiniciar el servidor)
+
+---
+
+### 2. Solicitar Protección
 
 Configura protección perimetral completa para uno o más dominios.
 
@@ -60,18 +109,28 @@ Configura protección perimetral completa para uno o más dominios.
 }
 ```
 
+**Response (503 Service Unavailable) - Servicio Deshabilitado:**
+```json
+{
+  "status": "error",
+  "message": "El servicio está deshabilitado temporalmente",
+  "service_disabled": true
+}
+```
+
 **Errores:**
 - `400` - Datos inválidos o faltantes
 - `403` - Token Turnstile inválido
+- `503` - Servicio deshabilitado
 - `500` - Error interno del servidor
 
 ---
 
-### 2. Control de Protección
+### 3. Control de Protección
 
 Obtiene el estado o activa/desactiva protecciones.
 
-#### 2.1 Obtener Estado
+#### 3.1 Obtener Estado
 
 **Endpoint:** `GET /api/toggle-protection`
 
@@ -95,7 +154,7 @@ Obtiene el estado o activa/desactiva protecciones.
 }
 ```
 
-#### 2.2 Activar/Desactivar Protección
+#### 3.2 Activar/Desactivar Protección
 
 **Endpoint:** `POST /api/toggle-protection`
 
@@ -135,7 +194,7 @@ Obtiene el estado o activa/desactiva protecciones.
 
 ### 3. Verificación de Delegación DNS
 
-Verifica si un dominio está delegado correctamente a Cloudflare.
+Verifica si un dominio está delegado correctamente a Cloudflare usando verificación DNS real con dnspython.
 
 #### 3.1 Health Check
 
@@ -172,7 +231,8 @@ Verifica si un dominio está delegado correctamente a Cloudflare.
   "nameservers_esperados": ["ns1.cloudflare.com", "ns2.cloudflare.com"],
   "nameservers_actuales": ["ns1.cloudflare.com", "ns2.cloudflare.com"],
   "mensaje": "✅ El dominio está correctamente delegado a Cloudflare",
-  "timestamp": "2026-01-22T10:30:00Z"
+  "timestamp": "2026-01-22T10:30:00Z",
+  "verificacion_real": true
 }
 ```
 
@@ -186,9 +246,30 @@ Verifica si un dominio está delegado correctamente a Cloudflare.
   "nameservers_esperados": ["ns1.cloudflare.com", "ns2.cloudflare.com"],
   "nameservers_actuales": ["ns1.registrador.com", "ns2.registrador.com"],
   "mensaje": "⏳ El dominio aún NO está delegado a Cloudflare",
-  "timestamp": "2026-01-22T10:30:00Z"
+  "timestamp": "2026-01-22T10:30:00Z",
+  "verificacion_real": true
 }
 ```
+
+**Response - Error DNS (200 OK):**
+```json
+{
+  "status": "error",
+  "message": "El dominio 'ejemplo.com' no existe",
+  "delegado": false,
+  "puede_continuar": false,
+  "nameservers_esperados": ["ns1.cloudflare.com", "ns2.cloudflare.com"],
+  "nameservers_actuales": null,
+  "verificacion_real": true
+}
+```
+
+**Notas:**
+- Usa `dns.resolver` (dnspython) para verificación DNS real
+- Compara los NS actuales del dominio con los NS de Cloudflare
+- Campo `verificacion_real: true` indica verificación con dnspython
+- Campo `verificacion_real: false` indica método alternativo (fallback)
+- Maneja errores DNS específicos (NXDOMAIN, NoAnswer, Timeout)
 
 **Errores:**
 - `400` - Dominio no proporcionado o inválido

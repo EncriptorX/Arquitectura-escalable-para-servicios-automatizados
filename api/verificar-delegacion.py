@@ -7,11 +7,67 @@ import json
 import os
 import socket
 import urllib.request
+import sys
+
+# Agregar el directorio api al path
+sys.path.insert(0, os.path.dirname(__file__))
+
+try:
+    import dns.resolver
+    DNS_RESOLVER_AVAILABLE = True
+except ImportError:
+    DNS_RESOLVER_AVAILABLE = False
+
+try:
+    from logger import delegation_logger, log_delegation_check
+    LOGGING_AVAILABLE = True
+except ImportError:
+    LOGGING_AVAILABLE = False
+    delegation_logger = None
+    log_delegation_check = lambda *args, **kwargs: None
 
 
 # Configuración desde Vercel ENV
 CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
 CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
+
+
+def verify_dns(domain, expected_ns):
+    """
+    Verifica si el dominio apunta a los nameservers esperados.
+    Usa dns.resolver (dnspython) para verificación real.
+    
+    Args:
+        domain: Dominio a verificar
+        expected_ns: Lista de nameservers esperados
+    
+    Returns:
+        tuple: (bool, list) - (está_delegado, nameservers_actuales)
+    """
+    try:
+        import dns.resolver
+        
+        # Normalizar nameservers esperados
+        expected_ns_norm = [ns.lower().rstrip('.') for ns in expected_ns]
+        
+        # Resolver NS records del dominio
+        answers = dns.resolver.resolve(domain, 'NS')
+        actual_ns = [str(rdata.target).rstrip('.').lower() for rdata in answers]
+        
+        # Verificar si algún NS actual coincide con los esperados
+        is_delegated = any(ns in expected_ns_norm for ns in actual_ns)
+        
+        return is_delegated, actual_ns
+    except ImportError:
+        raise ImportError("dnspython no está instalado. Ejecuta: pip install dnspython")
+    except dns.resolver.NXDOMAIN:
+        raise ValueError(f"El dominio '{domain}' no existe")
+    except dns.resolver.NoAnswer:
+        raise ValueError(f"El dominio '{domain}' no tiene registros NS")
+    except dns.resolver.Timeout:
+        raise TimeoutError(f"Timeout al consultar NS de '{domain}'")
+    except Exception as e:
+        raise Exception(f"Error verificando DNS: {str(e)}")
 
 
 def obtener_nameservers_actuales(dominio):
@@ -20,20 +76,22 @@ def obtener_nameservers_actuales(dominio):
     Retorna una lista de nameservers o None si hay error.
     """
     try:
-        # El dominio ya viene en formato FQDN puro (sin esquemas ni rutas)
-        
-        # Obtener nameservers usando socket
         import dns.resolver
-        resolver = dns.resolver.Resolver()
         
         # Consultar NS records
-        answers = resolver.resolve(dominio, 'NS')
+        answers = dns.resolver.resolve(dominio, 'NS')
         nameservers = [str(rdata.target).rstrip('.') for rdata in answers]
         
         return nameservers, None
     except ImportError:
         # Si dnspython no está disponible, usar método alternativo
         return obtener_nameservers_alternativo(dominio)
+    except dns.resolver.NXDOMAIN:
+        return None, f"El dominio '{dominio}' no existe"
+    except dns.resolver.NoAnswer:
+        return None, f"El dominio '{dominio}' no tiene registros NS configurados"
+    except dns.resolver.Timeout:
+        return None, f"Timeout al consultar nameservers de '{dominio}'"
     except Exception as e:
         return None, f"Error obteniendo nameservers: {str(e)}"
 
@@ -113,12 +171,13 @@ def verificar_delegacion(dominio_actual, nameservers_cloudflare):
     ns_actual_norm = [ns.lower().rstrip('.') for ns in dominio_actual]
     ns_cf_norm = [ns.lower().rstrip('.') for ns in nameservers_cloudflare]
     
-    # Verificar si todos los nameservers de Cloudflare están presentes
+    # Verificar si al menos uno de los nameservers de Cloudflare está presente
+    # (algunos registradores permiten configuración parcial)
     for ns_cf in ns_cf_norm:
-        if ns_cf not in ns_actual_norm:
-            return False
+        if ns_cf in ns_actual_norm:
+            return True
     
-    return True
+    return False
 
 
 class handler(BaseHTTPRequestHandler):
@@ -199,40 +258,95 @@ class handler(BaseHTTPRequestHandler):
                 }, 500)
                 return
             
-            # Obtener nameservers actuales del dominio
-            nameservers_actuales, error = obtener_nameservers_actuales(dominio)
-            
-            if error:
+            # Usar la función verify_dns para verificación real
+            try:
+                esta_delegado, nameservers_actuales = verify_dns(dominio, nameservers_cf)
+                
+                # Log de auditoría
+                log_delegation_check(
+                    domain=dominio,
+                    delegated=esta_delegado,
+                    nameservers=nameservers_actuales,
+                    expected_nameservers=nameservers_cf,
+                    zone_name=zone_name,
+                    verification_method="dns.resolver"
+                )
+                
+                # Construir respuesta exitosa
+                response = {
+                    "status": "ok",
+                    "dominio": dominio,
+                    "zona_cloudflare": zone_name,
+                    "delegado": esta_delegado,
+                    "puede_continuar": esta_delegado,
+                    "nameservers_esperados": nameservers_cf,
+                    "nameservers_actuales": nameservers_actuales,
+                    "mensaje": self._generar_mensaje(esta_delegado, dominio),
+                    "timestamp": self._get_timestamp(),
+                    "verificacion_real": True
+                }
+                
+                self._send_json(response, 200)
+                
+            except ImportError as e:
+                # Fallback al método alternativo si dnspython no está disponible
+                nameservers_actuales, error = obtener_nameservers_actuales(dominio)
+                
+                if error:
+                    self._send_json({
+                        "status": "partial",
+                        "message": "No se pudo verificar nameservers actuales del dominio",
+                        "error": error,
+                        "delegado": None,
+                        "puede_continuar": False,
+                        "nameservers_esperados": nameservers_cf,
+                        "nameservers_actuales": None,
+                        "instrucciones": "No se pudo verificar automáticamente. Verifica manualmente que los nameservers de tu dominio coincidan con los esperados.",
+                        "verificacion_real": False
+                    }, 200)
+                    return
+                
+                # Verificar delegación con método alternativo
+                esta_delegado = verificar_delegacion(nameservers_actuales, nameservers_cf)
+                
+                # Log de auditoría con método alternativo
+                log_delegation_check(
+                    domain=dominio,
+                    delegated=esta_delegado,
+                    nameservers=nameservers_actuales,
+                    expected_nameservers=nameservers_cf,
+                    zone_name=zone_name,
+                    verification_method="alternative"
+                )
+                
+                response = {
+                    "status": "ok",
+                    "dominio": dominio,
+                    "zona_cloudflare": zone_name,
+                    "delegado": esta_delegado,
+                    "puede_continuar": esta_delegado,
+                    "nameservers_esperados": nameservers_cf,
+                    "nameservers_actuales": nameservers_actuales,
+                    "mensaje": self._generar_mensaje(esta_delegado, dominio),
+                    "timestamp": self._get_timestamp(),
+                    "verificacion_real": False,
+                    "warning": "Verificación realizada con método alternativo (dnspython no disponible)"
+                }
+                
+                self._send_json(response, 200)
+                
+            except (ValueError, TimeoutError) as e:
+                # Errores específicos de DNS
                 self._send_json({
-                    "status": "partial",
-                    "message": "No se pudo verificar nameservers actuales del dominio",
-                    "error": error,
-                    "delegado": None,
+                    "status": "error",
+                    "message": str(e),
+                    "delegado": False,
                     "puede_continuar": False,
                     "nameservers_esperados": nameservers_cf,
                     "nameservers_actuales": None,
-                    "instrucciones": "No se pudo verificar automáticamente. Verifica manualmente que los nameservers de tu dominio coincidan con los esperados."
+                    "verificacion_real": True
                 }, 200)
-                return
-            
-            # Verificar si está delegado correctamente
-            esta_delegado = verificar_delegacion(nameservers_actuales, nameservers_cf)
-            
-            # Construir respuesta
-            response = {
-                "status": "ok",
-                "dominio": dominio,
-                "zona_cloudflare": zone_name,
-                "delegado": esta_delegado,
-                "puede_continuar": esta_delegado,
-                "nameservers_esperados": nameservers_cf,
-                "nameservers_actuales": nameservers_actuales,
-                "mensaje": self._generar_mensaje(esta_delegado, dominio),
-                "timestamp": self._get_timestamp()
-            }
-            
-            self._send_json(response, 200)
-            
+                
         except Exception as e:
             self._send_json({
                 "status": "error",

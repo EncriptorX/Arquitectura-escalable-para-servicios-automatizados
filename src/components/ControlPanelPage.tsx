@@ -1,6 +1,8 @@
-import { Shield, ArrowLeft, Settings, Plus } from "lucide-react";
+import { Shield, ArrowLeft, Settings, Plus, Power } from "lucide-react";
 import { motion } from "framer-motion";
 import ProtectionControl from "@/components/ProtectionControl";
+import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ControlPanelPageProps {
   onBack: () => void;
@@ -8,6 +10,60 @@ interface ControlPanelPageProps {
 }
 
 export default function ControlPanelPage({ onBack, onRequestProtection }: ControlPanelPageProps) {
+  const [serviceEnabled, setServiceEnabled] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  // Cargar estado del servicio al montar
+  useEffect(() => {
+    fetchServiceStatus();
+  }, []);
+
+  const fetchServiceStatus = async () => {
+    try {
+      const response = await fetch('/api/toggle-service');
+      const data = await response.json();
+      
+      if (data.status === 'ok') {
+        setServiceEnabled(data.service_enabled);
+      }
+    } catch (error) {
+      console.error('Error obteniendo estado del servicio:', error);
+    }
+  };
+
+  const toggleService = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/toggle-service', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !serviceEnabled })
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'ok') {
+        setServiceEnabled(data.service_enabled);
+        toast({
+          title: data.service_enabled ? "✅ Servicio Habilitado" : "⚠️ Servicio Deshabilitado",
+          description: data.message,
+          variant: data.service_enabled ? "default" : "destructive"
+        });
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error) {
+      toast({
+        title: "❌ Error",
+        description: error instanceof Error ? error.message : "Error al cambiar estado del servicio",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900">
       {/* Header */}
@@ -102,6 +158,74 @@ export default function ControlPanelPage({ onBack, onRequestProtection }: Contro
               <div className="text-2xl font-bold gradient-text mb-1">Total</div>
               <div className="text-xs text-gray-400">Control completo</div>
             </div>
+          </motion.div>
+
+          {/* Service Toggle Control */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className={`glass p-6 rounded-xl border-2 ${
+              serviceEnabled ? 'border-green-400/30' : 'border-red-400/30'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-full ${
+                  serviceEnabled ? 'bg-green-500/20' : 'bg-red-500/20'
+                }`}>
+                  <Power className={`w-6 h-6 ${
+                    serviceEnabled ? 'text-green-400' : 'text-red-400'
+                  }`} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-1">
+                    Estado del Servicio
+                  </h3>
+                  <p className="text-sm text-gray-400">
+                    {serviceEnabled 
+                      ? 'El servicio está activo y procesando solicitudes' 
+                      : 'El servicio está deshabilitado temporalmente'}
+                  </p>
+                </div>
+              </div>
+              
+              <motion.button
+                onClick={toggleService}
+                disabled={loading}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                  serviceEnabled
+                    ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400 border-2 border-red-400/50'
+                    : 'bg-green-500/20 hover:bg-green-500/30 text-green-400 border-2 border-green-400/50'
+                } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                whileHover={!loading ? { scale: 1.05 } : {}}
+                whileTap={!loading ? { scale: 0.95 } : {}}
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    Procesando...
+                  </span>
+                ) : (
+                  serviceEnabled ? 'Deshabilitar Servicio' : 'Habilitar Servicio'
+                )}
+              </motion.button>
+            </div>
+            
+            {!serviceEnabled && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="mt-4 pt-4 border-t border-red-400/20"
+              >
+                <div className="flex items-start gap-3 text-sm text-red-300">
+                  <span className="text-red-400">⚠️</span>
+                  <div>
+                    <strong>Servicio Deshabilitado:</strong> No se procesarán nuevas solicitudes de protección hasta que se reactive el servicio.
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </motion.div>
 
           {/* Protection Control Component */}

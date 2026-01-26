@@ -73,6 +73,7 @@ Este sistema automatiza todo el proceso en **menos de 30 segundos**, aplicando:
 ### Backend
 - ✅ API serverless en Python (Vercel Functions)
 - ✅ Integración completa con Cloudflare API
+- ✅ **API de Control del Servicio** - Activar/Desactivar el servicio globalmente
 - ✅ **API de Toggle Protection** - Habilitar/Deshabilitar protecciones
 - ✅ **API de Verificación de Delegación DNS** - Validar nameservers
 - ✅ Validación de seguridad con Turnstile
@@ -548,7 +549,50 @@ Desde el panel de control:
 
 ---
 
-### 3. API de Verificación de Delegación DNS (NUEVO)
+### 3. API de Control del Servicio (NUEVO)
+
+**Endpoint:** `GET /api/toggle-service`
+
+**Descripción:** Obtiene el estado actual del servicio de protección.
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "service_enabled": true,
+  "message": "Servicio habilitado"
+}
+```
+
+**Endpoint:** `POST /api/toggle-service`
+
+**Descripción:** Activa o desactiva el servicio de protección globalmente.
+
+**Request:**
+```json
+{
+  "enabled": false
+}
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "service_enabled": false,
+  "message": "Servicio deshabilitado exitosamente",
+  "previous_state": true
+}
+```
+
+**Notas:**
+- Cuando el servicio está deshabilitado, `/api/solicitar-proteccion` retorna error 503
+- El estado es global y afecta a todas las solicitudes
+- Útil para mantenimiento o control de acceso temporal
+
+---
+
+### 4. API de Verificación de Delegación DNS (NUEVO)
 
 **Endpoint:** `GET /api/verificar-delegacion`
 
@@ -605,7 +649,7 @@ Desde el panel de control:
 
 ---
 
-### 4. API de Diagnóstico
+### 5. API de Diagnóstico
 
 **Endpoint:** `GET /api/diagnostico`
 

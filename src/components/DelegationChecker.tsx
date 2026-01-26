@@ -17,6 +17,8 @@ interface VerificationResult {
   nameservers_actuales: string[] | null;
   mensaje: string;
   error?: string;
+  verificacion_real?: boolean;
+  warning?: string;
 }
 
 export default function DelegationChecker({ dominio, nameserversEsperados }: DelegationCheckerProps) {
@@ -205,9 +207,33 @@ export default function DelegationChecker({ dominio, nameserversEsperados }: Del
 
               {/* Última verificación */}
               {lastCheck && (
-                <p className="text-xs text-gray-500 text-center">
-                  Última verificación: {lastCheck.toLocaleString()}
-                </p>
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500 text-center">
+                    Última verificación: {lastCheck.toLocaleString()}
+                  </p>
+                  
+                  {/* Indicador de verificación real */}
+                  {result.verificacion_real !== undefined && (
+                    <div className="flex items-center justify-center gap-2">
+                      {result.verificacion_real ? (
+                        <Badge className="bg-blue-500/20 text-blue-400 border-blue-400 text-xs">
+                          ✓ Verificación DNS Real (dnspython)
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-400 text-xs">
+                          ⚠️ Verificación Alternativa
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Warning si existe */}
+                  {result.warning && (
+                    <p className="text-xs text-yellow-400 text-center italic">
+                      {result.warning}
+                    </p>
+                  )}
+                </div>
               )}
             </motion.div>
           )}

@@ -23,6 +23,9 @@ ALLOWED_ORIGINS = [
     "https://*.vercel.app"
 ]
 
+# Service State (Global)
+SERVICE_ENABLED = True
+
 def get_headers():
     """Retorna headers para peticiones a Cloudflare API"""
     return {
@@ -53,3 +56,13 @@ def get_config_status():
             "longitud": len(TURNSTILE_SECRET_KEY) if TURNSTILE_SECRET_KEY else 0
         }
     }
+
+def is_service_enabled():
+    """Verifica si el servicio está habilitado"""
+    return SERVICE_ENABLED
+
+def toggle_service(state: bool):
+    """Activa o desactiva el servicio globalmente"""
+    global SERVICE_ENABLED
+    SERVICE_ENABLED = state
+    return SERVICE_ENABLED

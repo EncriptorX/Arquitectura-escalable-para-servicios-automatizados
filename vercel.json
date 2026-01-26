@@ -19,6 +19,10 @@
       "dest": "api/solicitar-proteccion.py"
     },
     {
+      "src": "/api/toggle-service",
+      "dest": "api/toggle-service.py"
+    },
+    {
       "src": "/api/toggle-protection",
       "dest": "api/toggle-protection.py"
     },
