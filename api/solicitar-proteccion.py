@@ -463,16 +463,60 @@ class handler(BaseHTTPRequestHandler):
             # Validar token de Turnstile
             token = data.get("turnstileToken")
             if not token:
-                self._send_json({"status": "error", "message": "Falta el token de seguridad (Turnstile)"}, 400)
+                log_api_error(
+                    "turnstile_validation",
+                    "Token de Turnstile no proporcionado",
+                    "MissingTokenError",
+                    remote_ip=self.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+                )
+                self._send_json({
+                    "status": "error",
+                    "message": "Falta el token de seguridad (Turnstile)",
+                    "error_code": "MISSING_TURNSTILE_TOKEN"
+                }, 400)
                 return
             
             client_ip = self.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-            ok, err = validate_turnstile(token, client_ip)
+            turnstile_valid, turnstile_error = validate_turnstile(token, client_ip)
             
-            if not ok:
-                status_code = 500 if "TURNSTILE_SECRET_KEY" in (err or "") else 403
-                self._send_json({"status": "error", "message": err or "Verificación de seguridad fallida"}, status_code)
+            # Manejo explícito de fallo de Turnstile
+            if not turnstile_valid:
+                # Determinar tipo de error
+                if "TURNSTILE_SECRET_KEY" in (turnstile_error or ""):
+                    error_code = "TURNSTILE_NOT_CONFIGURED"
+                    status_code = 500
+                    log_api_error(
+                        "turnstile_validation",
+                        "Turnstile no está configurado",
+                        "ConfigurationError",
+                        remote_ip=client_ip
+                    )
+                else:
+                    error_code = "TURNSTILE_VERIFICATION_FAILED"
+                    status_code = 403
+                    log_api_error(
+                        "turnstile_validation",
+                        turnstile_error or "Verificación fallida",
+                        "VerificationError",
+                        remote_ip=client_ip,
+                        error_detail=turnstile_error
+                    )
+                
+                self._send_json({
+                    "status": "error",
+                    "message": turnstile_error or "Solicitud no verificada - Verificación de seguridad fallida",
+                    "error_code": error_code,
+                    "detail": "Por favor, recarga la página e intenta nuevamente"
+                }, status_code)
                 return
+            
+            # Log de verificación exitosa
+            if LOGGING_AVAILABLE and protection_logger:
+                protection_logger.info(
+                    "Turnstile verificado exitosamente",
+                    remote_ip=client_ip,
+                    verification="success"
+                )
             
             # Obtener y validar URLs
             urls = data.get("urls", [])

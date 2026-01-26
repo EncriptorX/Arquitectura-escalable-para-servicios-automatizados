@@ -118,11 +118,50 @@ Configura protección perimetral completa para uno o más dominios.
 }
 ```
 
-**Errores:**
-- `400` - Datos inválidos o faltantes
-- `403` - Token Turnstile inválido
+**Response (403 Forbidden) - Turnstile Fallido:**
+```json
+{
+  "status": "error",
+  "message": "Solicitud no verificada - Verificación de seguridad fallida",
+  "error_code": "TURNSTILE_VERIFICATION_FAILED",
+  "detail": "Por favor, recarga la página e intenta nuevamente"
+}
+```
+
+**Response (400 Bad Request) - Token Faltante:**
+```json
+{
+  "status": "error",
+  "message": "Falta el token de seguridad (Turnstile)",
+  "error_code": "MISSING_TURNSTILE_TOKEN"
+}
+```
+
+**Response (500 Internal Server Error) - Turnstile No Configurado:**
+```json
+{
+  "status": "error",
+  "message": "TURNSTILE_SECRET_KEY no está configurada",
+  "error_code": "TURNSTILE_NOT_CONFIGURED"
+}
+```
+
+**Códigos de Error:**
+- `MISSING_TURNSTILE_TOKEN` - Token de Turnstile no proporcionado
+- `TURNSTILE_VERIFICATION_FAILED` - Verificación de Turnstile fallida
+- `TURNSTILE_NOT_CONFIGURED` - Turnstile no está configurado en el servidor
+
+**Errores HTTP:**
+- `400` - Datos inválidos o faltantes, token Turnstile no proporcionado
+- `403` - Token Turnstile inválido o verificación fallida
 - `503` - Servicio deshabilitado
-- `500` - Error interno del servidor
+- `500` - Error interno del servidor o Turnstile no configurado
+
+**Notas de Seguridad:**
+- Todas las solicitudes requieren un token válido de Cloudflare Turnstile
+- El token se valida en el servidor antes de procesar la solicitud
+- Los fallos de verificación se auditan con IP del cliente
+- El widget de Turnstile se resetea automáticamente después de cada intento
 
 ---
 

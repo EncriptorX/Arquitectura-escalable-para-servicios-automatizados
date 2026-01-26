@@ -226,8 +226,28 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
         : { message: await response.text() };
 
       if (!response.ok) {
-        setError(result.message || 'Error al enviar la solicitud');
+        // Manejo específico de errores de Turnstile
+        if (result.error_code === "TURNSTILE_VERIFICATION_FAILED") {
+          setError("❌ Verificación de seguridad fallida. Por favor, recarga la página e intenta nuevamente.");
+          
+          // Reset Turnstile widget
+          if (window.turnstile && turnstileWidgetIdRef.current != null) {
+            setTurnstileToken(null);
+            try {
+              window.turnstile.reset(turnstileWidgetIdRef.current);
+            } catch {
+              // Ignorar errores de reset
+            }
+          }
+        } else if (result.error_code === "MISSING_TURNSTILE_TOKEN") {
+          setError("❌ Falta el token de seguridad. Por favor, completa la verificación.");
+        } else if (result.error_code === "TURNSTILE_NOT_CONFIGURED") {
+          setError("⚠️ El servicio de verificación no está configurado. Contacta al administrador.");
+        } else {
+          setError(result.message || 'Error al enviar la solicitud');
+        }
         
+        // Reset Turnstile en caso de error 403
         if (response.status === 403 && window.turnstile && turnstileWidgetIdRef.current != null) {
           setTurnstileToken(null);
           try {
