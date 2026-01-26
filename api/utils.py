@@ -99,9 +99,22 @@ def validate_turnstile(token: str, remote_ip: Optional[str] = None) -> Tuple[boo
         return False, f"Error al validar Turnstile: {str(e)}"
 
 
+# Regex compilado para mejor rendimiento
+DOMAIN_REGEX = re.compile(r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63}(?<!-))*\.[A-Za-z]{2,}$")
+IP_REGEX = re.compile(r"^(\d{1,3}\.){3}\d{1,3}$")
+
+
 def validate_domain(domain: str) -> bool:
     """
-    Valida que un dominio tenga formato DNS válido
+    Valida que un dominio tenga formato DNS válido (FQDN)
+    
+    Reglas:
+    - Solo caracteres alfanuméricos y guiones
+    - No puede empezar ni terminar con guión
+    - Longitud máxima de 253 caracteres
+    - Cada label máximo 63 caracteres
+    - Debe tener al menos un punto
+    - TLD de al menos 2 caracteres
     
     Args:
         domain: Dominio a validar
@@ -109,13 +122,22 @@ def validate_domain(domain: str) -> bool:
     Returns:
         True si es válido, False si no
     """
-    pattern = r"^(?=.{1,253}$)(?!-)([A-Za-z0-9-]{1,63}(?<!-)\.)+[A-Za-z]{2,63}$"
-    return bool(re.match(pattern, domain))
+    if not domain or not isinstance(domain, str):
+        return False
+    
+    # Verificar longitud total
+    if len(domain) > 253:
+        return False
+    
+    # Verificar formato con regex
+    return bool(DOMAIN_REGEX.match(domain))
 
 
 def validate_url(url: str) -> Tuple[bool, Optional[str], Optional[str]]:
     """
     Valida y extrae el dominio de una URL
+    
+    IMPORTANTE: Solo acepta dominios FQDN puros, sin esquemas ni rutas
     
     Args:
         url: URL a validar
@@ -126,7 +148,7 @@ def validate_url(url: str) -> Tuple[bool, Optional[str], Optional[str]]:
     if not url or not isinstance(url, str):
         return False, None, "URL vacía o inválida"
     
-    # Rechazar URLs con esquemas (http://, https://, etc.)
+    # Rechazar URLs con esquemas (http://, https://, ftp://, etc.)
     if "://" in url:
         return False, None, "No se permiten esquemas (http://, https://). Use solo el dominio FQDN"
     
@@ -134,16 +156,32 @@ def validate_url(url: str) -> Tuple[bool, Optional[str], Optional[str]]:
     if "/" in url:
         return False, None, "No se permiten rutas. Use solo el dominio FQDN"
     
-    domain = url.strip()
+    # Rechazar URLs con parámetros
+    if "?" in url or "&" in url:
+        return False, None, "No se permiten parámetros. Use solo el dominio FQDN"
+    
+    # Rechazar URLs con fragmentos
+    if "#" in url:
+        return False, None, "No se permiten fragmentos. Use solo el dominio FQDN"
+    
+    # Rechazar URLs con puertos
+    if ":" in url:
+        return False, None, "No se permiten puertos. Use solo el dominio FQDN"
+    
+    # Rechazar URLs con @
+    if "@" in url:
+        return False, None, "No se permiten credenciales. Use solo el dominio FQDN"
+    
+    domain = url.strip().lower()
     
     if not domain:
         return False, None, "Dominio vacío"
     
     # Verificar si es una dirección IP
-    ip_pattern = r"^(\d{1,3}\.){3}\d{1,3}$"
-    if re.match(ip_pattern, domain):
+    if IP_REGEX.match(domain):
         return False, None, "No se permiten direcciones IP. Use un dominio FQDN"
     
+    # Validar formato de dominio
     if not validate_domain(domain):
         return False, None, f"Formato de dominio inválido: {domain}"
     

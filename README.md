@@ -76,6 +76,7 @@ Este sistema automatiza todo el proceso en **menos de 30 segundos**, aplicando:
 - ✅ **API de Control del Servicio** - Activar/Desactivar el servicio globalmente
 - ✅ **API de Toggle Protection** - Habilitar/Deshabilitar protecciones
 - ✅ **API de Verificación de Delegación DNS** - Validar nameservers
+- ✅ **Validación Robusta de Entradas** - Solo acepta dominios FQDN puros
 - ✅ Validación de seguridad con Turnstile
 - ✅ Resolución automática de IPs mediante DNS
 - ✅ Manejo robusto de errores
@@ -83,7 +84,9 @@ Este sistema automatiza todo el proceso en **menos de 30 segundos**, aplicando:
 
 ### Seguridad
 - ✅ Validación de tokens Turnstile
-- ✅ Validación de formato de URLs
+- ✅ **Validación Estricta de Entradas** - Rechaza esquemas, rutas, puertos, IPs
+- ✅ **Protección contra Inyecciones** - Bloquea XSS, SQL injection, path traversal
+- ✅ Validación de formato de URLs (solo dominios FQDN)
 - ✅ Validación de dominios en zona
 - ✅ CORS configurado correctamente
 - ✅ Manejo seguro de credenciales
@@ -95,6 +98,7 @@ Este sistema automatiza todo el proceso en **menos de 30 segundos**, aplicando:
 - ✅ **Panel de Control Dedicado** - Interfaz completa para gestionar protecciones
 - ✅ **Estado Visual de Protecciones** - Ver estado de WAF, HTTPS, Firewall, etc.
 - ✅ **Navegación Mejorada** - Acceso fácil a todas las funcionalidades
+- ✅ **Validación Robusta de Entradas** - Protección contra URLs maliciosas y ataques de inyección
 
 ---
 
@@ -122,6 +126,40 @@ Este sistema automatiza todo el proceso en **menos de 30 segundos**, aplicando:
 │  3. Obtener información de zona                              │
 │  4. Resolver IP del dominio                                  │
 │  5. Ejecutar protecciones                                    │
+│                                                              │
+│  🔧 Sistema de Excepciones Tipadas:                         │
+│     - ValidationError (400) - Errores de usuario            │
+│     - AuthenticationError (403) - Errores de autenticación  │
+│     - CloudflareAPIError (502) - Errores de Cloudflare      │
+│     - DNSError (400) - Errores de DNS                       │
+│     - NetworkError (503) - Errores de red                   │
+│     - ServiceDisabledError (503) - Servicio deshabilitado   │
+│                                                              │
+│  🛡️ Validación Robusta de Entradas:                        │
+│     - Solo acepta dominios FQDN puros                       │
+│     - Rechaza esquemas (http://, https://)                  │
+│     - Rechaza rutas, puertos, parámetros                    │
+│     - Bloquea inyecciones (XSS, SQL, path traversal)        │
+│     - Protección contra IPs y caracteres especiales         │
+│                                                              │
+│  📊 Sistema de Logging Estructurado:                        │
+│     - Formato JSON con timestamps ISO 8601                  │
+│     - Auditoría completa de operaciones                     │
+│     - Trazabilidad de errores y eventos                     │
+│     - Loggers especializados por categoría:                 │
+│       * protection_logger - Solicitudes de protección       │
+│       * delegation_logger - Verificación DNS                │
+│       * service_logger - Control del servicio               │
+│       * toggle_logger - Activación/desactivación            │
+│     - Funciones de logging de auditoría:                    │
+│       * log_protection_request() - Solicitudes              │
+│       * log_dns_configuration() - Configuración DNS         │
+│       * log_security_setting() - Cambios de seguridad       │
+│       * log_firewall_rule() - Reglas de firewall           │
+│       * log_delegation_check() - Verificación DNS           │
+│       * log_service_toggle() - Estado del servicio          │
+│       * log_api_error() - Errores de API                    │
+│       * log_turnstile_verification() - Verificación Turnstile│
 └────────────────────────┬────────────────────────────────────┘
                          │ API Calls
                          ▼
@@ -444,6 +482,67 @@ Desde el panel de control:
         │                                            │
         └────────────────────────────────────────────┘
 ```
+
+---
+
+### 6. API de Estado del Sistema (NUEVO)
+
+**Endpoint:** `GET /api/status`
+
+**Descripción:** Obtiene el estado completo del sistema y todas las protecciones aplicadas.
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "service_enabled": true,
+  "zone_info": {
+    "id": "abc123...",
+    "name": "tudominio.com",
+    "status": "active",
+    "nameservers": ["ns1.cloudflare.com", "ns2.cloudflare.com"]
+  },
+  "dns_records": {
+    "total": 5,
+    "proxied": 3,
+    "records": [{
+      "id": "...",
+      "name": "demo.tudominio.com",
+      "type": "A",
+      "content": "192.0.2.1",
+      "proxied": true
+    }]
+  },
+  "security_settings": {
+    "ssl": "strict",
+    "always_use_https": "on",
+    "waf": "on",
+    "security_level": "high"
+  },
+  "firewall_rules": [{
+    "id": "...",
+    "description": "CAS Auto-Provisioned Block Rule",
+    "action": "block",
+    "paused": false
+  }],
+  "evidence": {
+    "idempotent": true,
+    "protected": true,
+    "proxied": true
+  },
+  "summary": {
+    "total_protections": 6,
+    "active_protections": 5,
+    "protection_level": "high"
+  }
+}
+```
+
+**Uso:**
+- Verificar estado completo del sistema
+- Comprobar qué protecciones están activas
+- Obtener evidencia de configuración
+- Auditoría de seguridad
 
 ---
 
@@ -823,10 +922,14 @@ cloudflare-perimeter-protection/
 ├── api/                            # Backend - Vercel Serverless Functions
 │   ├── config.py                   # Configuración centralizada
 │   ├── utils.py                    # Utilidades compartidas
+│   ├── logger.py                   # Sistema de logging estructurado
+│   ├── exceptions.py               # Sistema de excepciones tipadas
 │   ├── solicitar-proteccion.py     # API principal de protección
 │   ├── toggle-protection.py        # API de control de protecciones
+│   ├── toggle-service.py           # API de control del servicio
 │   ├── verificar-delegacion.py     # API de verificación DNS
-│   └── diagnostico.py              # API de diagnóstico
+│   ├── diagnostico.py              # API de diagnóstico
+│   └── status.py                   # API de estado del sistema
 │
 ├── src/                            # Frontend - React + TypeScript
 │   ├── components/
@@ -851,11 +954,39 @@ cloudflare-perimeter-protection/
 │
 ├── scripts/                        # Scripts de utilidad
 │   ├── README.md                   # Documentación de scripts
-│   ├── verificar_proteccion_aplicada.py  # Verificación de protecciones
-│   └── test_verificacion_delegacion.py   # Test de delegación DNS
+│   ├── OPTIMIZATIONS.md            # Documentación de optimizaciones
+│   ├── verificar_proteccion_aplicada.py  # Verificación de protecciones (OPTIMIZADO)
+│   ├── verificar_validacion.py     # Verificación integral de validación
+│   ├── run_all_tests.py            # Ejecutor de todos los tests
+│   ├── demo_idempotencia.py        # Demostración de idempotencia
+│   │
+│   ├── # Tests de Validación
+│   ├── test_validacion_entrada.py  # Suite completa de tests de validación
+│   ├── test_validacion_fqdn.py     # Tests de formato FQDN
+│   ├── test_quick_validation.py    # Tests rápidos de validación
+│   │
+│   ├── # Tests de Sistema
+│   ├── test_exceptions.py          # Tests de excepciones tipadas
+│   ├── test_integration_exceptions.py  # Tests de integración de excepciones
+│   ├── test_logging.py             # Tests del sistema de logging
+│   ├── test_idempotencia.py        # Tests de idempotencia
+│   ├── test_mensajes_informativos.py  # Tests de mensajes al usuario
+│   │
+│   ├── # Tests de APIs
+│   ├── test_status_endpoint.py     # Tests del endpoint de estado
+│   ├── test_toggle_service.py      # Tests de control del servicio
+│   ├── test_turnstile_handling.py  # Tests de manejo de Turnstile
+│   ├── test_turnstile_simple.py    # Tests simples de Turnstile
+│   ├── test_verificacion_delegacion.py  # Tests de verificación DNS
+│   ├── test_verificacion_dns_real.py    # Tests de DNS real
+│   │
+│   └── # Tests de Flujo
+│       ├── test_flow_controller.py     # Tests del controlador de flujo
+│       └── test_refactored_solicitar.py  # Tests de solicitud refactorizada
 │
 ├── docs/                           # Documentación adicional
 │   ├── INDEX.md                    # Índice de documentación
+│   ├── VALIDACION_ENTRADAS.md      # Documentación de validación de entradas
 │   ├── VERIFICACION_DELEGACION.md  # Doc de verificación DNS
 │   ├── CLOUDFLARE_INTEGRATION.md   # Integración con Cloudflare
 │   ├── DEPLOYMENT.md               # Guía de despliegue
@@ -1395,6 +1526,7 @@ Toda la documentación adicional se encuentra en la carpeta **`docs/`**.
 - **[README_DIAGNOSTICO.md](./docs/README_DIAGNOSTICO.md)** - Guía de diagnóstico completa
 
 #### 🛡️ Protección y Seguridad
+- **[VALIDACION_ENTRADAS.md](./docs/VALIDACION_ENTRADAS.md)** - Sistema de validación de entradas
 - **[PROTECTION_VERIFICATION.md](./docs/PROTECTION_VERIFICATION.md)** - Verificación de protecciones
 
 #### 🚀 Implementación
@@ -1555,10 +1687,12 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 ## 📚 Archivos Importantes
 
 - **[README.md](./README.md)** - Documentación principal del proyecto
+- **[VALIDACION_IMPLEMENTADA.md](./VALIDACION_IMPLEMENTADA.md)** - Resumen de validación de entradas
 - **[CHANGELOG.md](./CHANGELOG.md)** - Historial de cambios y versiones
 - **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Guía para contribuir al proyecto
 - **[.env.example](./.env.example)** - Ejemplo de variables de entorno
 - **[docs/INDEX.md](./docs/INDEX.md)** - Índice de documentación adicional
+- **[docs/VALIDACION_ENTRADAS.md](./docs/VALIDACION_ENTRADAS.md)** - Documentación completa de validación
 - **[scripts/README.md](./scripts/README.md)** - Documentación de scripts de utilidad
 
 ---
@@ -1566,6 +1700,486 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 ## 👥 Autores
 
 - **Kevin Patterson** - Desarrollo inicial - [GitHub](https://github.com/KevPatterson)
+
+---
+
+## 📊 Sistema de Logging Estructurado
+
+El sistema implementa un sistema completo de logging estructurado para auditoría y trazabilidad de todas las operaciones.
+
+### Características
+
+- **Formato JSON** - Logs estructurados con timestamps ISO 8601
+- **Loggers Especializados** - Diferentes loggers por categoría de operación
+- **Auditoría Completa** - Registro de todas las operaciones críticas
+- **Trazabilidad** - Seguimiento completo de errores y eventos
+- **Contexto Rico** - Información detallada en cada log
+
+### Loggers Disponibles
+
+#### 1. Protection Logger
+Registra solicitudes de protección y provisión de seguridad.
+
+```python
+from api.logger import log_protection_request
+
+log_protection_request(
+    domain="ejemplo.com",
+    origin_ip="192.0.2.1",
+    status="complete",
+    operations={"dns_proxy": True, "waf": True},
+    zone_name="ejemplo.com"
+)
+```
+
+#### 2. Delegation Logger
+Registra verificaciones de delegación DNS.
+
+```python
+from api.logger import log_delegation_check
+
+log_delegation_check(
+    domain="ejemplo.com",
+    delegated=True,
+    nameservers=["ns1.cloudflare.com", "ns2.cloudflare.com"],
+    expected_nameservers=["ns1.cloudflare.com", "ns2.cloudflare.com"],
+    zone_name="ejemplo.com"
+)
+```
+
+#### 3. Service Logger
+Registra cambios en el estado del servicio.
+
+```python
+from api.logger import log_service_toggle
+
+log_service_toggle(
+    enabled=True,
+    previous_state=False,
+    remote_ip="192.0.2.1"
+)
+```
+
+#### 4. Toggle Logger
+Registra activación/desactivación de protecciones.
+
+```python
+from api.logger import log_protection_toggle
+
+log_protection_toggle(
+    enabled=True,
+    domain="ejemplo.com",
+    operations={"waf": True, "https_redirect": True}
+)
+```
+
+### Funciones de Logging de Auditoría
+
+| Función | Descripción | Uso |
+|---------|-------------|-----|
+| `log_protection_request()` | Solicitudes de protección | Provisión de seguridad |
+| `log_dns_configuration()` | Configuración DNS | Cambios en DNS |
+| `log_security_setting()` | Configuración de seguridad | Cambios en WAF, SSL, etc. |
+| `log_firewall_rule()` | Reglas de firewall | Creación/modificación de reglas |
+| `log_delegation_check()` | Verificación DNS | Comprobación de nameservers |
+| `log_service_toggle()` | Estado del servicio | Activar/desactivar servicio |
+| `log_protection_toggle()` | Estado de protecciones | Activar/desactivar protecciones |
+| `log_api_error()` | Errores de API | Errores en peticiones |
+| `log_turnstile_verification()` | Verificación Turnstile | Validación de seguridad |
+
+### Formato de Logs
+
+Los logs se generan en formato JSON con la siguiente estructura:
+
+```json
+{
+  "timestamp": "2026-01-26T10:30:00.123456Z",
+  "level": "INFO",
+  "logger": "protection",
+  "event": "protection_request",
+  "domain": "ejemplo.com",
+  "origin_ip": "192.0.2.1",
+  "status": "complete",
+  "operations": {
+    "dns_proxy": true,
+    "waf": true,
+    "https_redirect": true
+  },
+  "zone_name": "ejemplo.com"
+}
+```
+
+### Tests
+
+Ejecuta los tests del sistema de logging:
+
+```bash
+python scripts/test_logging.py
+```
+
+Ver [api/logger.py](./api/logger.py) para la implementación completa.
+
+---
+
+## 🔄 Idempotencia y Tolerancia a Fallos
+
+El sistema está diseñado para ser idempotente y tolerante a fallos, permitiendo reprovisionamiento sin interrupciones.
+
+### Qué es Idempotencia
+
+Una operación es **idempotente** cuando puede ejecutarse múltiples veces sin cambiar el resultado más allá de la primera ejecución.
+
+**Ejemplo:**
+```python
+# Primera ejecución: Crea registro DNS
+provision_domain("ejemplo.com")  # ✅ Registro creado
+
+# Segunda ejecución: Detecta que ya existe, no falla
+provision_domain("ejemplo.com")  # ✅ Registro ya existe, continúa
+
+# Tercera ejecución: Mismo resultado
+provision_domain("ejemplo.com")  # ✅ Registro ya existe, continúa
+```
+
+### Operaciones Idempotentes
+
+Todas las operaciones del sistema son idempotentes:
+
+1. **DNS con Proxy**
+   - Busca registro existente antes de crear
+   - Si existe, actualiza en lugar de crear
+   - No falla si el registro ya existe
+
+2. **Configuración de Seguridad**
+   - Verifica estado actual antes de aplicar
+   - Solo aplica si es necesario
+   - No falla si ya está configurado
+
+3. **Reglas de Firewall**
+   - Busca reglas existentes
+   - Reactiva si están pausadas
+   - No falla si ya existen
+
+### Tolerancia a Fallos
+
+El sistema continúa operando incluso si algunas operaciones fallan:
+
+```python
+# Flujo de provisión
+1. DNS Proxy (CRÍTICO) ✅
+2. SSL/TLS (IMPORTANTE) ✅
+3. HTTPS Redirect (IMPORTANTE) ⚠️ Falla, pero continúa
+4. WAF (IMPORTANTE) ✅
+5. Security Level (IMPORTANTE) ✅
+6. Firewall Rules (OPCIONAL) ⚠️ No disponible en plan, continúa
+
+# Resultado: "partial" - Algunas protecciones activas
+```
+
+### Manejo de Errores Específicos
+
+El sistema detecta y maneja errores específicos de Cloudflare:
+
+| Código | Error | Manejo |
+|--------|-------|--------|
+| 81058 | Registro DNS ya existe | ✅ Continúa (idempotente) |
+| 81057 | Registro DNS no encontrado | ⚠️ Intenta crear |
+| 10000 | Permisos insuficientes | ❌ Falla con mensaje claro |
+| 1003 | Limitación de plan | ⚠️ Continúa sin esa función |
+
+### Tests de Idempotencia
+
+Ejecuta los tests de idempotencia:
+
+```bash
+# Test completo de idempotencia
+python scripts/test_idempotencia.py
+
+# Demostración visual
+python scripts/demo_idempotencia.py
+```
+
+**Verifica:**
+- ✅ Operaciones pueden ejecutarse múltiples veces
+- ✅ No fallan si la configuración ya existe
+- ✅ Buscan estado actual antes de aplicar cambios
+- ✅ Actualizan en lugar de crear duplicados
+
+### Beneficios
+
+1. **Reprovisionamiento Seguro** - Puedes ejecutar el provisión múltiples veces sin problemas
+2. **Recuperación de Fallos** - Si algo falla, puedes reintentar sin efectos secundarios
+3. **Actualizaciones Incrementales** - Puedes actualizar configuraciones sin romper lo existente
+4. **Mantenimiento Simplificado** - No necesitas verificar estado antes de aplicar cambios
+
+Ver [scripts/test_idempotencia.py](./scripts/test_idempotencia.py) y [scripts/demo_idempotencia.py](./scripts/demo_idempotencia.py) para más detalles.
+
+---
+
+## 🛡️ Validación Robusta de Entradas
+
+El sistema implementa una validación estricta de entradas en el backend para proteger contra ataques y errores de usuario.
+
+### Qué se Valida
+
+El backend **solo acepta dominios FQDN puros** y rechaza:
+
+❌ **Esquemas:** `http://`, `https://`, `ftp://`, `javascript:`, etc.
+❌ **Rutas:** `/path`, `/path/to/page`
+❌ **Parámetros:** `?query=1`, `&param=value`
+❌ **Fragmentos:** `#section`, `#anchor`
+❌ **Puertos:** `:8080`, `:443`
+❌ **Credenciales:** `user@`, `user:pass@`
+❌ **Direcciones IP:** `192.168.1.1`, `10.0.0.1`
+❌ **Caracteres especiales:** Espacios, null bytes, CRLF
+
+### Ejemplos
+
+✅ **Válidos (Aceptados):**
+```
+ejemplo.com
+sub.ejemplo.com
+deep.sub.ejemplo.com
+ejemplo-test.com
+test.co.uk
+```
+
+❌ **Inválidos (Rechazados):**
+```
+http://ejemplo.com          → "No se permiten esquemas"
+https://ejemplo.com         → "No se permiten esquemas"
+ejemplo.com/path            → "No se permiten rutas"
+ejemplo.com:8080            → "No se permiten puertos"
+user@ejemplo.com            → "No se permiten credenciales"
+192.168.1.1                 → "No se permiten direcciones IP"
+javascript:alert(1)         → Bloqueado (inyección)
+'; DROP TABLE domains; --   → Bloqueado (SQL injection)
+```
+
+### Protección de Seguridad
+
+La validación protege contra:
+
+1. **Inyección de esquemas maliciosos**
+   - `javascript:alert(1)`
+   - `data:text/html,<script>alert(1)</script>`
+   - `file:///etc/passwd`
+
+2. **Path traversal**
+   - `ejemplo.com/../../../etc/passwd`
+
+3. **CRLF injection**
+   - `ejemplo.com\r\nHost: evil.com`
+
+4. **SQL injection**
+   - `'; DROP TABLE domains; --`
+
+5. **XSS en dominio**
+   - `<script>alert(1)</script>.com`
+
+### Implementación
+
+La validación se implementa en:
+
+- **`api/utils.py`** - Funciones centralizadas de validación
+  - `validate_domain()` - Valida formato FQDN
+  - `validate_url()` - Validación completa con rechazo de componentes no permitidos
+
+- **`api/solicitar-proteccion.py`** - Valida URLs antes de provisionar
+- **`api/verificar-delegacion.py`** - Valida dominio antes de verificar DNS
+- **`api/toggle-protection.py`** - Valida dominio si se proporciona
+
+### Tests
+
+Ejecuta los tests de validación:
+
+```bash
+# Suite completa (50+ tests)
+python scripts/test_validacion_entrada.py
+
+# Tests rápidos
+python scripts/test_quick_validation.py
+
+# Verificación integral
+python scripts/verificar_validacion.py
+```
+
+**Resultados esperados:**
+- ✅ Todos los dominios válidos son aceptados
+- ✅ Todos los dominios inválidos son rechazados
+- ✅ Todos los ataques de inyección son bloqueados
+
+### Mensajes de Error
+
+Los mensajes de error son claros y descriptivos:
+
+```json
+{
+  "status": "error",
+  "message": "No se permiten esquemas (http://, https://). Use solo el dominio FQDN",
+  "error_type": "ValidationError",
+  "error_category": "user_error",
+  "invalid_url": "https://ejemplo.com"
+}
+```
+
+Ver [VALIDACION_ENTRADAS.md](./docs/VALIDACION_ENTRADAS.md) para documentación completa.
+
+---
+
+## 🧪 Suite de Tests
+
+El proyecto incluye una suite completa de tests para verificar todas las funcionalidades.
+
+### Tests de Validación
+
+| Test | Descripción | Comando |
+|------|-------------|---------|
+| `test_validacion_entrada.py` | Suite completa (50+ tests) | `python scripts/test_validacion_entrada.py` |
+| `test_validacion_fqdn.py` | Tests de formato FQDN | `python scripts/test_validacion_fqdn.py` |
+| `test_quick_validation.py` | Tests rápidos | `python scripts/test_quick_validation.py` |
+| `verificar_validacion.py` | Verificación integral | `python scripts/verificar_validacion.py` |
+
+### Tests de Sistema
+
+| Test | Descripción | Comando |
+|------|-------------|---------|
+| `test_exceptions.py` | Excepciones tipadas | `python scripts/test_exceptions.py` |
+| `test_integration_exceptions.py` | Integración de excepciones | `python scripts/test_integration_exceptions.py` |
+| `test_logging.py` | Sistema de logging | `python scripts/test_logging.py` |
+| `test_idempotencia.py` | Idempotencia y tolerancia | `python scripts/test_idempotencia.py` |
+| `test_mensajes_informativos.py` | Mensajes al usuario | `python scripts/test_mensajes_informativos.py` |
+
+### Tests de APIs
+
+| Test | Descripción | Comando |
+|------|-------------|---------|
+| `test_status_endpoint.py` | Endpoint de estado | `python scripts/test_status_endpoint.py` |
+| `test_toggle_service.py` | Control del servicio | `python scripts/test_toggle_service.py` |
+| `test_turnstile_handling.py` | Manejo de Turnstile | `python scripts/test_turnstile_handling.py` |
+| `test_turnstile_simple.py` | Turnstile simple | `python scripts/test_turnstile_simple.py` |
+| `test_verificacion_delegacion.py` | Verificación DNS | `python scripts/test_verificacion_delegacion.py` |
+| `test_verificacion_dns_real.py` | DNS real | `python scripts/test_verificacion_dns_real.py` |
+
+### Tests de Flujo
+
+| Test | Descripción | Comando |
+|------|-------------|---------|
+| `test_flow_controller.py` | Controlador de flujo | `python scripts/test_flow_controller.py` |
+| `test_refactored_solicitar.py` | Solicitud refactorizada | `python scripts/test_refactored_solicitar.py` |
+
+### Ejecutar Todos los Tests
+
+```bash
+# Ejecutar todos los tests
+python scripts/run_all_tests.py
+
+# O usando npm
+npm run test:all
+```
+
+### Scripts npm Disponibles
+
+El proyecto incluye varios scripts npm para desarrollo y testing:
+
+```bash
+# Desarrollo
+npm run dev          # Inicia servidor de desarrollo (Vite)
+npm run build        # Construye para producción
+npm run preview      # Preview del build de producción
+
+# Calidad de Código
+npm run lint         # Ejecuta ESLint
+npm run typecheck    # Verifica tipos de TypeScript
+
+# Verificación
+npm run verify       # Verifica protecciones aplicadas
+```
+
+### Scripts de Demostración
+
+| Script | Descripción | Comando |
+|--------|-------------|---------|
+| `demo_idempotencia.py` | Demo de idempotencia | `python scripts/demo_idempotencia.py` |
+| `verificar_proteccion_aplicada.py` | Verificar protecciones | `python scripts/verificar_proteccion_aplicada.py` |
+
+### Cobertura de Tests
+
+La suite de tests cubre:
+
+- ✅ **Validación de Entradas** - 50+ tests
+- ✅ **Excepciones Tipadas** - 12 tests
+- ✅ **Sistema de Logging** - Tests completos
+- ✅ **Idempotencia** - Tests de operaciones repetidas
+- ✅ **APIs** - Tests de todos los endpoints
+- ✅ **Flujo de Provisión** - Tests del controlador central
+- ✅ **Integración** - Tests de integración con Cloudflare
+
+Ver [scripts/README.md](./scripts/README.md) para documentación completa de scripts.
+
+---
+
+## 🔧 Sistema de Excepciones Tipadas
+
+El sistema implementa un manejo robusto de errores con excepciones tipadas que permiten distinguir entre diferentes tipos de errores y manejarlos apropiadamente.
+
+### Jerarquía de Excepciones
+
+```python
+BaseAPIError (Clase base)
+├── ValidationError (400) - Errores de validación de usuario
+├── AuthenticationError (403) - Errores de autenticación
+├── CloudflareAPIError (502) - Errores de la API de Cloudflare
+│   ├── CloudflareRateLimitError (429)
+│   └── CloudflarePermissionError (403)
+├── DNSError (400) - Errores de DNS
+│   ├── DNSDelegationError
+│   ├── DNSResolutionError
+│   └── DNSRecordExistsError (200) - Idempotencia
+├── NetworkError (503) - Errores de red
+│   └── TimeoutError
+├── ConfigurationError (500) - Errores de configuración
+├── ServiceDisabledError (503) - Servicio deshabilitado
+└── LogicError (500) - Errores lógicos
+```
+
+### Categorías de Errores
+
+- **user_error**: Errores causados por el usuario (validación, autenticación)
+- **cloudflare_error**: Errores de la API de Cloudflare
+- **dns_error**: Errores relacionados con DNS
+- **network_error**: Errores de conexión o timeout
+- **configuration_error**: Errores de configuración del sistema
+- **service_error**: Servicio deshabilitado o no disponible
+- **idempotent**: Operaciones idempotentes (no son errores reales)
+
+### Manejo de Errores en el Frontend
+
+El frontend maneja automáticamente los diferentes tipos de errores mostrando mensajes apropiados:
+
+```typescript
+// Ejemplo de respuesta de error
+{
+  "status": "error",
+  "message": "El dominio no cumple con el formato FQDN válido",
+  "error_type": "ValidationError",
+  "error_category": "user_error",
+  "technical_message": "Detalles técnicos del error"
+}
+```
+
+### Funciones Utilitarias
+
+- `handle_cloudflare_error()`: Convierte errores de Cloudflare en excepciones tipadas
+- `get_user_friendly_message()`: Genera mensajes amigables para el usuario
+
+### Tests
+
+Ejecuta los tests del sistema de excepciones:
+
+```bash
+python scripts/test_exceptions.py
+```
 
 ---
 
@@ -1613,6 +2227,12 @@ Para soporte, abre un issue en GitHub o contacta a través de:
 - ✅ Estado visual de todas las protecciones
 - ✅ API REST completa
 - ✅ Arquitectura optimizada y modular
+- ✅ **Sistema de Excepciones Tipadas** - Manejo robusto de errores
+- ✅ **Logging Estructurado** - Auditoría completa de operaciones
+- ✅ **Controlador Central de Flujo** - Orquestación clara de operaciones
+- ✅ **Tolerancia a Fallos** - Operaciones idempotentes y resilientes
+- ✅ **Validación Robusta de Entradas** - Protección contra ataques de inyección
+- ✅ **Sistema de Logging Completo** - Auditoría detallada con loggers especializados
 
 ### Optimizaciones Recientes
 

@@ -21,6 +21,29 @@ except ImportError:
     status_logger = None
     log_api_error = lambda *args, **kwargs: None
 
+try:
+    from exceptions import (
+        BaseAPIError,
+        ValidationError,
+        CloudflareAPIError,
+        NetworkError,
+        handle_cloudflare_error,
+        get_user_friendly_message
+    )
+    EXCEPTIONS_AVAILABLE = True
+except ImportError:
+    EXCEPTIONS_AVAILABLE = False
+    class BaseAPIError(Exception):
+        status_code = 500
+        error_category = "unknown"
+        def to_dict(self):
+            return {"error_type": "BaseAPIError", "message": str(self)}
+    ValidationError = BaseAPIError
+    CloudflareAPIError = BaseAPIError
+    NetworkError = BaseAPIError
+    handle_cloudflare_error = lambda *args, **kwargs: CloudflareAPIError("Error de Cloudflare")
+    get_user_friendly_message = lambda e: str(e)
+
 # Configuración desde Vercel ENV
 CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
 CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
@@ -257,27 +280,47 @@ class handler(BaseHTTPRequestHandler):
             try:
                 data = json.loads(body.decode('utf-8'))
             except json.JSONDecodeError as e:
-                self._send_json({
-                    "status": "error",
-                    "message": f"Error parseando JSON: {str(e)}"
-                }, 400)
+                if EXCEPTIONS_AVAILABLE:
+                    error = ValidationError(f"Error parseando JSON: {str(e)}", field="body")
+                    self._send_json({
+                        "status": "error",
+                        "message": error.message,
+                        "error_type": error.__class__.__name__,
+                        "error_category": error.error_category
+                    }, error.status_code)
+                else:
+                    self._send_json({
+                        "status": "error",
+                        "message": f"Error parseando JSON: {str(e)}"
+                    }, 400)
                 return
             
             # Obtener dominio
             domain = data.get("domain", "").strip()
             
             if not domain:
-                self._send_json({
-                    "status": "error",
-                    "message": "Falta el parámetro 'domain'"
-                }, 400)
+                if EXCEPTIONS_AVAILABLE:
+                    error = ValidationError("Falta el parámetro 'domain'", field="domain")
+                    self._send_json({
+                        "status": "error",
+                        "message": error.message,
+                        "error_type": error.__class__.__name__,
+                        "error_category": error.error_category
+                    }, error.status_code)
+                else:
+                    self._send_json({
+                        "status": "error",
+                        "message": "Falta el parámetro 'domain'"
+                    }, 400)
                 return
             
             # Verificar configuración de Cloudflare
             if not CF_API_TOKEN or not CF_ZONE_ID:
                 self._send_json({
                     "status": "error",
-                    "message": "Cloudflare no está configurado (CF_API_TOKEN y CF_ZONE_ID requeridos)"
+                    "message": "Cloudflare no está configurado (CF_API_TOKEN y CF_ZONE_ID requeridos)",
+                    "error_type": "ConfigurationError",
+                    "error_category": "configuration_error"
                 }, 500)
                 return
             
@@ -328,13 +371,24 @@ class handler(BaseHTTPRequestHandler):
                 )
             
             self._send_json(response, 200)
-            
+        
+        except BaseAPIError as e:
+            # Capturar excepciones tipadas
+            self._send_json({
+                "status": "error",
+                "message": get_user_friendly_message(e) if EXCEPTIONS_AVAILABLE else str(e),
+                "error_type": e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "Error",
+                "error_category": e.error_category if EXCEPTIONS_AVAILABLE else "unknown",
+                "technical_message": e.message if EXCEPTIONS_AVAILABLE else str(e)
+            }, getattr(e, 'status_code', 500))
+        
         except Exception as e:
             log_api_error("status_endpoint", str(e), type(e).__name__)
             self._send_json({
                 "status": "error",
                 "message": f"Error interno del servidor: {str(e)}",
-                "type": type(e).__name__
+                "error_type": type(e).__name__,
+                "error_category": "internal_error"
             }, 500)
     
     def _is_protected(self, security_settings: dict, firewall_rules: dict) -> bool:

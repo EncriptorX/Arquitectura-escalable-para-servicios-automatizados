@@ -226,8 +226,13 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
         : { message: await response.text() };
 
       if (!response.ok) {
+        // Manejo específico de errores con tipos y categorías
+        const errorType = result.error_type || 'Error';
+        const errorCategory = result.error_category || 'unknown';
+        const errorCode = result.error_code;
+        
         // Manejo específico de errores de Turnstile
-        if (result.error_code === "TURNSTILE_VERIFICATION_FAILED") {
+        if (errorCode === "TURNSTILE_VERIFICATION_FAILED") {
           setError("❌ Verificación de seguridad fallida. Por favor, recarga la página e intenta nuevamente.");
           
           // Reset Turnstile widget
@@ -239,12 +244,39 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
               // Ignorar errores de reset
             }
           }
-        } else if (result.error_code === "MISSING_TURNSTILE_TOKEN") {
+        } else if (errorCode === "MISSING_TURNSTILE_TOKEN") {
           setError("❌ Falta el token de seguridad. Por favor, completa la verificación.");
-        } else if (result.error_code === "TURNSTILE_NOT_CONFIGURED") {
+        } else if (errorCode === "TURNSTILE_NOT_CONFIGURED") {
           setError("⚠️ El servicio de verificación no está configurado. Contacta al administrador.");
+        } else if (errorCategory === "user_error") {
+          // Errores de validación del usuario
+          setError(`❌ ${result.message || 'Error de validación'}`);
+        } else if (errorCategory === "cloudflare_error") {
+          // Errores de Cloudflare
+          setError(`⚠️ Error de Cloudflare: ${result.message || 'Error comunicándose con Cloudflare'}`);
+        } else if (errorCategory === "dns_error") {
+          // Errores de DNS
+          setError(`🌐 Error DNS: ${result.message || 'Error de configuración DNS'}`);
+        } else if (errorCategory === "network_error") {
+          // Errores de red
+          setError(`📡 Error de conexión: ${result.message || 'Error de red'}`);
+        } else if (errorCategory === "service_error") {
+          // Servicio deshabilitado
+          setError(`⚠️ ${result.message || 'El servicio está temporalmente deshabilitado'}`);
         } else {
+          // Error genérico
           setError(result.message || 'Error al enviar la solicitud');
+        }
+        
+        // Log para debugging (solo en desarrollo)
+        if (import.meta.env.DEV) {
+          console.error('Error details:', {
+            type: errorType,
+            category: errorCategory,
+            code: errorCode,
+            message: result.message,
+            technical: result.technical_message
+          });
         }
         
         // Reset Turnstile en caso de error 403

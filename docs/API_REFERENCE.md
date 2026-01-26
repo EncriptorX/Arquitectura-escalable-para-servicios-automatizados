@@ -157,11 +157,45 @@ Configura protección perimetral completa para uno o más dominios.
 - `503` - Servicio deshabilitado
 - `500` - Error interno del servidor o Turnstile no configurado
 
+**Estructura de Respuesta de Error:**
+```json
+{
+  "status": "error",
+  "message": "Mensaje amigable para el usuario",
+  "error_type": "ValidationError",
+  "error_category": "user_error",
+  "error_code": "MISSING_TURNSTILE_TOKEN",
+  "technical_message": "Detalles técnicos del error (opcional)"
+}
+```
+
+**Tipos de Error (error_type):**
+- `ValidationError` - Error de validación de entrada
+- `AuthenticationError` - Error de autenticación
+- `CloudflareAPIError` - Error de la API de Cloudflare
+- `DNSError` - Error relacionado con DNS
+- `DNSDelegationError` - Error de delegación DNS
+- `DNSResolutionError` - Error de resolución DNS
+- `NetworkError` - Error de red o conexión
+- `TimeoutError` - Timeout en operación
+- `ServiceDisabledError` - Servicio deshabilitado
+- `ConfigurationError` - Error de configuración
+
+**Categorías de Error (error_category):**
+- `user_error` - Error causado por el usuario (400, 403)
+- `cloudflare_error` - Error de Cloudflare (502)
+- `dns_error` - Error de DNS (400)
+- `network_error` - Error de red (503)
+- `service_error` - Servicio no disponible (503)
+- `configuration_error` - Error de configuración (500)
+- `idempotent` - Operación idempotente (200)
+
 **Notas de Seguridad:**
 - Todas las solicitudes requieren un token válido de Cloudflare Turnstile
 - El token se valida en el servidor antes de procesar la solicitud
 - Los fallos de verificación se auditan con IP del cliente
 - El widget de Turnstile se resetea automáticamente después de cada intento
+- Todos los errores se registran en el sistema de logging estructurado
 
 ---
 
@@ -574,6 +608,117 @@ Todas las APIs retornan errores en el siguiente formato:
 {
   "status": "error",
   "message": "CF_API_TOKEN no está configurado"
+}
+```
+
+---
+
+## 🔧 Sistema de Excepciones Tipadas
+
+El sistema implementa un manejo robusto de errores con excepciones tipadas que permiten distinguir entre diferentes tipos de errores.
+
+### Jerarquía de Excepciones
+
+```
+BaseAPIError
+├── ValidationError (400)
+├── AuthenticationError (403)
+├── CloudflareAPIError (502)
+│   ├── CloudflareRateLimitError (429)
+│   └── CloudflarePermissionError (403)
+├── DNSError (400)
+│   ├── DNSDelegationError
+│   ├── DNSResolutionError
+│   └── DNSRecordExistsError (200)
+├── NetworkError (503)
+│   └── TimeoutError
+├── ConfigurationError (500)
+├── ServiceDisabledError (503)
+└── LogicError (500)
+```
+
+### Respuesta de Error Estructurada
+
+Todas las excepciones retornan una respuesta estructurada:
+
+```json
+{
+  "status": "error",
+  "message": "Mensaje amigable para el usuario",
+  "error_type": "ValidationError",
+  "error_category": "user_error",
+  "technical_message": "Detalles técnicos (opcional)"
+}
+```
+
+### Categorías de Error
+
+| Categoría | Descripción | Código HTTP |
+|-----------|-------------|-------------|
+| `user_error` | Errores causados por el usuario | 400, 403 |
+| `cloudflare_error` | Errores de la API de Cloudflare | 502 |
+| `dns_error` | Errores relacionados con DNS | 400 |
+| `network_error` | Errores de conexión o timeout | 503 |
+| `service_error` | Servicio no disponible | 503 |
+| `configuration_error` | Error de configuración | 500 |
+| `idempotent` | Operación idempotente (no es error) | 200 |
+
+### Ejemplos de Errores
+
+**ValidationError:**
+```json
+{
+  "status": "error",
+  "message": "El dominio no cumple con el formato FQDN válido",
+  "error_type": "ValidationError",
+  "error_category": "user_error",
+  "details": {
+    "field": "domain",
+    "value": "invalid..domain"
+  }
+}
+```
+
+**CloudflareAPIError:**
+```json
+{
+  "status": "error",
+  "message": "Error comunicándose con Cloudflare",
+  "error_type": "CloudflareAPIError",
+  "error_category": "cloudflare_error",
+  "details": {
+    "cloudflare_error_code": 1001,
+    "cloudflare_message": "Zone already exists"
+  }
+}
+```
+
+**DNSDelegationError:**
+```json
+{
+  "status": "error",
+  "message": "El dominio no está correctamente delegado a Cloudflare",
+  "error_type": "DNSDelegationError",
+  "error_category": "dns_error",
+  "details": {
+    "domain": "example.com",
+    "expected_nameservers": ["ns1.cloudflare.com"],
+    "actual_nameservers": ["ns1.registrar.com"]
+  }
+}
+```
+
+### Manejo en el Frontend
+
+El frontend detecta automáticamente el tipo de error y muestra mensajes apropiados:
+
+```typescript
+if (result.error_category === "user_error") {
+  setError(`❌ ${result.message}`);
+} else if (result.error_category === "cloudflare_error") {
+  setError(`⚠️ Error de Cloudflare: ${result.message}`);
+} else if (result.error_category === "dns_error") {
+  setError(`🌐 Error DNS: ${result.message}`);
 }
 ```
 

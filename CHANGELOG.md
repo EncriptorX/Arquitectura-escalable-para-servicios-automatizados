@@ -5,6 +5,88 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.0.1] - 2026-01-26
+
+### 🛡️ Validación Robusta de Entradas
+
+**Problema resuelto:** El backend confiaba demasiado en el frontend y aceptaba URLs "raras" con esquemas, rutas, puertos, etc.
+
+### ✨ Agregado
+
+#### Validación de Entradas
+- **Validación estricta en el backend** - Solo acepta dominios FQDN puros
+- **Protección contra inyecciones** - Bloquea XSS, SQL injection, path traversal
+- **Rechazo de componentes no permitidos:**
+  - ❌ Esquemas: `http://`, `https://`, `ftp://`, `javascript:`
+  - ❌ Rutas: `/path`, `/path/to/page`
+  - ❌ Parámetros: `?query=1`, `&param=value`
+  - ❌ Fragmentos: `#section`
+  - ❌ Puertos: `:8080`, `:443`
+  - ❌ Credenciales: `user@`, `user:pass@`
+  - ❌ Direcciones IP: `192.168.1.1`, `10.0.0.1`
+  - ❌ Caracteres especiales: espacios, null bytes, CRLF
+
+#### Funciones de Validación
+- `validate_domain()` en `api/utils.py` - Valida formato FQDN básico
+- `validate_url()` en `api/utils.py` - Validación completa con rechazo de componentes
+- `validate_fqdn()` en `api/solicitar-proteccion.py` - Validación mejorada con excepciones tipadas
+- Regex compilados para mejor rendimiento
+
+#### Tests de Validación
+- `scripts/test_validacion_entrada.py` - Suite completa (50+ tests)
+- `scripts/test_quick_validation.py` - Tests rápidos (7 tests)
+- `scripts/verificar_validacion.py` - Verificación integral (3 suites)
+- Todos los tests pasan correctamente ✅
+
+#### Documentación
+- `docs/VALIDACION_ENTRADAS.md` - Documentación completa de validación
+- `VALIDACION_IMPLEMENTADA.md` - Resumen ejecutivo de la implementación
+- Sección en README.md sobre validación de entradas
+
+### 🔒 Mejorado
+
+#### Seguridad
+- **Validación en todos los endpoints:**
+  - `api/solicitar-proteccion.py` - Valida URLs antes de provisionar
+  - `api/verificar-delegacion.py` - Valida dominio antes de verificar DNS
+  - `api/toggle-protection.py` - Valida dominio si se proporciona
+- **Mensajes de error descriptivos** - Indican exactamente qué está mal
+- **Protección contra ataques:**
+  - Inyección de esquemas maliciosos
+  - Path traversal
+  - CRLF injection
+  - SQL injection
+  - XSS en dominio
+
+#### Performance
+- Regex compilados para validación más rápida
+- Validación centralizada en `api/utils.py`
+- Código optimizado y sin duplicación
+
+### 📊 Resultados de Tests
+
+**Suite Completa (`test_validacion_entrada.py`):**
+- ✅ 20/20 tests de validación de dominios
+- ✅ 13/13 tests de validación de URLs
+- ✅ 8/8 tests de casos extremos
+- ✅ 9/9 tests de seguridad
+
+**Tests Rápidos (`test_quick_validation.py`):**
+- ✅ 7/7 tests pasados
+
+**Verificación Integral (`verificar_validacion.py`):**
+- ✅ Validación básica: PASÓ
+- ✅ Seguridad: PASÓ
+- ✅ Casos extremos: PASÓ
+
+### 🔗 Referencias
+
+- [VALIDACION_ENTRADAS.md](./docs/VALIDACION_ENTRADAS.md) - Documentación técnica completa
+- [VALIDACION_IMPLEMENTADA.md](./VALIDACION_IMPLEMENTADA.md) - Resumen ejecutivo
+- [README.md](./README.md#-validación-robusta-de-entradas) - Sección de validación
+
+---
+
 ## [1.0.0] - 2026-01-22
 
 ### 🎉 Lanzamiento Inicial

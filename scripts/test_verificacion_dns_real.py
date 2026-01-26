@@ -99,15 +99,18 @@ def test_verify_dns_invalid_domain():
     try:
         is_delegated, actual_ns = verify_dns(domain, expected_ns)
         print(f"\n❌ TEST 3 FALLIDO: Debería haber lanzado excepción")
-        assert False, "Debería haber lanzado ValueError"
-        
-    except ValueError as e:
-        print(f"\n✓ Excepción esperada capturada: {str(e)}")
-        assert "no existe" in str(e).lower(), "Mensaje de error debe indicar que no existe"
-        print("\n✅ TEST 3 PASADO")
+        assert False, "Debería haber lanzado DNSResolutionError"
         
     except Exception as e:
-        print(f"\n❌ TEST 3 FALLIDO: Excepción incorrecta: {str(e)}")
+        # Aceptar tanto DNSResolutionError como ValueError
+        error_name = type(e).__name__
+        if "DNSResolutionError" in error_name or "ValueError" in error_name:
+            print(f"\n✓ Excepción esperada capturada ({error_name}): {str(e)}")
+            assert "no existe" in str(e).lower(), "Mensaje de error debe indicar que no existe"
+            print("\n✅ TEST 3 PASADO")
+        else:
+            print(f"\n❌ TEST 3 FALLIDO: Excepción incorrecta: {error_name} - {str(e)}")
+            raise
         raise
 
 

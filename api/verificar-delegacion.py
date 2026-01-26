@@ -26,6 +26,31 @@ except ImportError:
     delegation_logger = None
     log_delegation_check = lambda *args, **kwargs: None
 
+try:
+    from exceptions import (
+        BaseAPIError,
+        ValidationError,
+        DNSError,
+        DNSDelegationError,
+        DNSResolutionError,
+        NetworkError,
+        get_user_friendly_message
+    )
+    EXCEPTIONS_AVAILABLE = True
+except ImportError:
+    EXCEPTIONS_AVAILABLE = False
+    class BaseAPIError(Exception):
+        status_code = 500
+        error_category = "unknown"
+        def to_dict(self):
+            return {"error_type": "BaseAPIError", "message": str(self)}
+    ValidationError = BaseAPIError
+    DNSError = BaseAPIError
+    DNSDelegationError = BaseAPIError
+    DNSResolutionError = BaseAPIError
+    NetworkError = BaseAPIError
+    get_user_friendly_message = lambda e: str(e)
+
 
 # Configuración desde Vercel ENV
 CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
@@ -43,6 +68,10 @@ def verify_dns(domain, expected_ns):
     
     Returns:
         tuple: (bool, list) - (está_delegado, nameservers_actuales)
+    
+    Raises:
+        DNSResolutionError: Si el dominio no existe o no tiene NS
+        NetworkError: Si hay timeout o error de red
     """
     try:
         import dns.resolver
@@ -61,13 +90,13 @@ def verify_dns(domain, expected_ns):
     except ImportError:
         raise ImportError("dnspython no está instalado. Ejecuta: pip install dnspython")
     except dns.resolver.NXDOMAIN:
-        raise ValueError(f"El dominio '{domain}' no existe")
+        raise DNSResolutionError(f"El dominio '{domain}' no existe", domain=domain)
     except dns.resolver.NoAnswer:
-        raise ValueError(f"El dominio '{domain}' no tiene registros NS")
+        raise DNSResolutionError(f"El dominio '{domain}' no tiene registros NS", domain=domain)
     except dns.resolver.Timeout:
-        raise TimeoutError(f"Timeout al consultar NS de '{domain}'")
+        raise NetworkError(f"Timeout al consultar NS de '{domain}'", endpoint=domain)
     except Exception as e:
-        raise Exception(f"Error verificando DNS: {str(e)}")
+        raise DNSError(f"Error verificando DNS: {str(e)}", domain=domain)
 
 
 def obtener_nameservers_actuales(dominio):
@@ -226,13 +255,47 @@ class handler(BaseHTTPRequestHandler):
                 }, 400)
                 return
             
-            # Obtener dominio
-            dominio = data.get("dominio", "").strip()
+            # Obtener y validar dominio
+            dominio = data.get("dominio", "").strip().lower()
             
             if not dominio:
                 self._send_json({
                     "status": "error",
                     "message": "Falta el parámetro 'dominio'"
+                }, 400)
+                return
+            
+            # Validar formato de dominio (solo FQDN, sin esquemas ni rutas)
+            if "://" in dominio:
+                self._send_json({
+                    "status": "error",
+                    "message": "No se permiten esquemas (http://, https://). Use solo el dominio FQDN"
+                }, 400)
+                return
+            
+            if "/" in dominio or "?" in dominio or "#" in dominio or ":" in dominio or "@" in dominio:
+                self._send_json({
+                    "status": "error",
+                    "message": "Formato de dominio inválido. Use solo el dominio FQDN (ejemplo: ejemplo.com)"
+                }, 400)
+                return
+            
+            # Validar que no sea una IP
+            import re
+            ip_pattern = r"^(\d{1,3}\.){3}\d{1,3}$"
+            if re.match(ip_pattern, dominio):
+                self._send_json({
+                    "status": "error",
+                    "message": "No se permiten direcciones IP. Use un dominio FQDN"
+                }, 400)
+                return
+            
+            # Validar formato FQDN básico
+            domain_pattern = r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63}(?<!-))*\.[A-Za-z]{2,}$"
+            if not re.match(domain_pattern, dominio):
+                self._send_json({
+                    "status": "error",
+                    "message": "Formato de dominio inválido. Use un dominio FQDN válido (ejemplo: ejemplo.com)"
                 }, 400)
                 return
             

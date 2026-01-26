@@ -47,13 +47,14 @@ def test_turnstile_missing_secret():
         # Simular que no está configurada
         Config.TURNSTILE_SECRET_KEY = ""
         
-        valid, error = validate_turnstile("test_token", "192.0.2.1")
-        
-        print(f"\nValido: {valid}")
-        print(f"Error: {error}")
-        
-        assert valid == False, "Debe retornar False cuando no está configurada"
-        assert "TURNSTILE_SECRET_KEY" in error, "Error debe mencionar TURNSTILE_SECRET_KEY"
+        try:
+            validate_turnstile("test_token", "192.0.2.1")
+            assert False, "Debe lanzar AuthenticationError"
+        except Exception as e:
+            # Verificar que es AuthenticationError
+            assert "AuthenticationError" in str(type(e).__name__), f"Debe ser AuthenticationError, fue {type(e).__name__}"
+            assert "TURNSTILE_SECRET_KEY" in str(e), "Error debe mencionar TURNSTILE_SECRET_KEY"
+            print(f"\n✓ AuthenticationError lanzada correctamente: {str(e)}")
         
         print("\n[OK] TEST 1 PASADO")
         
@@ -77,26 +78,32 @@ def test_turnstile_invalid_token():
 
 
 def test_turnstile_response_structure():
-    """Prueba la estructura de respuesta"""
+    """Prueba la estructura de respuesta (ahora lanza excepciones)"""
     print("\n" + "=" * 60)
     print("TEST 3: Estructura de respuesta")
     print("=" * 60)
     
-    # Verificar que validate_turnstile retorna tupla
+    # Verificar que validate_turnstile lanza excepciones
     Config.TURNSTILE_SECRET_KEY = ""
-    result = validate_turnstile("test", "192.0.2.1")
     
-    assert isinstance(result, tuple), "Debe retornar tupla"
-    assert len(result) == 2, "Tupla debe tener 2 elementos"
+    try:
+        validate_turnstile("test", "192.0.2.1")
+        assert False, "Debe lanzar excepción"
+    except Exception as e:
+        assert "AuthenticationError" in type(e).__name__, "Debe lanzar AuthenticationError"
+        print(f"\n✓ Lanza excepción correctamente: {type(e).__name__}")
     
-    valid, error = result
-    assert isinstance(valid, bool), "Primer elemento debe ser bool"
-    assert error is None or isinstance(error, str), "Segundo elemento debe ser None o str"
+    # Verificar que con clave configurada también funciona
+    Config.TURNSTILE_SECRET_KEY = "test_key"
     
-    print("\n[OK] Estructura de respuesta correcta")
-    print(f"   - Retorna tupla: {isinstance(result, tuple)}")
-    print(f"   - Primer elemento (bool): {isinstance(valid, bool)}")
-    print(f"   - Segundo elemento (str/None): {error is None or isinstance(error, str)}")
+    try:
+        validate_turnstile("test", "192.0.2.1")
+        print("✓ Con clave configurada, intenta validar (puede fallar por red)")
+    except Exception as e:
+        # Puede fallar por red o token inválido, eso está bien
+        print(f"✓ Con clave configurada, lanza excepción esperada: {type(e).__name__}")
+    
+    print("\n[OK] Estructura de respuesta correcta (excepciones)")
     
     print("\n[OK] TEST 3 PASADO")
 

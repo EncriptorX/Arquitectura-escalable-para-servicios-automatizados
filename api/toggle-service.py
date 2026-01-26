@@ -32,6 +32,23 @@ except ImportError:
     service_logger = None
     log_service_toggle = lambda *args, **kwargs: None
 
+try:
+    from exceptions import (
+        BaseAPIError,
+        ValidationError,
+        get_user_friendly_message
+    )
+    EXCEPTIONS_AVAILABLE = True
+except ImportError:
+    EXCEPTIONS_AVAILABLE = False
+    class BaseAPIError(Exception):
+        status_code = 500
+        error_category = "unknown"
+        def to_dict(self):
+            return {"error_type": "BaseAPIError", "message": str(self)}
+    ValidationError = BaseAPIError
+    get_user_friendly_message = lambda e: str(e)
+
 
 class handler(BaseHTTPRequestHandler):
     """Handler para Vercel Serverless Function"""
@@ -83,27 +100,59 @@ class handler(BaseHTTPRequestHandler):
             try:
                 data = json.loads(body.decode('utf-8'))
             except json.JSONDecodeError as e:
-                self._send_json({
-                    "status": "error",
-                    "message": f"Error parseando JSON: {str(e)}"
-                }, 400)
+                if EXCEPTIONS_AVAILABLE:
+                    error = ValidationError(f"Error parseando JSON: {str(e)}", field="body")
+                    self._send_json({
+                        "status": "error",
+                        "message": error.message,
+                        "error_type": error.__class__.__name__,
+                        "error_category": error.error_category
+                    }, error.status_code)
+                else:
+                    self._send_json({
+                        "status": "error",
+                        "message": f"Error parseando JSON: {str(e)}"
+                    }, 400)
                 return
             
             # Obtener parámetro enabled
             if "enabled" not in data:
-                self._send_json({
-                    "status": "error",
-                    "message": "Falta el parámetro 'enabled' (true/false)"
-                }, 400)
+                if EXCEPTIONS_AVAILABLE:
+                    error = ValidationError("Falta el parámetro 'enabled' (true/false)", field="enabled")
+                    self._send_json({
+                        "status": "error",
+                        "message": error.message,
+                        "error_type": error.__class__.__name__,
+                        "error_category": error.error_category
+                    }, error.status_code)
+                else:
+                    self._send_json({
+                        "status": "error",
+                        "message": "Falta el parámetro 'enabled' (true/false)"
+                    }, 400)
                 return
             
             enabled = data.get("enabled")
             
             if not isinstance(enabled, bool):
-                self._send_json({
-                    "status": "error",
-                    "message": "El parámetro 'enabled' debe ser booleano (true/false)"
-                }, 400)
+                if EXCEPTIONS_AVAILABLE:
+                    error = ValidationError(
+                        "El parámetro 'enabled' debe ser booleano (true/false)",
+                        field="enabled",
+                        value=enabled,
+                        expected_type="boolean"
+                    )
+                    self._send_json({
+                        "status": "error",
+                        "message": error.message,
+                        "error_type": error.__class__.__name__,
+                        "error_category": error.error_category
+                    }, error.status_code)
+                else:
+                    self._send_json({
+                        "status": "error",
+                        "message": "El parámetro 'enabled' debe ser booleano (true/false)"
+                    }, 400)
                 return
             
             # Obtener estado anterior
@@ -132,10 +181,21 @@ class handler(BaseHTTPRequestHandler):
                 "message": f"Servicio {'habilitado' if new_state else 'deshabilitado'} exitosamente",
                 "previous_state": previous_state
             }, 200)
-            
+        
+        except BaseAPIError as e:
+            # Capturar excepciones tipadas
+            self._send_json({
+                "status": "error",
+                "message": get_user_friendly_message(e) if EXCEPTIONS_AVAILABLE else str(e),
+                "error_type": e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "Error",
+                "error_category": e.error_category if EXCEPTIONS_AVAILABLE else "unknown",
+                "technical_message": e.message if EXCEPTIONS_AVAILABLE else str(e)
+            }, getattr(e, 'status_code', 500))
+        
         except Exception as e:
             self._send_json({
                 "status": "error",
                 "message": f"Error cambiando estado del servicio: {str(e)}",
-                "type": type(e).__name__
+                "error_type": type(e).__name__,
+                "error_category": "internal_error"
             }, 500)

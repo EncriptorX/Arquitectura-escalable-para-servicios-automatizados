@@ -50,6 +50,40 @@ except ImportError:
     log_api_error = lambda *args, **kwargs: None
     log_turnstile_verification = lambda *args, **kwargs: None
 
+try:
+    from exceptions import (
+        BaseAPIError,
+        ValidationError,
+        AuthenticationError,
+        CloudflareAPIError,
+        DNSError,
+        DNSRecordExistsError,
+        NetworkError,
+        TimeoutError,
+        ServiceDisabledError,
+        handle_cloudflare_error,
+        get_user_friendly_message
+    )
+    EXCEPTIONS_AVAILABLE = True
+except ImportError:
+    EXCEPTIONS_AVAILABLE = False
+    # Fallback sin excepciones tipadas
+    class BaseAPIError(Exception):
+        status_code = 500
+        error_category = "unknown"
+        def to_dict(self):
+            return {"error_type": "BaseAPIError", "message": str(self)}
+    ValidationError = BaseAPIError
+    AuthenticationError = BaseAPIError
+    CloudflareAPIError = BaseAPIError
+    DNSError = BaseAPIError
+    DNSRecordExistsError = BaseAPIError
+    NetworkError = BaseAPIError
+    TimeoutError = BaseAPIError
+    ServiceDisabledError = BaseAPIError
+    handle_cloudflare_error = lambda *args, **kwargs: CloudflareAPIError("Error de Cloudflare")
+    get_user_friendly_message = lambda e: str(e)
+
 
 # ===============================
 # Configuración
@@ -79,32 +113,83 @@ class Config:
 # Utilidades
 # ===============================
 def validate_fqdn(domain: str) -> bool:
-    """Valida formato FQDN (optimizado con patrones precompilados)"""
-    if not domain or not isinstance(domain, str) or "://" in domain or "/" in domain:
-        return False
-    return not Config.IP_PATTERN.match(domain) and bool(Config.FQDN_PATTERN.match(domain))
+    """
+    Valida formato FQDN (optimizado con patrones precompilados)
+    
+    IMPORTANTE: Solo acepta dominios FQDN puros, sin esquemas, rutas, puertos, etc.
+    """
+    if not domain or not isinstance(domain, str):
+        raise ValidationError("Dominio vacío o inválido", field="domain", value=domain)
+    
+    # Rechazar esquemas
+    if "://" in domain:
+        raise ValidationError("No se permiten esquemas (http://, https://). Use solo el dominio FQDN", field="domain", value=domain)
+    
+    # Rechazar rutas
+    if "/" in domain:
+        raise ValidationError("No se permiten rutas. Use solo el dominio FQDN", field="domain", value=domain)
+    
+    # Rechazar parámetros
+    if "?" in domain or "&" in domain:
+        raise ValidationError("No se permiten parámetros. Use solo el dominio FQDN", field="domain", value=domain)
+    
+    # Rechazar fragmentos
+    if "#" in domain:
+        raise ValidationError("No se permiten fragmentos. Use solo el dominio FQDN", field="domain", value=domain)
+    
+    # Rechazar puertos
+    if ":" in domain:
+        raise ValidationError("No se permiten puertos. Use solo el dominio FQDN", field="domain", value=domain)
+    
+    # Rechazar credenciales
+    if "@" in domain:
+        raise ValidationError("No se permiten credenciales. Use solo el dominio FQDN", field="domain", value=domain)
+    
+    # Rechazar espacios
+    if " " in domain:
+        raise ValidationError("No se permiten espacios en el dominio", field="domain", value=domain)
+    
+    # Verificar si es IP
+    if Config.IP_PATTERN.match(domain):
+        raise ValidationError("No se permiten direcciones IP, solo dominios FQDN", field="domain", value=domain)
+    
+    # Validar formato FQDN
+    if not Config.FQDN_PATTERN.match(domain):
+        raise ValidationError("El dominio no cumple con el formato FQDN válido", field="domain", value=domain)
+    
+    return True
 
 
 def validate_domain_in_zone(domain: str, zone_name: str) -> bool:
     """Valida que el dominio pertenezca a la zona"""
-    return domain == zone_name or domain.endswith(f".{zone_name}")
+    if not (domain == zone_name or domain.endswith(f".{zone_name}")):
+        raise ValidationError(
+            f"El dominio '{domain}' no pertenece a la zona '{zone_name}'",
+            field="domain",
+            domain=domain,
+            zone_name=zone_name
+        )
+    return True
 
 
-def resolve_domain_ip(domain: str) -> Tuple[Optional[str], Optional[str]]:
+def resolve_domain_ip(domain: str) -> str:
     """Resuelve la IP del dominio"""
     try:
-        return socket.gethostbyname(domain), None
+        return socket.gethostbyname(domain)
     except socket.gaierror as e:
-        return None, f"No se pudo resolver el dominio {domain}: {str(e)}"
+        raise DNSError(f"No se pudo resolver el dominio {domain}", domain=domain, reason=str(e))
     except Exception as e:
-        return None, f"Error obteniendo IP del dominio: {str(e)}"
+        raise NetworkError(f"Error obteniendo IP del dominio: {str(e)}", endpoint=domain)
 
 
-def validate_turnstile(token: str, remote_ip: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+def validate_turnstile(token: str, remote_ip: Optional[str] = None) -> bool:
     """Valida token de Turnstile"""
     if not Config.TURNSTILE_SECRET_KEY:
         log_api_error("turnstile", "TURNSTILE_SECRET_KEY no configurada", "ConfigError")
-        return False, "TURNSTILE_SECRET_KEY no está configurada"
+        raise AuthenticationError(
+            "TURNSTILE_SECRET_KEY no está configurada",
+            reason="missing_config"
+        )
     
     data = {"secret": Config.TURNSTILE_SECRET_KEY, "response": token}
     if remote_ip:
@@ -123,7 +208,7 @@ def validate_turnstile(token: str, remote_ip: Optional[str] = None) -> Tuple[boo
         log_turnstile_verification(success=success, remote_ip=remote_ip)
         
         if success:
-            return True, None
+            return True
         
         codes = result.get("error-codes") or result.get("error_codes") or []
         msg = "Verificación Turnstile fallida"
@@ -131,11 +216,18 @@ def validate_turnstile(token: str, remote_ip: Optional[str] = None) -> Tuple[boo
             msg += f". Códigos: {', '.join(codes)}"
         
         log_turnstile_verification(success=False, remote_ip=remote_ip, error_codes=codes)
-        return False, msg
+        raise AuthenticationError(msg, reason="turnstile_failed", error_codes=codes, remote_ip=remote_ip)
+    
+    except AuthenticationError:
+        raise
+    except urllib.error.URLError as e:
+        error_msg = f"Error conectando con Turnstile: {str(e.reason)}"
+        log_api_error("turnstile", error_msg, "URLError", remote_ip=remote_ip)
+        raise NetworkError(error_msg, endpoint=Config.TURNSTILE_VERIFY_URL)
     except Exception as e:
         error_msg = f"Error conectando con Turnstile: {str(e)}"
         log_api_error("turnstile", error_msg, type(e).__name__, remote_ip=remote_ip)
-        return False, error_msg
+        raise NetworkError(error_msg, endpoint=Config.TURNSTILE_VERIFY_URL)
 
 
 # ===============================
@@ -154,7 +246,7 @@ class CloudflareClient:
         self.logs.append(f"[{level}] {message}")
     
     def request(self, method: str, endpoint: str, data: Optional[Dict] = None) -> Optional[Dict]:
-        """Realiza petición HTTP a Cloudflare API (optimizado)"""
+        """Realiza petición HTTP a Cloudflare API (optimizado con excepciones tipadas)"""
         try:
             req = urllib.request.Request(
                 f"{Config.CF_API_BASE_URL}/{endpoint}",
@@ -173,43 +265,37 @@ class CloudflareClient:
             except:
                 pass
             
-            # Tolerancia a fallos: detectar errores específicos
-            if error_body and "errors" in error_body:
-                for error in error_body["errors"]:
-                    error_code = error.get("code")
-                    
-                    # Error 81058: Registro DNS ya existe (idempotencia)
-                    if error_code == 81058:
-                        self.log("⚠️ Registro DNS ya existe, continuando (idempotente)", "WARN")
-                        if LOGGING_AVAILABLE:
-                            protection_logger.info(
-                                "Registro DNS ya existe - operación idempotente",
-                                error_code=81058,
-                                endpoint=endpoint,
-                                method=method
-                            )
-                        return {"success": True, "idempotent": True}
-                    
-                    # Error 81057: Registro DNS no encontrado (tolerancia)
-                    elif error_code == 81057:
-                        self.log("⚠️ Registro DNS no encontrado, puede ser primera vez", "WARN")
-                        if LOGGING_AVAILABLE:
-                            protection_logger.info(
-                                "Registro DNS no encontrado",
-                                error_code=81057,
-                                endpoint=endpoint
-                            )
-                    
-                    # Error 1004: DNS validation error (tolerancia)
-                    elif error_code == 1004:
-                        self.log("⚠️ Error de validación DNS, verificar configuración", "WARN")
-                        if LOGGING_AVAILABLE:
-                            protection_logger.warning(
-                                "Error de validación DNS",
-                                error_code=1004,
-                                endpoint=endpoint
-                            )
+            # Usar handle_cloudflare_error para convertir a excepción tipada
+            if error_body and EXCEPTIONS_AVAILABLE:
+                cf_error = handle_cloudflare_error(error_body, endpoint)
+                
+                # Tolerancia a fallos: detectar errores específicos
+                if isinstance(cf_error, DNSRecordExistsError):
+                    self.log("⚠️ Registro DNS ya existe, continuando (idempotente)", "WARN")
+                    if LOGGING_AVAILABLE:
+                        protection_logger.info(
+                            "Registro DNS ya existe - operación idempotente",
+                            error_code=81058,
+                            endpoint=endpoint,
+                            method=method
+                        )
+                    return {"success": True, "idempotent": True}
+                
+                # Loggear error
+                self.log(f"Error Cloudflare: {cf_error.message}", "ERROR")
+                if LOGGING_AVAILABLE:
+                    log_api_error(
+                        endpoint,
+                        cf_error.message,
+                        cf_error.__class__.__name__,
+                        status_code=err.code,
+                        error_body=error_body
+                    )
+                
+                # No lanzar excepción, retornar None para tolerancia a fallos
+                return None
             
+            # Fallback sin excepciones tipadas
             self.log(f"Error HTTP {err.code}: {err.reason}", "ERROR")
             if error_body:
                 self.log(f"Detalle: {json.dumps(error_body)}", "ERROR")
@@ -226,11 +312,22 @@ class CloudflareClient:
                 self.log(Config.ERROR_HINTS[err.code], "WARN")
             
             return None
+        
         except urllib.error.URLError as e:
             self.log(f"Error de conexión: {str(e.reason)}", "ERROR")
             if LOGGING_AVAILABLE:
                 log_api_error(endpoint, f"Conexión: {str(e.reason)}", "URLError")
+            if EXCEPTIONS_AVAILABLE:
+                # No lanzar, retornar None para tolerancia a fallos
+                pass
             return None
+        
+        except socket.timeout:
+            self.log(f"Timeout en request a {endpoint}", "ERROR")
+            if LOGGING_AVAILABLE:
+                log_api_error(endpoint, "Timeout", "TimeoutError", timeout=Config.API_TIMEOUT)
+            return None
+        
         except Exception as e:
             self.log(f"Error en request: {str(e)}", "ERROR")
             if LOGGING_AVAILABLE:
@@ -393,63 +490,175 @@ class CloudflareClient:
         
         return False
     
-    def provision_domain(self, domain: str, origin_ip: str, zone_name: str) -> Dict:
-        """Ejecuta provisión completa de un dominio (optimizado)"""
-        self.log("=== INICIANDO PROVISIÓN DE SEGURIDAD PERIMETRAL ===")
+    def validate_domain(self, domain: str, zone_name: str) -> Tuple[bool, Optional[str]]:
+        """
+        PASO 1: Validar dominio
+        Controlador de flujo: Validación inicial
+        """
+        self.log("[PASO 1/5] Validando dominio...")
         
-        # Validar dominio
-        if not validate_domain_in_zone(domain, zone_name):
-            self.log(f"ERROR: El dominio '{domain}' no pertenece a la zona '{zone_name}'", "ERROR")
-            log_protection_request(
-                domain=domain,
-                origin_ip=origin_ip,
-                status="failed",
-                error="Dominio no válido para esta zona",
-                zone_name=zone_name
-            )
-            return {"success": False, "error": f"Dominio no válido para esta zona. Use '{zone_name}' o subdominios.", "logs": self.logs}
+        try:
+            validate_domain_in_zone(domain, zone_name)
+            self.log(f"✓ Dominio válido para zona '{zone_name}'")
+            return True, None
+        except ValidationError as e:
+            self.log(f"✗ ERROR: {e.message}", "ERROR")
+            return False, e.message
+    
+    def verify_dns_resolution(self, domain: str) -> Tuple[bool, Optional[str]]:
+        """
+        PASO 2: Verificar resolución DNS
+        Controlador de flujo: Verificación de DNS
+        """
+        self.log("[PASO 2/5] Verificando resolución DNS...")
         
-        self.log(f"✓ Dominio válido para zona '{zone_name}'")
+        try:
+            # Verificar que el dominio resuelve
+            ip, error = resolve_domain_ip(domain)
+            if error:
+                self.log(f"⚠️ Advertencia DNS: {error}", "WARN")
+                return True, None  # No crítico, continuar
+            
+            self.log(f"✓ DNS resuelve correctamente: {domain} -> {ip}")
+            return True, None
+        except Exception as e:
+            self.log(f"⚠️ Error verificando DNS: {str(e)}", "WARN")
+            return True, None  # No crítico, continuar
+    
+    def configure_dns_zone(self, domain: str, origin_ip: str) -> Tuple[bool, Optional[str]]:
+        """
+        PASO 3: Configurar zona DNS
+        Controlador de flujo: Configuración DNS crítica
+        """
+        self.log("[PASO 3/5] Configurando zona DNS...")
         
-        # Configuración de operaciones (lista optimizada)
-        ops_config = [
-            ("dns_proxy", lambda: self.configure_dns_proxy(domain, origin_ip), "[1/5] Configurando DNS Proxy", True),
-            ("ssl_strict", lambda: self.configure_setting("ssl", "strict", "Modo SSL Full (Strict)"), "[2/5] Configurando SSL/TLS", False),
-            ("https_redirect", lambda: self.configure_setting("always_use_https", "on", "Redirección HTTPS"), "[3/5] Configurando redirección HTTPS", False),
-            ("waf", lambda: self.configure_setting("waf", "on", "WAF"), "[4/5] Configurando WAF", False),
-            ("security_level", lambda: self.configure_setting("security_level", "high", "Security Level"), "[4/5] Configurando Security Level", False),
-            ("firewall_rules", lambda: self.create_firewall_rule(), "[5/5] Configurando reglas de firewall", False)
-        ]
+        success = self.configure_dns_proxy(domain, origin_ip)
         
-        # Ejecutar operaciones
-        operations = {}
-        for key, func, msg, is_critical in ops_config:
+        if not success:
+            error = "No se pudo configurar DNS Proxy (operación crítica)"
+            self.log(f"✗ {error}", "ERROR")
+            return False, error
+        
+        self.log("✓ Zona DNS configurada exitosamente")
+        return True, None
+    
+    def apply_security_settings(self) -> Dict[str, bool]:
+        """
+        PASO 4: Aplicar configuraciones de seguridad
+        Controlador de flujo: Configuraciones de seguridad
+        """
+        self.log("[PASO 4/5] Aplicando configuraciones de seguridad...")
+        
+        security_ops = {
+            "ssl_strict": ("ssl", "strict", "Modo SSL Full (Strict)"),
+            "https_redirect": ("always_use_https", "on", "Redirección HTTPS"),
+            "waf": ("waf", "on", "WAF"),
+            "security_level": ("security_level", "high", "Security Level")
+        }
+        
+        results = {}
+        for key, (setting, value, label) in security_ops.items():
             try:
-                self.log(msg)
-                operations[key] = func()
+                self.log(f"  → Configurando {label}...")
+                results[key] = self.configure_setting(setting, value, label)
             except Exception as e:
-                self.log(f"Error en {key}: {str(e)}", "WARN")
-                operations[key] = False
+                self.log(f"  ✗ Error en {label}: {str(e)}", "WARN")
+                results[key] = False
         
-        # Evaluar resultado (optimizado)
-        if not operations.get("dns_proxy", False):
-            self.log("=== PROVISIÓN FALLIDA: Operaciones críticas no completadas ===", "ERROR")
+        success_count = sum(results.values())
+        self.log(f"✓ Configuraciones de seguridad aplicadas: {success_count}/{len(results)}")
+        
+        return results
+    
+    def apply_firewall_rules(self) -> Tuple[bool, Optional[str]]:
+        """
+        PASO 5: Aplicar reglas de firewall
+        Controlador de flujo: Reglas de firewall
+        """
+        self.log("[PASO 5/5] Aplicando reglas de firewall...")
+        
+        try:
+            success = self.create_firewall_rule()
+            
+            if success:
+                self.log("✓ Reglas de firewall aplicadas")
+            else:
+                self.log("⚠️ No se pudieron aplicar reglas de firewall (no crítico)", "WARN")
+            
+            return success, None
+        except Exception as e:
+            self.log(f"⚠️ Error aplicando firewall: {str(e)}", "WARN")
+            return False, None  # No crítico
+    
+    def provision_domain(self, domain: str, origin_ip: str, zone_name: str) -> Dict:
+        """
+        CONTROLADOR CENTRAL DE FLUJO
+        Orquesta el proceso completo de provisión en pasos claros
+        
+        Flujo:
+        1. Validar dominio
+        2. Verificar DNS
+        3. Configurar zona DNS (crítico)
+        4. Aplicar seguridad
+        5. Aplicar firewall
+        """
+        self.log("=" * 60)
+        self.log("=== CONTROLADOR CENTRAL: PROVISIÓN DE SEGURIDAD ===")
+        self.log("=" * 60)
+        
+        # PASO 1: Validar dominio
+        valid, error = self.validate_domain(domain, zone_name)
+        if not valid:
             log_protection_request(
                 domain=domain,
                 origin_ip=origin_ip,
                 status="failed",
-                error="No se pudo configurar DNS Proxy",
-                operations=operations,
-                zone_name=zone_name
+                error=error,
+                zone_name=zone_name,
+                step="validation"
             )
-            return {"success": False, "error": "No se pudo configurar DNS Proxy (operación crítica)", "operations": operations, "logs": self.logs}
+            return {"success": False, "error": error, "logs": self.logs, "step_failed": "validation"}
         
-        # Determinar estado basado en operaciones importantes
-        important_count = sum(operations.get(k, False) for k in ["ssl_strict", "https_redirect", "waf", "security_level"])
+        # PASO 2: Verificar DNS
+        dns_ok, dns_error = self.verify_dns_resolution(domain)
+        # Continuar incluso si falla (no crítico)
+        
+        # PASO 3: Configurar zona DNS (CRÍTICO)
+        dns_configured, dns_error = self.configure_dns_zone(domain, origin_ip)
+        if not dns_configured:
+            log_protection_request(
+                domain=domain,
+                origin_ip=origin_ip,
+                status="failed",
+                error=dns_error,
+                zone_name=zone_name,
+                step="dns_configuration"
+            )
+            return {"success": False, "error": dns_error, "logs": self.logs, "step_failed": "dns_configuration"}
+        
+        # PASO 4: Aplicar configuraciones de seguridad
+        security_results = self.apply_security_settings()
+        
+        # PASO 5: Aplicar reglas de firewall
+        firewall_ok, firewall_error = self.apply_firewall_rules()
+        
+        # Consolidar resultados
+        operations = {
+            "dns_proxy": dns_configured,
+            "firewall_rules": firewall_ok,
+            **security_results
+        }
+        
+        # Evaluar resultado final
+        important_count = sum(security_results.values())
         status = "complete" if important_count >= 3 else "partial" if important_count > 0 else "minimal"
         
-        self.log(f"=== PROVISIÓN COMPLETADA {'EXITOSAMENTE' if status == 'complete' else f'PARCIALMENTE ({important_count}/4)' if status == 'partial' else 'CON ADVERTENCIAS'} ===", 
-                "INFO" if status == "complete" else "WARN")
+        self.log("=" * 60)
+        self.log(f"=== PROVISIÓN COMPLETADA: {status.upper()} ===")
+        self.log(f"    DNS Configurado: {'✓' if dns_configured else '✗'}")
+        self.log(f"    Seguridad: {important_count}/4 configuraciones")
+        self.log(f"    Firewall: {'✓' if firewall_ok else '⚠️'}")
+        self.log("=" * 60)
         
         # Log de auditoría final
         log_protection_request(
@@ -458,10 +667,23 @@ class CloudflareClient:
             status=status,
             operations=operations,
             zone_name=zone_name,
-            important_count=important_count
+            important_count=important_count,
+            flow_completed=True
         )
         
-        return {"success": True, "status": status, "operations": operations, "logs": self.logs}
+        return {
+            "success": True,
+            "status": status,
+            "operations": operations,
+            "logs": self.logs,
+            "flow": {
+                "validation": "passed",
+                "dns_verification": "passed" if dns_ok else "warning",
+                "dns_configuration": "passed",
+                "security_settings": f"{important_count}/4",
+                "firewall_rules": "passed" if firewall_ok else "warning"
+            }
+        }
 
 
 # ===============================
@@ -498,11 +720,21 @@ class handler(BaseHTTPRequestHandler):
         try:
             # Verificar si el servicio está habilitado
             if not is_service_enabled():
-                self._send_json({
-                    "status": "error",
-                    "message": "El servicio está deshabilitado temporalmente",
-                    "service_disabled": True
-                }, 503)
+                if EXCEPTIONS_AVAILABLE:
+                    error = ServiceDisabledError()
+                    self._send_json({
+                        "status": "error",
+                        "message": error.message,
+                        "error_type": error.__class__.__name__,
+                        "error_category": error.error_category,
+                        "service_disabled": True
+                    }, error.status_code)
+                else:
+                    self._send_json({
+                        "status": "error",
+                        "message": "El servicio está deshabilitado temporalmente",
+                        "service_disabled": True
+                    }, 503)
                 return
             
             # Leer y parsear body
@@ -512,77 +744,118 @@ class handler(BaseHTTPRequestHandler):
             try:
                 data = json.loads(body.decode('utf-8'))
             except json.JSONDecodeError as e:
-                self._send_json({"status": "error", "message": f"Error parseando JSON: {str(e)}"}, 400)
+                if EXCEPTIONS_AVAILABLE:
+                    error = ValidationError(f"Error parseando JSON: {str(e)}", field="body")
+                    self._send_json({
+                        "status": "error",
+                        "message": error.message,
+                        "error_type": error.__class__.__name__,
+                        "error_category": error.error_category
+                    }, error.status_code)
+                else:
+                    self._send_json({"status": "error", "message": f"Error parseando JSON: {str(e)}"}, 400)
                 return
             
             # Validar token de Turnstile
             token = data.get("turnstileToken")
+            client_ip = self.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+            
             if not token:
                 log_api_error(
                     "turnstile_validation",
                     "Token de Turnstile no proporcionado",
                     "MissingTokenError",
-                    remote_ip=self.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+                    remote_ip=client_ip
                 )
-                self._send_json({
-                    "status": "error",
-                    "message": "Falta el token de seguridad (Turnstile)",
-                    "error_code": "MISSING_TURNSTILE_TOKEN"
-                }, 400)
+                if EXCEPTIONS_AVAILABLE:
+                    error = AuthenticationError(
+                        "Falta el token de seguridad (Turnstile)",
+                        reason="missing_token"
+                    )
+                    self._send_json({
+                        "status": "error",
+                        "message": error.message,
+                        "error_type": error.__class__.__name__,
+                        "error_category": error.error_category,
+                        "error_code": "MISSING_TURNSTILE_TOKEN"
+                    }, error.status_code)
+                else:
+                    self._send_json({
+                        "status": "error",
+                        "message": "Falta el token de seguridad (Turnstile)",
+                        "error_code": "MISSING_TURNSTILE_TOKEN"
+                    }, 400)
                 return
             
-            client_ip = self.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-            turnstile_valid, turnstile_error = validate_turnstile(token, client_ip)
+            # Validar Turnstile con manejo de excepciones
+            try:
+                validate_turnstile(token, client_ip)
+                
+                # Log de verificación exitosa
+                if LOGGING_AVAILABLE and protection_logger:
+                    protection_logger.info(
+                        "Turnstile verificado exitosamente",
+                        remote_ip=client_ip,
+                        verification="success"
+                    )
             
-            # Manejo explícito de fallo de Turnstile
-            if not turnstile_valid:
+            except AuthenticationError as e:
                 # Determinar tipo de error
-                if "TURNSTILE_SECRET_KEY" in (turnstile_error or ""):
+                if "TURNSTILE_SECRET_KEY" in e.message:
                     error_code = "TURNSTILE_NOT_CONFIGURED"
                     status_code = 500
-                    log_api_error(
-                        "turnstile_validation",
-                        "Turnstile no está configurado",
-                        "ConfigurationError",
-                        remote_ip=client_ip
-                    )
                 else:
                     error_code = "TURNSTILE_VERIFICATION_FAILED"
                     status_code = 403
-                    log_api_error(
-                        "turnstile_validation",
-                        turnstile_error or "Verificación fallida",
-                        "VerificationError",
-                        remote_ip=client_ip,
-                        error_detail=turnstile_error
-                    )
                 
                 self._send_json({
                     "status": "error",
-                    "message": turnstile_error or "Solicitud no verificada - Verificación de seguridad fallida",
+                    "message": e.message if EXCEPTIONS_AVAILABLE else "Verificación de seguridad fallida",
+                    "error_type": e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "AuthenticationError",
+                    "error_category": e.error_category if EXCEPTIONS_AVAILABLE else "user_error",
                     "error_code": error_code,
                     "detail": "Por favor, recarga la página e intenta nuevamente"
                 }, status_code)
                 return
             
-            # Log de verificación exitosa
-            if LOGGING_AVAILABLE and protection_logger:
-                protection_logger.info(
-                    "Turnstile verificado exitosamente",
-                    remote_ip=client_ip,
-                    verification="success"
-                )
+            except NetworkError as e:
+                self._send_json({
+                    "status": "error",
+                    "message": e.message if EXCEPTIONS_AVAILABLE else "Error de red al verificar seguridad",
+                    "error_type": e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "NetworkError",
+                    "error_category": e.error_category if EXCEPTIONS_AVAILABLE else "network_error",
+                    "error_code": "TURNSTILE_NETWORK_ERROR"
+                }, 503)
+                return
             
             # Obtener y validar URLs
             urls = data.get("urls", [])
             if not urls:
-                self._send_json({"status": "error", "message": "No se proporcionaron URLs"}, 400)
+                if EXCEPTIONS_AVAILABLE:
+                    error = ValidationError("No se proporcionaron URLs", field="urls")
+                    self._send_json({
+                        "status": "error",
+                        "message": error.message,
+                        "error_type": error.__class__.__name__,
+                        "error_category": error.error_category
+                    }, error.status_code)
+                else:
+                    self._send_json({"status": "error", "message": "No se proporcionaron URLs"}, 400)
                 return
             
-            for url in urls:
-                if not validate_fqdn(url):
-                    self._send_json({"status": "error", "message": f"URL inválida: {url}"}, 400)
-                    return
+            # Validar cada URL
+            try:
+                for url in urls:
+                    validate_fqdn(url)
+            except ValidationError as e:
+                self._send_json({
+                    "status": "error",
+                    "message": e.message if EXCEPTIONS_AVAILABLE else f"URL inválida: {url}",
+                    "error_type": e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "ValidationError",
+                    "error_category": e.error_category if EXCEPTIONS_AVAILABLE else "user_error",
+                    "invalid_url": e.details.get("value") if EXCEPTIONS_AVAILABLE else url
+                }, 400)
+                return
             
             # Verificar configuración de Cloudflare
             if not Config.CF_API_TOKEN or not Config.CF_ZONE_ID:
@@ -608,6 +881,8 @@ class handler(BaseHTTPRequestHandler):
                 self._send_json({
                     "status": "error",
                     "message": "No se pudo obtener información de la zona",
+                    "error_type": "CloudflareAPIError",
+                    "error_category": "cloudflare_error",
                     "logs": client.logs
                 }, 500)
                 return
@@ -618,36 +893,40 @@ class handler(BaseHTTPRequestHandler):
             # Procesar cada dominio
             sitios = []
             for url in urls:
-                # Resolver IP
-                origin_ip, error = resolve_domain_ip(url)
-                if error:
-                    client.log(error, "ERROR")
+                try:
+                    # Resolver IP
+                    origin_ip = resolve_domain_ip(url)
+                    client.log(f"✓ Resuelto {url} -> {origin_ip}")
+                    
+                    # Provisionar
+                    result = client.provision_domain(url, origin_ip, zone_name)
+                    
+                    if result.get("success"):
+                        sitios.append({
+                            "dominio": url,
+                            "estado": "Protección perimetral configurada",
+                            "nameservers": nameservers,
+                            "origin_ip": origin_ip
+                        })
+                    else:
+                        sitios.append({
+                            "dominio": url,
+                            "estado": f"Error: {result.get('error', 'Unknown')}",
+                            "nameservers": [],
+                            "origin_ip": origin_ip
+                        })
+                
+                except (DNSError, NetworkError) as e:
+                    error_msg = e.message if EXCEPTIONS_AVAILABLE else str(e)
+                    client.log(error_msg, "ERROR")
                     sitios.append({
                         "dominio": url,
-                        "estado": f"Error: {error}",
+                        "estado": f"Error: {error_msg}",
+                        "error_type": e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "Error",
+                        "error_category": e.error_category if EXCEPTIONS_AVAILABLE else "unknown",
                         "nameservers": []
                     })
                     continue
-                
-                client.log(f"✓ Resuelto {url} -> {origin_ip}")
-                
-                # Provisionar
-                result = client.provision_domain(url, origin_ip, zone_name)
-                
-                if result.get("success"):
-                    sitios.append({
-                        "dominio": url,
-                        "estado": "Protección perimetral configurada",
-                        "nameservers": nameservers,
-                        "origin_ip": origin_ip
-                    })
-                else:
-                    sitios.append({
-                        "dominio": url,
-                        "estado": f"Error: {result.get('error', 'Unknown')}",
-                        "nameservers": [],
-                        "origin_ip": origin_ip
-                    })
             
             # Respuesta exitosa
             self._send_json({
@@ -661,9 +940,22 @@ class handler(BaseHTTPRequestHandler):
                 "simulation_mode": False
             }, 200)
         
+        except BaseAPIError as e:
+            # Capturar cualquier excepción tipada no manejada
+            self._send_json({
+                "status": "error",
+                "message": get_user_friendly_message(e) if EXCEPTIONS_AVAILABLE else str(e),
+                "error_type": e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "Error",
+                "error_category": e.error_category if EXCEPTIONS_AVAILABLE else "unknown",
+                "technical_message": e.message if EXCEPTIONS_AVAILABLE else str(e)
+            }, getattr(e, 'status_code', 500))
+        
         except Exception as e:
+            # Capturar excepciones no tipadas
+            log_api_error("handler", str(e), type(e).__name__)
             self._send_json({
                 "status": "error",
                 "message": f"Error interno del servidor: {str(e)}",
-                "type": type(e).__name__
+                "error_type": type(e).__name__,
+                "error_category": "internal_error"
             }, 500)
