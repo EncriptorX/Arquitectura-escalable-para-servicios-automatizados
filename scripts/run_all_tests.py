@@ -6,15 +6,27 @@ import subprocess
 import sys
 import os
 
-# Lista de todos los scripts de test
+# Lista de todos los scripts de test organizados por categoría
 TESTS = [
-    ("Sistema de Excepciones", "scripts/test_exceptions.py"),
-    ("Sistema de Logging", "scripts/test_logging.py"),
-    ("Controlador de Flujo", "scripts/test_flow_controller.py"),
-    ("Endpoint /status", "scripts/test_status_endpoint.py"),
-    ("Manejo de Turnstile", "scripts/test_turnstile_handling.py"),
-    ("Toggle Service", "scripts/test_toggle_service.py"),
-    ("Verificación DNS Real", "scripts/test_verificacion_dns_real.py"),
+    # Tests de Validación
+    ("Validación - Suite Completa", "tests/validation/test_validacion_entrada.py"),
+    ("Validación - Formato FQDN", "tests/validation/test_validacion_fqdn.py"),
+    ("Validación - Tests Rápidos", "tests/validation/test_quick_validation.py"),
+    ("Validación - Verificación Integral", "tests/validation/verificar_validacion.py"),
+    
+    # Tests Unitarios
+    ("Unitario - Sistema de Excepciones", "tests/unit/test_exceptions.py"),
+    ("Unitario - Sistema de Logging", "tests/unit/test_logging.py"),
+    ("Unitario - Idempotencia", "tests/unit/test_idempotencia.py"),
+    ("Unitario - Mensajes Informativos", "tests/unit/test_mensajes_informativos.py"),
+    
+    # Tests de Integración
+    ("Integración - Excepciones", "tests/integration/test_integration_exceptions.py"),
+    ("Integración - Endpoint /status", "tests/integration/test_status_endpoint.py"),
+    ("Integración - Toggle Service", "tests/integration/test_toggle_service.py"),
+    ("Integración - Turnstile", "tests/integration/test_turnstile_handling.py"),
+    ("Integración - Verificación DNS", "tests/integration/test_verificacion_delegacion.py"),
+    ("Integración - Controlador de Flujo", "tests/integration/test_flow_controller.py"),
 ]
 
 
@@ -23,6 +35,11 @@ def run_test(name, script_path):
     print(f"\n{'=' * 70}")
     print(f"🧪 EJECUTANDO: {name}")
     print(f"{'=' * 70}\n")
+    
+    # Verificar que el archivo existe
+    if not os.path.exists(script_path):
+        print(f"⚠️ Archivo no encontrado: {script_path}")
+        return False
     
     try:
         # Configurar encoding UTF-8
@@ -82,9 +99,27 @@ def main():
     passed_count = sum(1 for _, passed in results if passed)
     failed_count = len(results) - passed_count
     
+    # Agrupar por categoría
+    categories = {
+        "Validación": [],
+        "Unitario": [],
+        "Integración": []
+    }
+    
     for name, passed in results:
-        status = "✅ PASADO" if passed else "❌ FALLADO"
-        print(f"  {status:12} - {name}")
+        for category in categories.keys():
+            if name.startswith(category):
+                categories[category].append((name, passed))
+                break
+    
+    # Mostrar resultados por categoría
+    for category, tests in categories.items():
+        if tests:
+            print(f"\n{category}:")
+            for name, passed in tests:
+                status = "✅ PASADO" if passed else "❌ FALLADO"
+                test_name = name.split(" - ", 1)[1] if " - " in name else name
+                print(f"  {status:12} - {test_name}")
     
     print()
     print("=" * 70)

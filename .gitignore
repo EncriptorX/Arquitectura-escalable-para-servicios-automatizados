@@ -32,10 +32,13 @@ env/
 venv/
 ENV/
 .venv
+*.pyc
 
 # IDE configs
 .bolt/
-.kiro/*.md
+.kiro/
+.vscode/*
+!.vscode/extensions.json
 
 # Test files
 *.test.html
@@ -46,3 +49,4 @@ test-*.html
 *.bak
 *.swp
 *~
+.DS_Store

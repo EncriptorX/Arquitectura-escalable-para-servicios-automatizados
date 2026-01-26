@@ -952,37 +952,35 @@ cloudflare-perimeter-protection/
 │   ├── main.tsx                    # Entry point
 │   └── index.css                   # Estilos globales
 │
-├── scripts/                        # Scripts de utilidad
+├── scripts/                        # Scripts de utilidad y herramientas
 │   ├── README.md                   # Documentación de scripts
 │   ├── OPTIMIZATIONS.md            # Documentación de optimizaciones
-│   ├── verificar_proteccion_aplicada.py  # Verificación de protecciones (OPTIMIZADO)
-│   ├── verificar_validacion.py     # Verificación integral de validación
 │   ├── run_all_tests.py            # Ejecutor de todos los tests
 │   ├── demo_idempotencia.py        # Demostración de idempotencia
+│   └── verificar_proteccion_aplicada.py  # Verificación de protecciones (OPTIMIZADO)
+│
+├── tests/                          # Suite completa de tests
+│   ├── README.md                   # Documentación de tests
 │   │
-│   ├── # Tests de Validación
-│   ├── test_validacion_entrada.py  # Suite completa de tests de validación
-│   ├── test_validacion_fqdn.py     # Tests de formato FQDN
-│   ├── test_quick_validation.py    # Tests rápidos de validación
+│   ├── validation/                 # Tests de validación de entradas
+│   │   ├── test_validacion_entrada.py    # Suite completa (50+ tests)
+│   │   ├── test_validacion_fqdn.py       # Tests de formato FQDN
+│   │   ├── test_quick_validation.py      # Tests rápidos
+│   │   └── verificar_validacion.py       # Verificación integral
 │   │
-│   ├── # Tests de Sistema
-│   ├── test_exceptions.py          # Tests de excepciones tipadas
-│   ├── test_integration_exceptions.py  # Tests de integración de excepciones
-│   ├── test_logging.py             # Tests del sistema de logging
-│   ├── test_idempotencia.py        # Tests de idempotencia
-│   ├── test_mensajes_informativos.py  # Tests de mensajes al usuario
+│   ├── unit/                       # Tests unitarios
+│   │   ├── test_exceptions.py            # Sistema de excepciones
+│   │   ├── test_logging.py               # Sistema de logging
+│   │   ├── test_idempotencia.py          # Idempotencia y tolerancia
+│   │   └── test_mensajes_informativos.py # Mensajes al usuario
 │   │
-│   ├── # Tests de APIs
-│   ├── test_status_endpoint.py     # Tests del endpoint de estado
-│   ├── test_toggle_service.py      # Tests de control del servicio
-│   ├── test_turnstile_handling.py  # Tests de manejo de Turnstile
-│   ├── test_turnstile_simple.py    # Tests simples de Turnstile
-│   ├── test_verificacion_delegacion.py  # Tests de verificación DNS
-│   ├── test_verificacion_dns_real.py    # Tests de DNS real
-│   │
-│   └── # Tests de Flujo
-│       ├── test_flow_controller.py     # Tests del controlador de flujo
-│       └── test_refactored_solicitar.py  # Tests de solicitud refactorizada
+│   └── integration/                # Tests de integración
+│       ├── test_integration_exceptions.py # Integración de excepciones
+│       ├── test_status_endpoint.py        # Endpoint /status
+│       ├── test_toggle_service.py         # Control del servicio
+│       ├── test_turnstile_handling.py     # Manejo de Turnstile
+│       ├── test_verificacion_delegacion.py # Verificación DNS
+│       └── test_flow_controller.py        # Controlador de flujo
 │
 ├── docs/                           # Documentación adicional
 │   ├── INDEX.md                    # Índice de documentación
@@ -2035,38 +2033,37 @@ El proyecto incluye una suite completa de tests para verificar todas las funcion
 
 | Test | Descripción | Comando |
 |------|-------------|---------|
-| `test_validacion_entrada.py` | Suite completa (50+ tests) | `python scripts/test_validacion_entrada.py` |
-| `test_validacion_fqdn.py` | Tests de formato FQDN | `python scripts/test_validacion_fqdn.py` |
-| `test_quick_validation.py` | Tests rápidos | `python scripts/test_quick_validation.py` |
-| `verificar_validacion.py` | Verificación integral | `python scripts/verificar_validacion.py` |
+| `test_validacion_entrada.py` | Suite completa (50+ tests) | `python tests/validation/test_validacion_entrada.py` |
+| `test_validacion_fqdn.py` | Tests de formato FQDN | `python tests/validation/test_validacion_fqdn.py` |
+| `test_quick_validation.py` | Tests rápidos | `python tests/validation/test_quick_validation.py` |
+| `verificar_validacion.py` | Verificación integral | `python tests/validation/verificar_validacion.py` |
 
-### Tests de Sistema
-
-| Test | Descripción | Comando |
-|------|-------------|---------|
-| `test_exceptions.py` | Excepciones tipadas | `python scripts/test_exceptions.py` |
-| `test_integration_exceptions.py` | Integración de excepciones | `python scripts/test_integration_exceptions.py` |
-| `test_logging.py` | Sistema de logging | `python scripts/test_logging.py` |
-| `test_idempotencia.py` | Idempotencia y tolerancia | `python scripts/test_idempotencia.py` |
-| `test_mensajes_informativos.py` | Mensajes al usuario | `python scripts/test_mensajes_informativos.py` |
-
-### Tests de APIs
+### Tests Unitarios
 
 | Test | Descripción | Comando |
 |------|-------------|---------|
-| `test_status_endpoint.py` | Endpoint de estado | `python scripts/test_status_endpoint.py` |
-| `test_toggle_service.py` | Control del servicio | `python scripts/test_toggle_service.py` |
-| `test_turnstile_handling.py` | Manejo de Turnstile | `python scripts/test_turnstile_handling.py` |
-| `test_turnstile_simple.py` | Turnstile simple | `python scripts/test_turnstile_simple.py` |
-| `test_verificacion_delegacion.py` | Verificación DNS | `python scripts/test_verificacion_delegacion.py` |
-| `test_verificacion_dns_real.py` | DNS real | `python scripts/test_verificacion_dns_real.py` |
+| `test_exceptions.py` | Excepciones tipadas | `python tests/unit/test_exceptions.py` |
+| `test_logging.py` | Sistema de logging | `python tests/unit/test_logging.py` |
+| `test_idempotencia.py` | Idempotencia y tolerancia | `python tests/unit/test_idempotencia.py` |
+| `test_mensajes_informativos.py` | Mensajes al usuario | `python tests/unit/test_mensajes_informativos.py` |
+
+### Tests de Integración
+
+| Test | Descripción | Comando |
+|------|-------------|---------|
+| `test_integration_exceptions.py` | Integración de excepciones | `python tests/integration/test_integration_exceptions.py` |
+| `test_status_endpoint.py` | Endpoint de estado | `python tests/integration/test_status_endpoint.py` |
+| `test_toggle_service.py` | Control del servicio | `python tests/integration/test_toggle_service.py` |
+| `test_turnstile_handling.py` | Manejo de Turnstile | `python tests/integration/test_turnstile_handling.py` |
+| `test_verificacion_delegacion.py` | Verificación DNS | `python tests/integration/test_verificacion_delegacion.py` |
+| `test_flow_controller.py` | Controlador de flujo | `python tests/integration/test_flow_controller.py` |
 
 ### Tests de Flujo
 
 | Test | Descripción | Comando |
 |------|-------------|---------|
-| `test_flow_controller.py` | Controlador de flujo | `python scripts/test_flow_controller.py` |
-| `test_refactored_solicitar.py` | Solicitud refactorizada | `python scripts/test_refactored_solicitar.py` |
+| `test_flow_controller.py` | Controlador de flujo | `python tests/integration/test_flow_controller.py` |
+| `test_refactored_solicitar.py` | Solicitud refactorizada | `python tests/integration/test_refactored_solicitar.py` |
 
 ### Ejecutar Todos los Tests
 
@@ -2115,7 +2112,7 @@ La suite de tests cubre:
 - ✅ **Flujo de Provisión** - Tests del controlador central
 - ✅ **Integración** - Tests de integración con Cloudflare
 
-Ver [scripts/README.md](./scripts/README.md) para documentación completa de scripts.
+Ver [scripts/README.md](./scripts/README.md) y [tests/README.md](./tests/README.md) para documentación completa.
 
 ---
 
