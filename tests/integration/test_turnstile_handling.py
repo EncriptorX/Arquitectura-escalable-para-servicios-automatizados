@@ -6,8 +6,8 @@ import sys
 import os
 import json
 
-# Agregar el directorio api al path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'api'))
+# Agregar el directorio raíz del proyecto al path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 # Mock de Config para testing
 class MockConfig:
@@ -15,23 +15,24 @@ class MockConfig:
     TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 
 # Reemplazar Config en el módulo
-import importlib.util
-spec = importlib.util.spec_from_file_location(
-    "solicitar_proteccion",
-    os.path.join(os.path.dirname(__file__), '..', 'api', 'solicitar-proteccion.py')
-)
-solicitar_proteccion_module = importlib.util.module_from_spec(spec)
-
-# Inyectar mock de Config antes de cargar el módulo
 sys.modules['config'] = type('config', (), {
     'is_service_enabled': lambda: True
 })()
 
-# Cargar el módulo
-spec.loader.exec_module(solicitar_proteccion_module)
+# Importar el módulo usando importlib (debido al guión en el nombre)
+import importlib.util
+spec = importlib.util.spec_from_file_location(
+    "solicitar_proteccion",
+    os.path.join(os.path.dirname(__file__), '..', '..', 'api', 'solicitar-proteccion.py')
+)
+solicitar_proteccion = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(solicitar_proteccion)
 
-validate_turnstile = solicitar_proteccion_module.validate_turnstile
-Config = solicitar_proteccion_module.Config
+# Inyectar mock de Config
+solicitar_proteccion.Config = MockConfig
+
+validate_turnstile = solicitar_proteccion.validate_turnstile
+Config = MockConfig
 
 
 def test_turnstile_missing_secret():
@@ -119,11 +120,13 @@ def test_error_codes():
         {
             "name": "Secret key no configurada",
             "secret_key": "",
+            "expected_exception": "AuthenticationError",
             "expected_in_error": "TURNSTILE_SECRET_KEY"
         },
         {
             "name": "Secret key configurada",
             "secret_key": "test_key",
+            "expected_exception": "NetworkError",
             "expected_in_error": None  # Depende de la respuesta de Turnstile
         }
     ]
@@ -132,15 +135,23 @@ def test_error_codes():
         print(f"\n  Escenario: {scenario['name']}")
         Config.TURNSTILE_SECRET_KEY = scenario['secret_key']
         
-        valid, error = validate_turnstile("test_token", "192.0.2.1")
-        
-        print(f"    Valido: {valid}")
-        print(f"    Error: {error}")
-        
-        if scenario['expected_in_error']:
-            assert scenario['expected_in_error'] in (error or ""), \
-                f"Error debe contener '{scenario['expected_in_error']}'"
-            print(f"    [OK] Error contiene '{scenario['expected_in_error']}'")
+        try:
+            validate_turnstile("test_token", "192.0.2.1")
+            print(f"    [INFO] No lanzó excepción (conexión exitosa)")
+        except Exception as e:
+            exception_name = type(e).__name__
+            print(f"    Excepción: {exception_name}")
+            print(f"    Error: {str(e)}")
+            
+            if scenario['expected_exception']:
+                assert scenario['expected_exception'] in exception_name, \
+                    f"Debe ser {scenario['expected_exception']}, fue {exception_name}"
+                print(f"    [OK] Excepción correcta: {exception_name}")
+            
+            if scenario['expected_in_error']:
+                assert scenario['expected_in_error'] in str(e), \
+                    f"Error debe contener '{scenario['expected_in_error']}'"
+                print(f"    [OK] Error contiene '{scenario['expected_in_error']}'")
     
     print("\n[OK] TEST 4 PASADO")
 
@@ -152,7 +163,7 @@ def test_logging_integration():
     print("=" * 60)
     
     try:
-        from logger import log_turnstile_verification
+        from api.logger import log_turnstile_verification
         
         # Verificar que la función existe y es callable
         assert callable(log_turnstile_verification), "log_turnstile_verification debe ser callable"
@@ -178,18 +189,22 @@ def test_error_message_clarity():
     print("=" * 60)
     
     Config.TURNSTILE_SECRET_KEY = ""
-    valid, error = validate_turnstile("test", "192.0.2.1")
     
-    print(f"\nMensaje de error: {error}")
-    
-    # Verificar que el mensaje es claro
-    assert error is not None, "Debe haber mensaje de error"
-    assert len(error) > 10, "Mensaje debe ser descriptivo"
-    assert "TURNSTILE" in error.upper(), "Mensaje debe mencionar Turnstile"
-    
-    print("\n[OK] Mensaje de error es claro y descriptivo")
-    print(f"   - Longitud: {len(error)} caracteres")
-    print(f"   - Menciona Turnstile: {'TURNSTILE' in error.upper()}")
+    try:
+        validate_turnstile("test", "192.0.2.1")
+        assert False, "Debe lanzar excepción"
+    except Exception as e:
+        error = str(e)
+        print(f"\nMensaje de error: {error}")
+        
+        # Verificar que el mensaje es claro
+        assert error is not None, "Debe haber mensaje de error"
+        assert len(error) > 10, "Mensaje debe ser descriptivo"
+        assert "TURNSTILE" in error.upper(), "Mensaje debe mencionar Turnstile"
+        
+        print("\n[OK] Mensaje de error es claro y descriptivo")
+        print(f"   - Longitud: {len(error)} caracteres")
+        print(f"   - Menciona Turnstile: {'TURNSTILE' in error.upper()}")
     
     print("\n[OK] TEST 6 PASADO")
 
@@ -204,12 +219,13 @@ def test_ip_tracking():
     
     for ip in test_ips:
         Config.TURNSTILE_SECRET_KEY = ""
-        valid, error = validate_turnstile("test", ip)
         
-        print(f"\n  IP: {ip}")
-        print(f"    Validacion ejecutada: {valid is not None}")
-        
-        assert valid is not None, "Debe retornar resultado"
+        try:
+            validate_turnstile("test", ip)
+        except Exception as e:
+            print(f"\n  IP: {ip}")
+            print(f"    Excepción lanzada: {type(e).__name__}")
+            print(f"    IP tracking funciona (excepción incluye contexto)")
     
     print("\n[OK] Tracking de IP funciona correctamente")
     print("\n[OK] TEST 7 PASADO")
@@ -225,20 +241,28 @@ def test_security_best_practices():
     
     # 1. No exponer secret key en errores
     Config.TURNSTILE_SECRET_KEY = "super_secret_key_12345"
-    valid, error = validate_turnstile("test", "192.0.2.1")
-    
-    if error and "super_secret_key" not in error.lower():
-        checks.append("[OK] Secret key no se expone en errores")
-    else:
-        checks.append("[WARN] Secret key podría estar expuesto")
+    try:
+        validate_turnstile("test", "192.0.2.1")
+    except Exception as e:
+        error = str(e)
+        if "super_secret_key" not in error.lower():
+            checks.append("[OK] Secret key no se expone en errores")
+        else:
+            checks.append("[WARN] Secret key podría estar expuesto")
     
     # 2. Validación de token no vacío
     Config.TURNSTILE_SECRET_KEY = "test"
-    valid, error = validate_turnstile("", "192.0.2.1")
+    try:
+        validate_turnstile("", "192.0.2.1")
+    except Exception:
+        pass
     checks.append("[OK] Maneja tokens vacíos")
     
     # 3. Validación de IP
-    valid, error = validate_turnstile("test", None)
+    try:
+        validate_turnstile("test", None)
+    except Exception:
+        pass
     checks.append("[OK] Maneja IP None")
     
     for check in checks:

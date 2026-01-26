@@ -6,10 +6,10 @@ import sys
 import os
 import json
 
-# Agregar el directorio api al path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'api'))
+# Agregar el directorio raíz del proyecto al path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from logger import (
+from api.logger import (
     get_logger,
     protection_logger,
     delegation_logger,

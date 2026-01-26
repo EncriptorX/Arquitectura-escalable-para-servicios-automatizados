@@ -6,21 +6,16 @@ import sys
 import os
 import importlib.util
 
-# Agregar el directorio api al path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'api'))
+# Agregar el directorio raíz del proyecto al path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-# Importar el módulo status
-spec = importlib.util.spec_from_file_location(
-    "status",
-    os.path.join(os.path.dirname(__file__), '..', 'api', 'status.py')
-)
-status_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(status_module)
+# Importar el módulo status directamente
+from api import status
 
-get_zone_status = status_module.get_zone_status
-get_domain_dns_records = status_module.get_domain_dns_records
-get_zone_settings = status_module.get_zone_settings
-get_firewall_rules = status_module.get_firewall_rules
+get_zone_status = status.get_zone_status
+get_domain_dns_records = status.get_domain_dns_records
+get_zone_settings = status.get_zone_settings
+get_firewall_rules = status.get_firewall_rules
 
 
 def test_get_zone_status():

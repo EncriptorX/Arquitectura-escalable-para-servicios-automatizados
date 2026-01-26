@@ -6,8 +6,8 @@ import sys
 import os
 import importlib.util
 
-# Agregar el directorio api al path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'api'))
+# Agregar el directorio raíz del proyecto al path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 try:
     import dns.resolver

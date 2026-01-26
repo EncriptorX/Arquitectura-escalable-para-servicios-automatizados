@@ -5,10 +5,10 @@ Verifica que las excepciones se manejen correctamente
 import sys
 import os
 
-# Agregar el directorio api al path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'api'))
+# Agregar el directorio raíz del proyecto al path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from exceptions import (
+from api.exceptions import (
     BaseAPIError,
     ValidationError,
     AuthenticationError,

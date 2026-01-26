@@ -5,8 +5,8 @@ Verifica que el sistema de excepciones funciona correctamente con Turnstile
 import sys
 import os
 
-# Agregar el directorio api al path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'api'))
+# Agregar el directorio raíz del proyecto al path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 # Importar con el nombre correcto del módulo
 import importlib.util

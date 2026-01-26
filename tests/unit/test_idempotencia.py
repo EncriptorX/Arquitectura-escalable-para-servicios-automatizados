@@ -7,7 +7,7 @@ import sys
 import os
 
 # Agregar el directorio raíz al path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 def test_idempotencia():
     """Verifica que las operaciones sean idempotentes"""

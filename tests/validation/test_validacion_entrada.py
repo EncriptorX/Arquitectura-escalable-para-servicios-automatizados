@@ -5,8 +5,8 @@ Verifica que el backend rechace URLs "raras" y solo acepte dominios FQDN válido
 import sys
 import os
 
-# Agregar el directorio api al path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Agregar el directorio raíz del proyecto al path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from api.utils import validate_url, validate_domain
 

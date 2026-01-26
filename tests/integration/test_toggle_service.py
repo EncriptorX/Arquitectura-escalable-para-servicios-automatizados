@@ -5,10 +5,10 @@ Verifica la funcionalidad de activación/desactivación del servicio
 import sys
 import os
 
-# Agregar el directorio api al path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'api'))
+# Agregar el directorio raíz del proyecto al path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from config import is_service_enabled, toggle_service
+from api.config import is_service_enabled, toggle_service
 
 def test_toggle_service():
     """Prueba las funciones de toggle del servicio"""

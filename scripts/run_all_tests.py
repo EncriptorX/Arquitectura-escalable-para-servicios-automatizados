@@ -33,7 +33,7 @@ TESTS = [
 def run_test(name, script_path):
     """Ejecuta un test individual"""
     print(f"\n{'=' * 70}")
-    print(f"🧪 EJECUTANDO: {name}")
+    print(f"EJECUTANDO: {name}")
     print(f"{'=' * 70}\n")
     
     # Verificar que el archivo existe
@@ -81,7 +81,7 @@ def run_test(name, script_path):
 def main():
     """Ejecuta todos los tests"""
     print("\n" + "=" * 70)
-    print("🚀 EJECUTANDO SUITE COMPLETA DE TESTS")
+    print("EJECUTANDO SUITE COMPLETA DE TESTS")
     print("=" * 70)
     
     results = []
@@ -92,7 +92,7 @@ def main():
     
     # Reporte final
     print("\n" + "=" * 70)
-    print("📊 REPORTE FINAL")
+    print("REPORTE FINAL")
     print("=" * 70)
     print()
     
@@ -127,10 +127,10 @@ def main():
     print("=" * 70)
     
     if failed_count == 0:
-        print("\n🎉 ¡TODOS LOS TESTS PASARON!")
+        print("\n¡TODOS LOS TESTS PASARON!")
         return 0
     else:
-        print(f"\n⚠️ {failed_count} test(s) fallaron")
+        print(f"\n{failed_count} test(s) fallaron")
         return 1
 
 
