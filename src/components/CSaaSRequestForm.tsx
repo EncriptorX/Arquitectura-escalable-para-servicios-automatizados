@@ -198,7 +198,8 @@ export default function CSaaSRequestForm({ onClose, onSuccess }: CSaaSRequestFor
         subdomain: result.subdomain,
         protected_url: result.protected_url,
         origin_urls: result.origin_urls,
-        logs: result.logs
+        logs: result.logs,
+        instructions: result.instructions
       });
     } catch (err) {
       clearInterval(progressInterval);
