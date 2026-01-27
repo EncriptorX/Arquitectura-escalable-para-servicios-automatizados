@@ -163,7 +163,7 @@ export default function CSaaSRequestForm({ onClose, onSuccess }: CSaaSRequestFor
           const errors = result.details.errors || [];
           if (errors.length > 0) {
             errorMsg += '\n\nErrores de Cloudflare:\n';
-            errors.forEach((err: { code?: number | string; message?: string }) => {
+            errors.forEach((err: any) => {
               errorMsg += `• [${err.code}] ${err.message}\n`;
             });
           }
