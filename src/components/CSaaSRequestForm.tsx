@@ -128,6 +128,10 @@ export default function CSaaSRequestForm({ onClose, onSuccess }: CSaaSRequestFor
     const validUrls = urls.filter(url => url.trim());
 
     try {
+      // Crear AbortController para timeout manual
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 segundos
+      
       const response = await fetch('/api/csaas-provision', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -136,8 +140,10 @@ export default function CSaaSRequestForm({ onClose, onSuccess }: CSaaSRequestFor
           client_id: formData.client_id || undefined,
           urls: validUrls
         }),
-        signal: AbortSignal.timeout(120000) // 120 segundos timeout
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       clearInterval(progressInterval);
       setProgress(100);
