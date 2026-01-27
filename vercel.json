@@ -15,7 +15,7 @@
   ],
   "functions": {
     "api/csaas-provision.py": {
-      "maxDuration": 60
+      "maxDuration": 10
     }
   },
   "routes": [
