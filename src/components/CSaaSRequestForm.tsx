@@ -135,7 +135,8 @@ export default function CSaaSRequestForm({ onClose, onSuccess }: CSaaSRequestFor
           client_name: formData.client_name,
           client_id: formData.client_id || undefined,
           urls: validUrls
-        })
+        }),
+        signal: AbortSignal.timeout(120000) // 120 segundos timeout
       });
 
       clearInterval(progressInterval);
