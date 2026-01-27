@@ -18,6 +18,7 @@ import sys
 import time
 import urllib.request
 import urllib.parse
+import urllib.error
 import hashlib
 from typing import Optional, Dict, List, Tuple
 
@@ -308,6 +309,19 @@ class CloudflareSaaSClient:
         """
         self.log(f"[PASO 2/5] Creando Custom Hostname: {hostname}")
         
+        # Verificar si ya existe
+        self.log(f"  → Verificando si el Custom Hostname ya existe...")
+        search_res = self.request("GET", f"zones/{self.zone_id}/custom_hostnames?hostname={hostname}")
+        
+        if search_res and search_res.get("success"):
+            existing = search_res.get("result", [])
+            if existing:
+                ch = existing[0]
+                custom_hostname_id = ch["id"]
+                status = ch.get("status", "unknown")
+                self.log(f"✓ Custom Hostname ya existe (ID: {custom_hostname_id}, Status: {status})")
+                return True, custom_hostname_id, ch
+        
         # Configuración del Custom Hostname
         payload = {
             "hostname": hostname,
@@ -322,6 +336,9 @@ class CloudflareSaaSClient:
             }
         }
         
+        self.log(f"  → Enviando petición para crear Custom Hostname...")
+        self.log(f"  → Payload: {json.dumps(payload, indent=2)}")
+        
         # Crear Custom Hostname
         res = self.request("POST", f"zones/{self.zone_id}/custom_hostnames", payload)
         
@@ -334,8 +351,21 @@ class CloudflareSaaSClient:
             
             return True, custom_hostname_id, result
         
+        # Log detallado del error
         self.log("✗ Error al crear Custom Hostname", "ERROR")
-        return False, None, None
+        if res:
+            errors = res.get("errors", [])
+            if errors:
+                self.log(f"  → Errores de Cloudflare:", "ERROR")
+                for error in errors:
+                    self.log(f"    • Código: {error.get('code')}", "ERROR")
+                    self.log(f"    • Mensaje: {error.get('message')}", "ERROR")
+            else:
+                self.log(f"  → Respuesta completa: {json.dumps(res, indent=2)}", "ERROR")
+        else:
+            self.log(f"  → No se recibió respuesta de Cloudflare", "ERROR")
+        
+        return False, None, res
     
     def poll_custom_hostname_status(self, custom_hostname_id: str) -> Tuple[bool, str, Optional[Dict]]:
         """
@@ -495,7 +525,8 @@ class CloudflareSaaSClient:
                 "success": False,
                 "error": "No se pudo crear el Custom Hostname",
                 "step_failed": "custom_hostname_creation",
-                "logs": self.logs
+                "logs": self.logs,
+                "details": ch_details
             }
         
         # PASO 3: Polling hasta activación
@@ -665,17 +696,44 @@ class handler(BaseHTTPRequestHandler):
                     "logs": result["logs"]
                 }, 200)
             else:
+                # Error detallado
+                error_message = result.get("error", "Error desconocido")
+                step_failed = result.get("step_failed", "unknown")
+                logs = result.get("logs", [])
+                
+                # Agregar información adicional según el paso que falló
+                if step_failed == "custom_hostname_creation":
+                    error_message += "\n\nPosibles causas:\n"
+                    error_message += "1. Cloudflare for SaaS no está habilitado en tu zona\n"
+                    error_message += "2. Tu plan no incluye Custom Hostnames (requiere Business+)\n"
+                    error_message += "3. Has alcanzado el límite de Custom Hostnames\n"
+                    error_message += "4. El hostname ya existe en otra zona\n\n"
+                    error_message += "Revisa los logs para más detalles."
+                
                 self._send_json({
                     "status": "error",
-                    "message": result.get("error", "Error desconocido"),
-                    "step_failed": result.get("step_failed"),
-                    "logs": result.get("logs", [])
+                    "message": error_message,
+                    "step_failed": step_failed,
+                    "logs": logs,
+                    "details": result.get("details")
                 }, 500)
         
         except Exception as e:
+            # Capturar el traceback completo
+            import traceback
+            error_traceback = traceback.format_exc()
+            
             if LOGGING_AVAILABLE:
                 log_api_error("csaas_provision", str(e), type(e).__name__)
+                protection_logger.error(f"Traceback completo:\n{error_traceback}")
+            
+            # Log en consola para debugging
+            print(f"ERROR en csaas-provision: {str(e)}", file=sys.stderr)
+            print(f"Traceback:\n{error_traceback}", file=sys.stderr)
+            
             self._send_json({
                 "status": "error",
-                "message": f"Error interno del servidor: {str(e)}"
+                "message": f"Error interno del servidor: {str(e)}",
+                "error_type": type(e).__name__,
+                "traceback": error_traceback if os.getenv("DEBUG") == "true" else None
             }, 500)

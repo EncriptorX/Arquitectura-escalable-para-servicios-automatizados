@@ -148,7 +148,27 @@ export default function CSaaSRequestForm({ onClose, onSuccess }: CSaaSRequestFor
         : { message: await response.text() };
 
       if (!response.ok) {
-        setError(result.message || 'Error al provisionar el cliente');
+        // Construir mensaje de error detallado
+        let errorMsg = result.message || 'Error al provisionar el cliente';
+        
+        // Si hay logs, mostrar los últimos 5
+        if (result.logs && result.logs.length > 0) {
+          const lastLogs = result.logs.slice(-5).join('\n');
+          errorMsg += '\n\nÚltimos logs:\n' + lastLogs;
+        }
+        
+        // Si hay detalles adicionales
+        if (result.details) {
+          const errors = result.details.errors || [];
+          if (errors.length > 0) {
+            errorMsg += '\n\nErrores de Cloudflare:\n';
+            errors.forEach((err: any) => {
+              errorMsg += `• [${err.code}] ${err.message}\n`;
+            });
+          }
+        }
+        
+        setError(errorMsg);
         
         if (import.meta.env.DEV) {
           console.error('Error details:', result);
@@ -237,7 +257,7 @@ export default function CSaaSRequestForm({ onClose, onSuccess }: CSaaSRequestFor
                 exit={{ opacity: 0, y: -10 }}
                 className="glass border-l-4 border-red-400 p-4 rounded-r-xl"
               >
-                <p className="text-red-400 text-sm">{error}</p>
+                <p className="text-red-400 text-sm whitespace-pre-wrap font-mono">{error}</p>
               </motion.div>
             )}
           </AnimatePresence>
