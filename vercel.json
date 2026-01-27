@@ -13,11 +13,6 @@
       "use": "@vercel/python"
     }
   ],
-  "functions": {
-    "api/csaas-provision.py": {
-      "maxDuration": 10
-    }
-  },
   "routes": [
     {
       "src": "/api/solicitar-proteccion",
