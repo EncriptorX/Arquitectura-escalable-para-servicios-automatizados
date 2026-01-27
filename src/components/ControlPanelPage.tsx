@@ -47,8 +47,7 @@ export default function ControlPanelPage({ onBack, onRequestProtection }: Contro
         setServiceEnabled(data.service_enabled);
         toast({
           title: data.service_enabled ? "✅ Servicio Habilitado" : "⚠️ Servicio Deshabilitado",
-          description: data.message,
-          variant: data.service_enabled ? "default" : "destructive"
+          description: data.message
         });
       } else {
         throw new Error(data.message);
@@ -56,8 +55,7 @@ export default function ControlPanelPage({ onBack, onRequestProtection }: Contro
     } catch (error) {
       toast({
         title: "❌ Error",
-        description: error instanceof Error ? error.message : "Error al cambiar estado del servicio",
-        variant: "destructive"
+        description: error instanceof Error ? error.message : "Error al cambiar estado del servicio"
       });
     } finally {
       setLoading(false);

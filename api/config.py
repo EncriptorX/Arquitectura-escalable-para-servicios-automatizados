@@ -8,6 +8,10 @@ CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
 CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
 CF_API_BASE_URL = "https://api.cloudflare.com/client/v4"
 
+# Cloudflare for SaaS Configuration
+CSAAS_ZONE = os.getenv("CSAAS_ZONE", "suncarsrl.com")
+CSAAS_CNAME_TARGET = os.getenv("CSAAS_CNAME_TARGET", "customers.suncarsrl.com")
+
 # Turnstile Configuration
 TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
 TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"

@@ -4,6 +4,9 @@ import { motion } from 'framer-motion';
 import ServiceRequestForm from './components/ServiceRequestForm';
 import ProcessInfoPage from './components/ProcessInfoPage';
 import ControlPanelPage from './components/ControlPanelPage';
+import CSaaSRequestForm from './components/CSaaSRequestForm';
+import CSaaSResultPage from './components/CSaaSResultPage';
+import CSaaSClientsPage from './components/CSaaSClientsPage';
 
 type ProcessInfo = {
   urls: string[];
@@ -11,25 +14,45 @@ type ProcessInfo = {
   output?: string;
 };
 
-type View = 'home' | 'form' | 'process' | 'control-panel';
+type CSaaSInfo = {
+  subdomain: string;
+  protected_url: string;
+  origin_urls: string[];
+  message: string;
+  logs?: string[];
+};
+
+type View = 'home' | 'form' | 'process' | 'control-panel' | 'csaas-form' | 'csaas-result' | 'csaas-clients';
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('home');
   const [processInfo, setProcessInfo] = useState<ProcessInfo | null>(null);
+  const [csaasInfo, setCSaaSInfo] = useState<CSaaSInfo | null>(null);
 
   const handleSuccess = (payload: ProcessInfo) => {
     setProcessInfo(payload);
     setCurrentView('process');
   };
 
+  const handleCSaaSSuccess = (payload: CSaaSInfo) => {
+    setCSaaSInfo(payload);
+    setCurrentView('csaas-result');
+  };
+
   const handleBackHome = () => {
     setProcessInfo(null);
+    setCSaaSInfo(null);
     setCurrentView('home');
   };
 
   const handleNewRequest = () => {
     setProcessInfo(null);
     setCurrentView('form');
+  };
+
+  const handleNewCSaaSRequest = () => {
+    setCSaaSInfo(null);
+    setCurrentView('csaas-form');
   };
 
   const handleOpenControlPanel = () => {
@@ -70,6 +93,28 @@ function App() {
     );
   }
 
+  if (currentView === 'csaas-clients') {
+    return (
+      <CSaaSClientsPage
+        onBack={handleBackHome}
+      />
+    );
+  }
+
+  if (currentView === 'csaas-result' && csaasInfo) {
+    return (
+      <CSaaSResultPage
+        subdomain={csaasInfo.subdomain}
+        protected_url={csaasInfo.protected_url}
+        origin_urls={csaasInfo.origin_urls}
+        message={csaasInfo.message}
+        logs={csaasInfo.logs}
+        onBack={handleBackHome}
+        onNewRequest={handleNewCSaaSRequest}
+      />
+    );
+  }
+
   if (currentView === 'process' && processInfo) {
     return (
       <ProcessInfoPage
@@ -88,6 +133,13 @@ function App() {
         <ServiceRequestForm
           onClose={() => setCurrentView('home')}
           onSuccess={handleSuccess}
+        />
+      )}
+
+      {currentView === 'csaas-form' && (
+        <CSaaSRequestForm
+          onClose={() => setCurrentView('home')}
+          onSuccess={handleCSaaSSuccess}
         />
       )}
 
@@ -122,8 +174,27 @@ function App() {
                 whileTap={{ scale: 0.95 }}
               >
                 <Settings className="inline-block mr-2 w-4 h-4 text-cyan-400" />
-                <span className="gradient-text hidden sm:inline">Panel de Control</span>
-                <span className="gradient-text sm:hidden">Panel</span>
+                <span className="gradient-text hidden sm:inline">Panel</span>
+              </motion.button>
+              
+              <motion.button
+                onClick={() => setCurrentView('csaas-clients')}
+                className="glass glass-hover px-4 py-2.5 rounded-full font-medium text-sm group"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Server className="inline-block mr-2 w-4 h-4 text-purple-400" />
+                <span className="gradient-text hidden sm:inline">Clientes</span>
+              </motion.button>
+              
+              <motion.button
+                onClick={() => setCurrentView('csaas-form')}
+                className="glass glass-hover px-4 py-2.5 rounded-full font-medium text-sm group"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Globe className="inline-block mr-2 w-4 h-4 text-purple-400" />
+                <span className="gradient-text hidden sm:inline">CSaaS</span>
               </motion.button>
               
               <motion.button
@@ -132,7 +203,7 @@ function App() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <span className="gradient-text">Solicitar Protección</span>
+                <span className="gradient-text">Protección</span>
                 <Sparkles className="inline-block ml-2 w-4 h-4 text-cyan-400 group-hover:rotate-12 transition-transform" />
               </motion.button>
             </div>
@@ -198,7 +269,28 @@ function App() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
+              className="flex flex-col sm:flex-row gap-4 justify-center"
             >
+              <motion.button
+                onClick={() => setCurrentView('csaas-form')}
+                className="group relative inline-flex items-center gap-3 bg-gradient-to-r from-purple-500 to-pink-600 px-8 py-4 rounded-full font-semibold text-lg hover-glow"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Globe className="w-5 h-5" />
+                <span>Protección CSaaS</span>
+                <motion.svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  animate={{ x: [0, 5, 0] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </motion.svg>
+              </motion.button>
+              
               <motion.button
                 onClick={() => setCurrentView('form')}
                 className="group relative inline-flex items-center gap-3 bg-gradient-to-r from-cyan-500 to-blue-600 px-8 py-4 rounded-full font-semibold text-lg hover-glow"
@@ -206,7 +298,7 @@ function App() {
                 whileTap={{ scale: 0.95 }}
               >
                 <Shield className="w-5 h-5" />
-                <span>Comenzar Ahora</span>
+                <span>Protección Directa</span>
                 <motion.svg
                   className="w-5 h-5"
                   fill="none"
@@ -226,6 +318,104 @@ function App() {
       {/* Features Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl font-bold mb-4">
+              <span className="gradient-text">Dos Modos de Protección</span>
+            </h2>
+            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+              Elija el modo que mejor se adapte a sus necesidades
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
+            {/* CSaaS Mode */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="glass glass-hover p-8 rounded-2xl border-2 border-purple-500/30"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-gradient-to-br from-purple-500 to-pink-600 w-12 h-12 rounded-xl flex items-center justify-center">
+                  <Globe className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white">Protección CSaaS</h3>
+              </div>
+              <p className="text-gray-300 mb-6">
+                Sistema automático que genera un subdominio único bajo <strong className="text-purple-400">suncarsrl.com</strong> para proteger sus URLs sin modificar su DNS.
+              </p>
+              <ul className="space-y-3 mb-6">
+                {[
+                  'Subdominio automático generado',
+                  'Sin cambios en su DNS',
+                  'SSL/TLS automático',
+                  'Protección inmediata',
+                  'Ideal para SaaS providers'
+                ].map((item, index) => (
+                  <li key={index} className="flex items-center gap-2 text-sm text-gray-300">
+                    <CheckCircle className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <motion.button
+                onClick={() => setCurrentView('csaas-form')}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Globe className="w-5 h-5" />
+                <span>Usar CSaaS</span>
+              </motion.button>
+            </motion.div>
+
+            {/* Direct Mode */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="glass glass-hover p-8 rounded-2xl border-2 border-cyan-500/30"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-gradient-to-br from-cyan-500 to-blue-600 w-12 h-12 rounded-xl flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white">Protección Directa</h3>
+              </div>
+              <p className="text-gray-300 mb-6">
+                Protección tradicional que aplica configuraciones de seguridad directamente a sus dominios existentes en Cloudflare.
+              </p>
+              <ul className="space-y-3 mb-6">
+                {[
+                  'Usa sus dominios existentes',
+                  'Requiere delegación DNS',
+                  'Control total de DNS',
+                  'Configuración avanzada',
+                  'Ideal para infraestructura propia'
+                ].map((item, index) => (
+                  <li key={index} className="flex items-center gap-2 text-sm text-gray-300">
+                    <CheckCircle className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <motion.button
+                onClick={() => setCurrentView('form')}
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Shield className="w-5 h-5" />
+                <span>Usar Protección Directa</span>
+              </motion.button>
+            </motion.div>
+          </div>
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}

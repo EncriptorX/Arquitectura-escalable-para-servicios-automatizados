@@ -39,6 +39,14 @@
       "dest": "api/diagnostico.py"
     },
     {
+      "src": "/api/csaas-provision",
+      "dest": "api/csaas-provision.py"
+    },
+    {
+      "src": "/api/csaas-list",
+      "dest": "api/csaas-list.py"
+    },
+    {
       "handle": "filesystem"
     },
     {
