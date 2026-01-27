@@ -20,15 +20,6 @@ interface CSaaSResultPageProps {
   origin_urls: string[];
   message: string;
   logs?: string[];
-  instructions?: {
-    message: string;
-    dns_records: Array<{
-      hostname: string;
-      type: string;
-      value: string;
-      note: string;
-    }>;
-  };
   onBack: () => void;
   onNewRequest: () => void;
 }
@@ -39,7 +30,6 @@ export default function CSaaSResultPage({
   origin_urls,
   message,
   logs,
-  instructions,
   onBack,
   onNewRequest
 }: CSaaSResultPageProps) {
@@ -249,65 +239,6 @@ export default function CSaaSResultPage({
           </motion.div>
         )}
 
-        {/* DNS Instructions */}
-        {instructions && instructions.dns_records && instructions.dns_records.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45 }}
-            className="glass p-6 rounded-2xl mb-6 border-white/10 border-l-4 border-orange-400"
-          >
-            <h3 className="text-lg font-semibold text-white mb-3">⚠️ Configuración DNS Requerida</h3>
-            <p className="text-sm text-gray-300 mb-4">
-              {instructions.message}
-            </p>
-            
-            <div className="space-y-3">
-              {instructions.dns_records.map((record, index) => (
-                <div key={index} className="glass p-4 rounded-lg border border-orange-400/30">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-orange-400">
-                      Registro DNS #{index + 1}
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(record.value)}
-                      className="text-xs text-gray-400 hover:text-cyan-400 flex items-center gap-1"
-                    >
-                      <Copy className="w-3 h-3" />
-                      Copiar valor
-                    </button>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
-                    <div>
-                      <span className="text-gray-500">Hostname:</span>
-                      <p className="text-white font-mono break-all">{record.hostname}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Tipo:</span>
-                      <p className="text-white font-mono">{record.type}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Valor:</span>
-                      <p className="text-white font-mono break-all">{record.value}</p>
-                    </div>
-                  </div>
-                  
-                  <p className="text-xs text-gray-400 mt-2">
-                    💡 {record.note}
-                  </p>
-                </div>
-              ))}
-            </div>
-            
-            <div className="mt-4 p-3 bg-orange-900/20 rounded-lg">
-              <p className="text-xs text-orange-300">
-                <strong>Importante:</strong> El cliente debe crear estos registros CNAME en su proveedor de DNS para que sus dominios apunten al subdominio protegido.
-              </p>
-            </div>
-          </motion.div>
-        )}
-
         {/* Instructions */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -323,15 +254,15 @@ export default function CSaaSResultPage({
             </li>
             <li className="flex gap-2">
               <span className="text-cyan-400 font-bold">2.</span>
-              <span>El cliente debe crear los registros CNAME mostrados arriba en su DNS</span>
+              <span>El tráfico a través de este subdominio está protegido por Cloudflare</span>
             </li>
             <li className="flex gap-2">
               <span className="text-cyan-400 font-bold">3.</span>
-              <span>Una vez configurado el DNS, el tráfico del cliente estará protegido por Cloudflare</span>
+              <span>No necesita modificar el DNS de sus dominios de origen</span>
             </li>
             <li className="flex gap-2">
               <span className="text-cyan-400 font-bold">4.</span>
-              <span>Los usuarios finales accederán a través del dominio del cliente (ej: app.cliente.com)</span>
+              <span>Comparta la URL protegida con sus usuarios finales</span>
             </li>
           </ol>
         </motion.div>

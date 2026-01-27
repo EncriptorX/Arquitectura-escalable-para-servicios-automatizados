@@ -302,13 +302,13 @@ class CloudflareSaaSClient:
         Crea un Custom Hostname en Cloudflare for SaaS
         
         Args:
-            hostname: Hostname del cliente (su dominio real, ej: app.cliente.com)
+            hostname: Hostname del cliente (subdominio)
             origin_urls: URLs de origen del cliente
         
         Returns:
             (éxito, custom_hostname_id, detalles)
         """
-        self.log(f"[PASO 2/5] Creando Custom Hostname para: {hostname}")
+        self.log(f"[PASO 2/5] Creando Custom Hostname: {hostname}")
         
         # Verificar si ya existe
         self.log(f"  → Verificando si el Custom Hostname ya existe...")
@@ -323,9 +323,10 @@ class CloudflareSaaSClient:
                 self.log(f"✓ Custom Hostname ya existe (ID: {custom_hostname_id}, Status: {status})")
                 return True, custom_hostname_id, ch
         
-        # Configuración del Custom Hostname
-        # El hostname es el dominio del CLIENTE (ej: app.cliente.com)
-        # El origin es el subdominio que generamos (ej: cliente123.suncarsrl.com)
+        # Usar la primera URL como origin server
+        origin_server = origin_urls[0] if origin_urls else None
+        
+        # Configuración del Custom Hostname con origin server
         payload = {
             "hostname": hostname,
             "ssl": {
@@ -338,6 +339,11 @@ class CloudflareSaaSClient:
                 }
             }
         }
+        
+        # Agregar custom origin server si se proporcionó
+        if origin_server:
+            payload["custom_origin_server"] = origin_server
+            self.log(f"  → Origin Server configurado: {origin_server}")
         
         self.log(f"  → Enviando petición para crear Custom Hostname...")
         self.log(f"  → Payload: {json.dumps(payload, indent=2)}")
@@ -538,34 +544,16 @@ class CloudflareSaaSClient:
                 "logs": self.logs
             }
         
-        # PASO 2: Crear Custom Hostnames para cada URL del cliente
-        self.log(f"[PASO 2/5] Creando Custom Hostnames para las URLs del cliente...")
-        custom_hostnames = []
-        
-        for url in urls:
-            self.log(f"  → Procesando URL: {url}")
-            ch_success, ch_id, ch_details = self.create_custom_hostname(url, [url])
-            
-            if not ch_success:
-                return {
-                    "success": False,
-                    "error": f"No se pudo crear el Custom Hostname para {url}",
-                    "step_failed": "custom_hostname_creation",
-                    "logs": self.logs,
-                    "details": ch_details
-                }
-            
-            custom_hostnames.append({
-                "url": url,
-                "custom_hostname_id": ch_id,
+        # PASO 2: Crear Custom Hostname
+        ch_success, ch_id, ch_details = self.create_custom_hostname(subdomain, urls)
+        if not ch_success:
+            return {
+                "success": False,
+                "error": "No se pudo crear el Custom Hostname",
+                "step_failed": "custom_hostname_creation",
+                "logs": self.logs,
                 "details": ch_details
-            })
-        
-        self.log(f"✓ {len(custom_hostnames)} Custom Hostname(s) creado(s)")
-        
-        # Usar el primer Custom Hostname para el polling
-        primary_ch = custom_hostnames[0]
-        ch_id = primary_ch["custom_hostname_id"]
+            }
         
         # PASO 3: Polling hasta activación
         active_success, final_status, active_details = self.poll_custom_hostname_status(ch_id)
@@ -591,7 +579,7 @@ class CloudflareSaaSClient:
             "client_name": client_name,
             "client_id": client_id,
             "subdomain": subdomain,
-            "custom_hostnames": custom_hostnames,
+            "custom_hostname_id": ch_id,
             "cname_record_id": record_id,
             "origin_urls": urls,
             "status": "active",
@@ -611,24 +599,12 @@ class CloudflareSaaSClient:
             "client_key": client_key,
             "subdomain": subdomain,
             "protected_url": f"https://{subdomain}",
-            "custom_hostnames": custom_hostnames,
+            "custom_hostname_id": ch_id,
             "cname_record_id": record_id,
             "status": final_status,
             "origin_urls": urls,
             "security_rules": security_results,
-            "logs": self.logs,
-            "instructions": {
-                "message": "Para que los dominios del cliente funcionen, el cliente debe crear registros CNAME:",
-                "dns_records": [
-                    {
-                        "hostname": url,
-                        "type": "CNAME",
-                        "value": subdomain,
-                        "note": f"El cliente debe crear este registro en su DNS"
-                    }
-                    for url in urls
-                ]
-            }
+            "logs": self.logs
         }
 
 
