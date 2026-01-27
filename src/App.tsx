@@ -20,15 +20,6 @@ type CSaaSInfo = {
   origin_urls: string[];
   message: string;
   logs?: string[];
-  instructions?: {
-    message: string;
-    dns_records: Array<{
-      hostname: string;
-      type: string;
-      value: string;
-      note: string;
-    }>;
-  };
 };
 
 type View = 'home' | 'form' | 'process' | 'control-panel' | 'csaas-form' | 'csaas-result' | 'csaas-clients';
@@ -118,7 +109,6 @@ function App() {
         origin_urls={csaasInfo.origin_urls}
         message={csaasInfo.message}
         logs={csaasInfo.logs}
-        instructions={csaasInfo.instructions}
         onBack={handleBackHome}
         onNewRequest={handleNewCSaaSRequest}
       />
