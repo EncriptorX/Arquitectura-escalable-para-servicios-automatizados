@@ -12,6 +12,11 @@ CF_API_BASE_URL = "https://api.cloudflare.com/client/v4"
 CSAAS_ZONE = os.getenv("CSAAS_ZONE", "suncarsrl.com")
 CSAAS_CNAME_TARGET = os.getenv("CSAAS_CNAME_TARGET", "customers.suncarsrl.com")
 
+# CSaaS - Almacenamiento en memoria (sin base de datos)
+class CSaaSConfig:
+    """Configuración y almacenamiento para CSaaS"""
+    PROVISIONED_CLIENTS = {}  # {client_id: {subdomain, custom_hostname_id, urls, status}}
+
 # Turnstile Configuration
 TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
 TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"

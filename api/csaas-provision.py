@@ -299,16 +299,21 @@ class CloudflareSaaSClient:
     
     def create_custom_hostname(self, hostname: str, origin_urls: List[str]) -> Tuple[bool, Optional[str], Optional[Dict]]:
         """
-        Crea un Custom Hostname en Cloudflare for SaaS con proxy al origen
+        Crea un Custom Hostname en Cloudflare for SaaS SIN custom_origin_server
+        
+        IMPORTANTE: En plan gratuito NO se usa custom_origin_server ni custom_origin_sni.
+        El proxy al dominio real del cliente se maneja en el backend Python.
         
         Args:
             hostname: Hostname del cliente (subdominio)
-            origin_urls: URLs de origen del cliente
+            origin_urls: URLs de origen del cliente (se almacenan en memoria para el proxy)
         
         Returns:
             (éxito, custom_hostname_id, detalles)
         """
         self.log(f"[PASO 2/5] Creando Custom Hostname: {hostname}")
+        self.log(f"  → NOTA: Plan gratuito - NO se usa custom_origin_server")
+        self.log(f"  → El proxy al dominio del cliente se maneja en el backend")
         
         # Verificar si ya existe
         self.log(f"  → Verificando si el Custom Hostname ya existe...")
@@ -323,10 +328,8 @@ class CloudflareSaaSClient:
                 self.log(f"✓ Custom Hostname ya existe (ID: {custom_hostname_id}, Status: {status})")
                 return True, custom_hostname_id, ch
         
-        # Usar la primera URL como origen principal
-        origin_server = origin_urls[0] if origin_urls else None
-        
-        # Configuración del Custom Hostname con origin server
+        # Configuración del Custom Hostname SIN custom_origin_server
+        # Solo configuramos SSL DV por HTTP
         payload = {
             "hostname": hostname,
             "ssl": {
@@ -340,16 +343,9 @@ class CloudflareSaaSClient:
             }
         }
         
-        # Configurar custom_origin_server para hacer proxy al dominio del cliente
-        if origin_server:
-            payload["custom_origin_server"] = origin_server
-            # Configurar custom_origin_sni para SNI correcto
-            payload["custom_origin_sni"] = origin_server
-            self.log(f"  → Configurando origin server: {origin_server}")
-            self.log(f"  → El subdominio hará proxy transparente al dominio del cliente")
-        
+        # NO incluir custom_origin_server ni custom_origin_sni (no disponibles en plan Free)
         self.log(f"  → Enviando petición para crear Custom Hostname...")
-        self.log(f"  → Payload: {json.dumps(payload, indent=2)}")
+        self.log(f"  → Payload (sin custom_origin_*): {json.dumps(payload, indent=2)}")
         
         # Crear Custom Hostname
         res = self.request("POST", f"zones/{self.zone_id}/custom_hostnames", payload)
@@ -360,8 +356,7 @@ class CloudflareSaaSClient:
             status = result.get("status", "pending")
             
             self.log(f"✓ Custom Hostname creado (ID: {custom_hostname_id}, Status: {status})")
-            if origin_server:
-                self.log(f"✓ Proxy configurado: {hostname} → {origin_server}")
+            self.log(f"✓ El proxy a {origin_urls[0] if origin_urls else 'N/A'} se manejará en el backend")
             
             return True, custom_hostname_id, result
         
@@ -577,8 +572,8 @@ class CloudflareSaaSClient:
         # PASO 4: Aplicar reglas de seguridad
         security_results = self.apply_security_rules(subdomain)
         
-        # PASO 5: Almacenar en memoria
-        self.log(f"[PASO 5/5] Almacenando información del cliente...")
+        # PASO 5: Almacenar en memoria y configurar proxy
+        self.log(f"[PASO 5/5] Almacenando información del cliente y configurando proxy...")
         client_key = client_id or hashlib.md5(client_name.encode()).hexdigest()[:16]
         CSaaSConfig.PROVISIONED_CLIENTS[client_key] = {
             "client_name": client_name,
@@ -591,6 +586,15 @@ class CloudflareSaaSClient:
             "security_rules": security_results,
             "created_at": time.time()
         }
+        
+        # Configurar mapa del proxy: subdominio -> dominio real del cliente
+        try:
+            from proxy import ProxyConfig
+            if urls:
+                ProxyConfig.SUBDOMAIN_MAP[subdomain] = urls[0]
+                self.log(f"✓ Proxy configurado: {subdomain} → {urls[0]}")
+        except ImportError:
+            self.log("⚠️ No se pudo importar ProxyConfig, el proxy se configurará dinámicamente", "WARN")
         
         self.log("=" * 60)
         self.log("=== PROVISIONAMIENTO COMPLETADO ===")
