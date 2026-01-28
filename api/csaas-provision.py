@@ -299,7 +299,7 @@ class CloudflareSaaSClient:
     
     def create_custom_hostname(self, hostname: str, origin_urls: List[str]) -> Tuple[bool, Optional[str], Optional[Dict]]:
         """
-        Crea un Custom Hostname en Cloudflare for SaaS
+        Crea un Custom Hostname en Cloudflare for SaaS con proxy al origen
         
         Args:
             hostname: Hostname del cliente (subdominio)
@@ -323,7 +323,7 @@ class CloudflareSaaSClient:
                 self.log(f"✓ Custom Hostname ya existe (ID: {custom_hostname_id}, Status: {status})")
                 return True, custom_hostname_id, ch
         
-        # Usar la primera URL como origin server
+        # Usar la primera URL como origen principal
         origin_server = origin_urls[0] if origin_urls else None
         
         # Configuración del Custom Hostname con origin server
@@ -340,10 +340,13 @@ class CloudflareSaaSClient:
             }
         }
         
-        # Agregar custom origin server si se proporcionó
+        # Configurar custom_origin_server para hacer proxy al dominio del cliente
         if origin_server:
             payload["custom_origin_server"] = origin_server
-            self.log(f"  → Origin Server configurado: {origin_server}")
+            # Configurar custom_origin_sni para SNI correcto
+            payload["custom_origin_sni"] = origin_server
+            self.log(f"  → Configurando origin server: {origin_server}")
+            self.log(f"  → El subdominio hará proxy transparente al dominio del cliente")
         
         self.log(f"  → Enviando petición para crear Custom Hostname...")
         self.log(f"  → Payload: {json.dumps(payload, indent=2)}")
@@ -357,6 +360,8 @@ class CloudflareSaaSClient:
             status = result.get("status", "pending")
             
             self.log(f"✓ Custom Hostname creado (ID: {custom_hostname_id}, Status: {status})")
+            if origin_server:
+                self.log(f"✓ Proxy configurado: {hostname} → {origin_server}")
             
             return True, custom_hostname_id, result
         
@@ -436,72 +441,6 @@ class CloudflareSaaSClient:
             return True, "pending_activation", result
         
         return True, "pending_activation", None
-    
-    def configure_origin_rules(self, hostname: str, origin_url: str) -> bool:
-        """
-        Configura reglas de origen para hacer proxy al dominio del cliente
-        
-        Args:
-            hostname: Hostname del Custom Hostname (subdominio)
-            origin_url: URL de origen del cliente
-        
-        Returns:
-            True si se configuró correctamente
-        """
-        self.log(f"[PASO 4.5/5] Configurando proxy al origen: {origin_url}")
-        
-        try:
-            # Crear Page Rule para hacer proxy
-            # Nota: Page Rules requiere plan Pro o superior
-            # En plan Free, el custom_origin_server en el Custom Hostname es suficiente
-            
-            # Verificar si ya existe una Page Rule para este hostname
-            search_res = self.request("GET", f"zones/{self.zone_id}/pagerules")
-            
-            if search_res and search_res.get("success"):
-                existing_rules = search_res.get("result", [])
-                for rule in existing_rules:
-                    if hostname in rule.get("targets", [{}])[0].get("constraint", {}).get("value", ""):
-                        self.log(f"✓ Page Rule ya existe para {hostname}")
-                        return True
-            
-            # Crear nueva Page Rule
-            page_rule_payload = {
-                "targets": [
-                    {
-                        "target": "url",
-                        "constraint": {
-                            "operator": "matches",
-                            "value": f"*{hostname}/*"
-                        }
-                    }
-                ],
-                "actions": [
-                    {
-                        "id": "forwarding_url",
-                        "value": {
-                            "url": f"https://{origin_url}/$1",
-                            "status_code": 301
-                        }
-                    }
-                ],
-                "priority": 1,
-                "status": "active"
-            }
-            
-            pr_res = self.request("POST", f"zones/{self.zone_id}/pagerules", page_rule_payload)
-            
-            if pr_res and pr_res.get("success"):
-                self.log(f"✓ Page Rule creada para proxy a {origin_url}")
-                return True
-            else:
-                self.log(f"⚠️ No se pudo crear Page Rule (puede requerir plan Pro)", "WARN")
-                self.log(f"  El custom_origin_server en Custom Hostname manejará el proxy", "INFO")
-                return True  # No es crítico
-                
-        except Exception as e:
-            self.log(f"⚠️ Error configurando origin rules: {str(e)}", "WARN")
-            return True  # No es crítico
     
     def apply_security_rules(self, hostname: str) -> Dict[str, bool]:
         """
