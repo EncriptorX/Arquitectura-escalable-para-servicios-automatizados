@@ -9,7 +9,35 @@
       }
     },
     {
-      "src": "api/**/*.py",
+      "src": "api/solicitar-proteccion.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/status.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/toggle-service.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/toggle-protection.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/verificar-delegacion.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/diagnostico.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/csaas-provision.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/proxy.py",
       "use": "@vercel/python"
     }
   ],
@@ -44,7 +72,11 @@
     },
     {
       "src": "/api/csaas-list",
-      "dest": "api/csaas-list.py"
+      "dest": "api/csaas-provision.py"
+    },
+    {
+      "src": "/api/proxy",
+      "dest": "api/proxy.py"
     },
     {
       "handle": "filesystem"
