@@ -246,25 +246,60 @@ export default function CSaaSResultPage({
           transition={{ delay: 0.5 }}
           className="glass p-6 rounded-2xl mb-6 border-white/10 border-l-4 border-cyan-400"
         >
-          <h3 className="text-lg font-semibold text-white mb-3">📋 Próximos Pasos</h3>
-          <ol className="space-y-2 text-sm text-gray-300">
-            <li className="flex gap-2">
-              <span className="text-cyan-400 font-bold">1.</span>
-              <span>Su subdominio <strong className="text-cyan-400">{subdomain}</strong> está activo y protegido</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-cyan-400 font-bold">2.</span>
-              <span>El tráfico a través de este subdominio está protegido por Cloudflare</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-cyan-400 font-bold">3.</span>
-              <span>No necesita modificar el DNS de sus dominios de origen</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-cyan-400 font-bold">4.</span>
-              <span>Comparta la URL protegida con sus usuarios finales</span>
-            </li>
-          </ol>
+          <h3 className="text-lg font-semibold text-white mb-3">📋 Configuración del Cliente</h3>
+          <div className="space-y-4 text-sm text-gray-300">
+            <div>
+              <p className="font-semibold text-cyan-400 mb-2">Opción 1: Usar el subdominio protegido directamente</p>
+              <ol className="space-y-2 ml-4">
+                <li className="flex gap-2">
+                  <span className="text-cyan-400 font-bold">1.</span>
+                  <span>Comparte la URL protegida: <strong className="text-cyan-400 break-all">{protected_url}</strong></span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-cyan-400 font-bold">2.</span>
+                  <span>El subdominio hace proxy transparente a tu dominio original</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-cyan-400 font-bold">3.</span>
+                  <span>Todo el tráfico está protegido por Cloudflare</span>
+                </li>
+              </ol>
+            </div>
+            
+            <div className="border-t border-white/10 pt-4">
+              <p className="font-semibold text-purple-400 mb-2">Opción 2: Mantener tu dominio original (Recomendado)</p>
+              <ol className="space-y-2 ml-4">
+                <li className="flex gap-2">
+                  <span className="text-purple-400 font-bold">1.</span>
+                  <span>Ve al panel de DNS de tu dominio original</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-purple-400 font-bold">2.</span>
+                  <span>Crea un registro CNAME:</span>
+                </li>
+                <div className="ml-8 mt-2 glass p-3 rounded-lg font-mono text-xs">
+                  <div>Tipo: <span className="text-green-400">CNAME</span></div>
+                  <div>Nombre: <span className="text-green-400">@</span> (o tu subdominio)</div>
+                  <div>Valor: <span className="text-green-400 break-all">{subdomain}</span></div>
+                </div>
+                <li className="flex gap-2">
+                  <span className="text-purple-400 font-bold">3.</span>
+                  <span>Espera propagación DNS (5-30 minutos)</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-purple-400 font-bold">4.</span>
+                  <span>Tu dominio original mostrará el contenido protegido</span>
+                </li>
+              </ol>
+            </div>
+            
+            <div className="border-t border-white/10 pt-4">
+              <p className="text-yellow-400 text-xs">
+                ⚠️ <strong>Nota:</strong> El subdominio protegido hace proxy a tu dominio original ({origin_urls[0]}). 
+                Asegúrate de que tu servidor de origen esté configurado para aceptar peticiones desde Cloudflare.
+              </p>
+            </div>
+          </div>
         </motion.div>
 
         {/* Action Buttons */}
