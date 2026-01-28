@@ -1,0 +1,32 @@
+# Archivos de utilidad (no son funciones serverless)
+api/config.py
+api/utils.py
+api/logger.py
+api/exceptions.py
+
+# Tests
+tests/
+scripts/test_*.py
+
+# Documentación
+docs/
+*.md
+!README.md
+
+# Archivos de desarrollo
+.env
+.env.local
+.vscode/
+.git/
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist-python/
+build/
+*.log

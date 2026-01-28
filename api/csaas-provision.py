@@ -652,13 +652,26 @@ class handler(BaseHTTPRequestHandler):
                 "created_at": info["created_at"]
             })
         
+        # Obtener mapeo del proxy
+        try:
+            from proxy import ProxyConfig
+            proxy_map = dict(ProxyConfig.SUBDOMAIN_MAP)
+        except ImportError:
+            proxy_map = {}
+        
         self._send_json({
             "status": "ok",
             "message": "CSaaS Provisioning API funcionando",
             "saas_zone": CSaaSConfig.SAAS_ZONE,
             "cname_target": CSaaSConfig.CNAME_TARGET,
             "provisioned_clients": clients,
-            "total_clients": len(clients)
+            "total_clients": len(clients),
+            "proxy_map": proxy_map,
+            "architecture": {
+                "type": "Reverse Proxy (Plan Gratuito)",
+                "description": "Backend proxy inteligente sin custom_origin_server",
+                "flow": "Cliente → Subdominio → Backend Proxy → Dominio Real"
+            }
         }, 200)
     
     def do_POST(self):
