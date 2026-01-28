@@ -302,7 +302,7 @@ class CloudflareSaaSClient:
         Crea un Custom Hostname en Cloudflare for SaaS SIN custom_origin_server
         
         IMPORTANTE: En plan gratuito NO se usa custom_origin_server ni custom_origin_sni.
-        El proxy al dominio real del cliente se maneja en el backend Python.
+        El proxy al dominio real del cliente se maneja en el backend.
         
         Args:
             hostname: Hostname del cliente (subdominio)
