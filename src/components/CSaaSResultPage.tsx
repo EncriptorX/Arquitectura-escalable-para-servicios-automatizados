@@ -246,57 +246,100 @@ export default function CSaaSResultPage({
           transition={{ delay: 0.5 }}
           className="glass p-6 rounded-2xl mb-6 border-white/10 border-l-4 border-cyan-400"
         >
-          <h3 className="text-lg font-semibold text-white mb-3">📋 Configuración del Cliente</h3>
+          <h3 className="text-lg font-semibold text-white mb-3">📋 Instrucciones de Configuración DNS</h3>
           <div className="space-y-4 text-sm text-gray-300">
-            <div>
-              <p className="font-semibold text-cyan-400 mb-2">Opción 1: Usar el subdominio protegido directamente</p>
-              <ol className="space-y-2 ml-4">
+            <div className="bg-cyan-900/20 p-4 rounded-lg border border-cyan-400/30">
+              <p className="font-semibold text-cyan-400 mb-3">✅ Configuración Recomendada: Mantener tu dominio original</p>
+              <ol className="space-y-3 ml-4">
                 <li className="flex gap-2">
                   <span className="text-cyan-400 font-bold">1.</span>
-                  <span>Comparte la URL protegida: <strong className="text-cyan-400 break-all">{protected_url}</strong></span>
+                  <div>
+                    <p className="font-semibold mb-1">Accede al panel DNS de tu dominio</p>
+                    <p className="text-xs text-gray-400">Ve al proveedor donde registraste tu dominio (GoDaddy, Namecheap, etc.)</p>
+                  </div>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-cyan-400 font-bold">2.</span>
-                  <span>El subdominio hace proxy transparente a tu dominio original</span>
+                  <div>
+                    <p className="font-semibold mb-2">Crea un registro CNAME con estos valores:</p>
+                    <div className="glass p-4 rounded-lg font-mono text-xs space-y-2 bg-black/30">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Tipo:</span>
+                        <span className="text-green-400 font-bold">CNAME</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Nombre:</span>
+                        <span className="text-green-400 font-bold">www</span>
+                        <span className="text-xs text-gray-500 ml-2">(o @ para dominio raíz)</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-gray-400">Valor:</span>
+                          <button
+                            onClick={() => copyToClipboard(subdomain)}
+                            className="text-cyan-400 hover:text-cyan-300 text-xs flex items-center gap-1"
+                          >
+                            <Copy className="w-3 h-3" />
+                            Copiar
+                          </button>
+                        </div>
+                        <span className="text-green-400 font-bold break-all">{subdomain}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">TTL:</span>
+                        <span className="text-green-400 font-bold">Auto o 3600</span>
+                      </div>
+                    </div>
+                  </div>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-cyan-400 font-bold">3.</span>
-                  <span>Todo el tráfico está protegido por Cloudflare</span>
+                  <div>
+                    <p className="font-semibold mb-1">Espera la propagación DNS</p>
+                    <p className="text-xs text-gray-400">Normalmente toma entre 5-30 minutos, pero puede tardar hasta 48 horas</p>
+                  </div>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-cyan-400 font-bold">4.</span>
+                  <div>
+                    <p className="font-semibold mb-1">¡Listo! Tu dominio está protegido</p>
+                    <p className="text-xs text-gray-400">Accede a tu dominio original y verás el contenido protegido por Cloudflare</p>
+                  </div>
                 </li>
               </ol>
             </div>
             
             <div className="border-t border-white/10 pt-4">
-              <p className="font-semibold text-purple-400 mb-2">Opción 2: Mantener tu dominio original (Recomendado)</p>
-              <ol className="space-y-2 ml-4">
-                <li className="flex gap-2">
-                  <span className="text-purple-400 font-bold">1.</span>
-                  <span>Ve al panel de DNS de tu dominio original</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-purple-400 font-bold">2.</span>
-                  <span>Crea un registro CNAME:</span>
-                </li>
-                <div className="ml-8 mt-2 glass p-3 rounded-lg font-mono text-xs">
-                  <div>Tipo: <span className="text-green-400">CNAME</span></div>
-                  <div>Nombre: <span className="text-green-400">@</span> (o tu subdominio)</div>
-                  <div>Valor: <span className="text-green-400 break-all">{subdomain}</span></div>
+              <p className="font-semibold text-purple-400 mb-2">🔄 Arquitectura del Proxy (Plan Gratuito)</p>
+              <div className="space-y-2 text-xs">
+                <p className="text-gray-400">
+                  El subdominio <span className="text-cyan-400 font-mono">{subdomain}</span> actúa como proxy reverso:
+                </p>
+                <div className="glass p-3 rounded-lg bg-black/30 font-mono text-xs">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-blue-400">Cliente</span>
+                    <span className="text-gray-500">→</span>
+                    <span className="text-cyan-400">{subdomain}</span>
+                    <span className="text-gray-500">→</span>
+                    <span className="text-purple-400">Backend Proxy</span>
+                    <span className="text-gray-500">→</span>
+                    <span className="text-green-400">{origin_urls[0]}</span>
+                  </div>
+                  <p className="text-gray-500 text-[10px]">
+                    El backend proxy lee el header Host, identifica el subdominio y reenvía la solicitud al dominio real del cliente
+                  </p>
                 </div>
-                <li className="flex gap-2">
-                  <span className="text-purple-400 font-bold">3.</span>
-                  <span>Espera propagación DNS (5-30 minutos)</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-purple-400 font-bold">4.</span>
-                  <span>Tu dominio original mostrará el contenido protegido</span>
-                </li>
-              </ol>
+              </div>
             </div>
             
             <div className="border-t border-white/10 pt-4">
-              <p className="text-yellow-400 text-xs">
-                ⚠️ <strong>Nota:</strong> El subdominio protegido hace proxy a tu dominio original ({origin_urls[0]}). 
-                Asegúrate de que tu servidor de origen esté configurado para aceptar peticiones desde Cloudflare.
+              <p className="text-yellow-400 text-xs flex items-start gap-2">
+                <span className="flex-shrink-0">⚠️</span>
+                <span>
+                  <strong>Importante:</strong> Esta arquitectura está optimizada para el plan gratuito de Cloudflare. 
+                  No se usa <code className="bg-black/30 px-1 rounded">custom_origin_server</code> ni <code className="bg-black/30 px-1 rounded">custom_origin_sni</code> 
+                  (no disponibles en plan Free). El proxy se maneja completamente en el backend Python.
+                </span>
               </p>
             </div>
           </div>

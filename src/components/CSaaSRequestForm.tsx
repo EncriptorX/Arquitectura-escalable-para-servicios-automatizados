@@ -279,10 +279,18 @@ export default function CSaaSRequestForm({ onClose, onSuccess }: CSaaSRequestFor
               <CheckCircle className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-cyan-300 text-sm font-semibold mb-1">
-                  Sistema CSaaS Automático
+                  Sistema CSaaS con Proxy Inteligente (Plan Gratuito)
                 </p>
-                <p className="text-cyan-300/80 text-xs">
-                  Generaremos un subdominio único bajo <strong>suncarsrl.com</strong> para proteger sus URLs sin modificar su DNS.
+                <p className="text-cyan-300/80 text-xs mb-2">
+                  Generaremos un subdominio único bajo <strong>suncarsrl.com</strong> que actuará como proxy reverso a tu dominio original.
+                </p>
+                <div className="bg-black/30 p-2 rounded text-[10px] font-mono text-cyan-300/70">
+                  <p>Cliente → subdominio.suncarsrl.com → Backend Proxy → tu-dominio.com</p>
+                </div>
+                <p className="text-cyan-300/60 text-[10px] mt-2">
+                  ✓ Sin modificar custom_origin_server (no disponible en plan Free)<br/>
+                  ✓ Proxy manejado completamente en backend Python<br/>
+                  ✓ Mínima intervención del cliente (solo CNAME DNS)
                 </p>
               </div>
             </div>

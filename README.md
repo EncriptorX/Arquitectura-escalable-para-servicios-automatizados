@@ -1,12 +1,45 @@
 # 🛡️ Sistema de Protección Perimetral Automatizada con Cloudflare
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/KevPatterson/cloudflare-perimeter-protection)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/KevPatterson/cloudflare-perimeter-protection)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg)](https://www.typescriptlang.org/)
 [![Python](https://img.shields.io/badge/Python-3.9+-yellow.svg)](https://www.python.org/)
 [![React](https://img.shields.io/badge/React-18.3-61dafb.svg)](https://react.dev/)
 
 Sistema web automatizado para configurar protección perimetral de seguridad utilizando la API de Cloudflare. Desarrollado como proyecto de tesis para demostrar la automatización de configuraciones de seguridad en infraestructura cloud.
+
+## 🆕 Actualización Importante - Arquitectura CSaaS (Enero 2026)
+
+### ⚡ Nueva Arquitectura Compatible con Plan Gratuito
+
+El proyecto ha sido completamente adaptado para funcionar con el **plan gratuito de Cloudflare**, eliminando la dependencia de `custom_origin_server` y `custom_origin_sni` (no disponibles en plan Free).
+
+**Cambios Principales:**
+- ✅ **Backend Proxy Inteligente**: Nuevo sistema de proxy reverso HTTP/HTTPS
+- ✅ **Sin custom_origin_***: Compatible con plan gratuito de Cloudflare
+- ✅ **Mínima Intervención del Cliente**: Solo requiere cambio DNS tipo CNAME
+- ✅ **Protección Completa**: Todas las protecciones de Cloudflare activas
+
+**Documentación Completa:**
+- 📖 [ARQUITECTURA_PROXY.md](./ARQUITECTURA_PROXY.md) - Arquitectura completa
+- 📖 [CAMBIOS_ARQUITECTURA.md](./CAMBIOS_ARQUITECTURA.md) - Resumen de cambios
+- 📖 [README_PROXY.md](./README_PROXY.md) - Guía de uso del proxy
+- 📖 [PRESENTACION_TESIS.md](./PRESENTACION_TESIS.md) - Presentación visual
+- 📖 [INICIO_RAPIDO.md](./INICIO_RAPIDO.md) - Inicio rápido
+- 📖 [RESUMEN_CAMBIOS.txt](./RESUMEN_CAMBIOS.txt) - Resumen ejecutivo
+
+**Tests:**
+```bash
+# Ejecutar tests de la nueva arquitectura
+python scripts/test_proxy_architecture.py
+# Resultado: 6/6 tests pasados ✅
+```
+
+**Arquitectura:**
+```
+Cliente → cliente-abc.suncarsrl.com → Backend Proxy → www.cliente.com
+          (Custom Hostname)           (api/proxy.py)   (Origin Real)
+```
 
 ## 📋 Tabla de Contenidos
 
