@@ -746,7 +746,7 @@ if (result.error_category === "user_error") {
 1. **Turnstile:** Validación anti-bot en solicitudes públicas
 2. **Formato de Dominio:** Validación de formato DNS válido
 3. **Zona:** Verificación de que el dominio pertenece a la zona configurada
-4. **CORS:** Configurado para orígenes permitidos
+4. **CORS:** Bloqueado para terceros (`Access-Control-Allow-Origin: null`)
 5. **Rate Limiting:** (Futuro) Límite de peticiones por IP
 
 ### Mejores Prácticas

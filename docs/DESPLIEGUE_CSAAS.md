@@ -307,10 +307,9 @@ curl -X POST "https://tu-proyecto.vercel.app/api/csaas-provision" \
 
 ### CORS
 
-El sistema ya tiene CORS configurado para:
-- `http://localhost:5173` (desarrollo)
-- `http://localhost:3000` (desarrollo)
-- `https://*.vercel.app` (producción)
+El sistema tiene CORS bloqueado para terceros (`Access-Control-Allow-Origin: null`).
+
+Si necesitas habilitar un frontend específico, ajusta la política CORS en la API.
 
 ---
 

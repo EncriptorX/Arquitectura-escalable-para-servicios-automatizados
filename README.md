@@ -1579,6 +1579,7 @@ Toda la documentación adicional se encuentra en la carpeta **`docs/`**.
 Resumen de hardening y controles aplicados:
 - 📄 [MEDIDAS_SEGURIDAD.md](./docs/MEDIDAS_SEGURIDAD.md)
 - Incluye SRI con SHA-512 para scripts externos.
+- Incluye CORS bloqueado (Access-Control-Allow-Origin: null) y Permissions-Policy global.
 
 ## 🔧 Troubleshooting
 

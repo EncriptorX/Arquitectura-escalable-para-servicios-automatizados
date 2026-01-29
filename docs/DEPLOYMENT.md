@@ -89,10 +89,11 @@ npm install
 
 ### Error de CORS
 
-Las Serverless Functions en `api/` ya incluyen headers CORS. Si tienes problemas:
+Las Serverless Functions en `api/` tienen CORS bloqueado para terceros (`Access-Control-Allow-Origin: null`).
+Si necesitas consumir la API desde un frontend en otro dominio:
 
 1. Verifica que la función maneje `OPTIONS` requests
-2. Asegúrate de que los headers `Access-Control-Allow-Origin` estén configurados
+2. Ajusta la política CORS en la API para permitir tu dominio específico
 
 ## Arquitectura
 
