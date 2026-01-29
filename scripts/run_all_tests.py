@@ -50,6 +50,8 @@ def run_test(name, script_path):
             [sys.executable, script_path],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             env=env,
             timeout=30
         )

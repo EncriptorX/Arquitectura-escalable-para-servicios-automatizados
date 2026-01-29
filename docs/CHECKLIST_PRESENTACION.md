@@ -8,6 +8,9 @@
   ```bash
   python scripts/test_proxy_architecture.py
   # Resultado esperado: 6/6 tests pasados ✅
+
+  python scripts/run_all_tests.py
+  # Resultado esperado: 14/14 tests pasados ✅
   ```
 
 - [ ] **Variables de Entorno Configuradas**
@@ -37,6 +40,7 @@
   - [ ] `README_PROXY.md` - Guía de uso
   - [ ] `INICIO_RAPIDO.md` - Inicio rápido
   - [ ] `RESUMEN_CAMBIOS.txt` - Resumen ejecutivo
+  - [ ] `Informe_Evidencias_Pruebas_CSaas_2026-01-29.md` - Evidencias de pruebas
 
 - [ ] **Código Comentado**
   - [ ] `api/proxy.py` - Comentarios claros
@@ -93,6 +97,7 @@
   python scripts/test_proxy_architecture.py
   ```
   - Mostrar resultado: 6/6 tests pasados ✅
+  - Mostrar suite completa: 14/14 tests pasados ✅
 
 - [ ] **Provisionar Cliente**
   - Abrir frontend
@@ -103,7 +108,7 @@
   ```bash
   curl http://localhost:3000/api/csaas-list
   ```
-  - Mostrar proxy_map
+  - Mostrar listado de clientes (hostname, status, ssl_status)
 
 ### 4. Ventajas (5 min)
 
@@ -126,7 +131,7 @@
 ### 5. Resultados (5 min)
 
 - [ ] **Métricas de Éxito**
-  - 6/6 tests pasados
+  - 14/14 tests pasados
   - 9 archivos creados
   - 5 archivos modificados
   - 8 documentos generados
@@ -186,7 +191,7 @@
 
 | Métrica | Objetivo | Resultado | Estado |
 |---------|----------|-----------|--------|
-| Tests Pasados | 6/6 | 6/6 | ✅ |
+| Tests Pasados | 14/14 | 14/14 | ✅ |
 | Documentos | 5+ | 8 | ✅ |
 | Código Funcional | Sí | Sí | ✅ |
 | Compatible Free | Sí | Sí | ✅ |
@@ -234,7 +239,7 @@
 1. **Solución Real**: Resuelve una limitación real del plan gratuito
 2. **Implementación Completa**: Código funcional y testeado
 3. **Documentación Exhaustiva**: 8 documentos + código comentado
-4. **Tests Automatizados**: 6 tests con 100% de éxito
+4. **Tests Automatizados**: 14 tests con 100% de éxito
 5. **Defendible Académicamente**: Proceso completo documentado
 
 ### Puntos a Evitar

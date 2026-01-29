@@ -27,12 +27,16 @@ El proyecto ha sido completamente adaptado para funcionar con el **plan gratuito
 - 📖 [PRESENTACION_TESIS.md](./docs/PRESENTACION_TESIS.md) - Presentación visual
 - 📖 [INICIO_RAPIDO.md](./docs/INICIO_RAPIDO.md) - Inicio rápido
 - 📖 [RESUMEN_CAMBIOS.txt](./docs/RESUMEN_CAMBIOS.txt) - Resumen ejecutivo
+- 📖 [Informe_Evidencias_Pruebas_CSaas_2026-01-29.md](./docs/Informe_Evidencias_Pruebas_CSaas_2026-01-29.md) - Evidencias de pruebas
 
 **Tests:**
 ```bash
-# Ejecutar tests de la nueva arquitectura
+# Ejecutar tests de la arquitectura
 python scripts/test_proxy_architecture.py
-# Resultado: 6/6 tests pasados ✅
+
+# Ejecutar la suite completa
+python scripts/run_all_tests.py
+# Resultado: 14/14 tests pasados ✅
 ```
 
 **Arquitectura:**
@@ -107,6 +111,7 @@ Este sistema automatiza todo el proceso en **menos de 30 segundos**, aplicando:
 ### Backend
 - ✅ API serverless en Python (Vercel Functions)
 - ✅ Integración completa con Cloudflare API
+- ✅ **API de Listado CSaaS** - Estado de clientes provisionados
 - ✅ **API de Control del Servicio** - Activar/Desactivar el servicio globalmente
 - ✅ **API de Toggle Protection** - Habilitar/Deshabilitar protecciones
 - ✅ **API de Verificación de Delegación DNS** - Validar nameservers

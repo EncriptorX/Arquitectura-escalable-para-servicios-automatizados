@@ -127,6 +127,7 @@ TESTING
 
 EJECUTAR TESTS:
 $ python scripts/test_proxy_architecture.py
+$ python scripts/run_all_tests.py
 
 TESTS INCLUIDOS:
 ✅ Test 1: Imports
@@ -137,7 +138,8 @@ TESTS INCLUIDOS:
 ✅ Test 6: Integración Completa
 
 RESULTADO ESPERADO:
-6/6 tests pasados
+6/6 tests pasados (arquitectura proxy)
+14/14 tests pasados (suite completa)
 🎉 ¡Todos los tests pasaron exitosamente!
 
 ================================================================================

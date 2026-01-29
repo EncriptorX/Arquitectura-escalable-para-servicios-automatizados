@@ -6,12 +6,29 @@ Esta carpeta contiene toda la documentación adicional del proyecto **Sistema de
 
 ## 📑 Tabla de Contenidos
 
+- [Arquitectura y CSaaS](#arquitectura-y-csaas)
 - [Verificación y Delegación DNS](#verificación-y-delegación-dns)
 - [Guías de Uso](#guías-de-uso)
-- [Funcionamiento del Sistema](#funcionamiento-del-sistema)
 - [Protección y Seguridad](#protección-y-seguridad)
 - [Implementación y Despliegue](#implementación-y-despliegue)
+- [Evidencias y Pruebas](#evidencias-y-pruebas)
 - [Mejoras y Diseño](#mejoras-y-diseño)
+
+---
+
+## 🏗️ Arquitectura y CSaaS
+
+### [ARQUITECTURA_PROXY.md](./ARQUITECTURA_PROXY.md)
+**Descripción:** Arquitectura completa del proxy inteligente para CSaaS en plan gratuito.
+
+### [CAMBIOS_ARQUITECTURA.md](./CAMBIOS_ARQUITECTURA.md)
+**Descripción:** Resumen de cambios introducidos para compatibilidad con plan Free.
+
+### [README_PROXY.md](./README_PROXY.md)
+**Descripción:** Guía de uso del proxy, endpoints CSaaS y ejemplos.
+
+### [CSAAS_IMPLEMENTATION.md](./CSAAS_IMPLEMENTATION.md)
+**Descripción:** Implementación técnica y flujo de provisión CSaaS.
 
 ---
 
@@ -38,43 +55,6 @@ Esta carpeta contiene toda la documentación adicional del proyecto **Sistema de
 - Pasos de despliegue
 - Troubleshooting
 - Verificación post-despliegue
-
----
-
-### [RESUMEN_EJECUTIVO_VERIFICACION.md](./RESUMEN_EJECUTIVO_VERIFICACION.md)
-**Descripción:** Resumen ejecutivo de la funcionalidad de verificación DNS con métricas de negocio.
-
-**Contenido:**
-- Solución implementada
-- Beneficios para el negocio
-- Cómo funciona (técnico)
-- Métricas de éxito
-- ROI estimado
-
----
-
-### [DIAGRAMA_VERIFICACION_DELEGACION.md](./DIAGRAMA_VERIFICACION_DELEGACION.md)
-**Descripción:** Diagramas de flujo detallados de la verificación de delegación DNS.
-
-**Contenido:**
-- Flujo completo del sistema
-- Arquitectura de componentes
-- Estados del sistema
-- Cronología de propagación DNS
-- Interacción usuario-sistema
-
----
-
-### [UI_MOCKUPS_VERIFICACION.md](./UI_MOCKUPS_VERIFICACION.md)
-**Descripción:** Mockups y diseños de la interfaz de usuario para verificación DNS.
-
-**Contenido:**
-- Vista general del componente
-- Estados de la UI (inicial, verificando, exitoso, pendiente, error)
-- Vista completa en ProcessInfoPage
-- Responsive design
-- Paleta de colores
-- Animaciones
 
 ---
 
@@ -110,61 +90,6 @@ Esta carpeta contiene toda la documentación adicional del proyecto **Sistema de
 - Verificación de configuración
 - Logs del sistema
 - Troubleshooting avanzado
-
----
-
-## ⚙️ Funcionamiento del Sistema
-
-### [CONFIRMACION_FINAL.md](./CONFIRMACION_FINAL.md)
-**Descripción:** Confirmación de que la implementación está correcta y funcionando.
-
-**Contenido:**
-- Checklist de funcionalidades
-- Verificación de componentes
-- Pruebas realizadas
-- Estado final
-
----
-
-### [FUNCIONAMIENTO_REAL_SERVICIO.md](./FUNCIONAMIENTO_REAL_SERVICIO.md)
-**Descripción:** Explicación detallada de cómo funciona el servicio en modo real.
-
-**Contenido:**
-- Diferencia entre modo simulación y modo real
-- Flujo de datos
-- Interacción con Cloudflare API
-- Resultados esperados
-
----
-
-### [DIAGRAMA_FLUJO_SERVICIO.md](./DIAGRAMA_FLUJO_SERVICIO.md)
-**Descripción:** Diagramas de flujo del servicio completo.
-
-**Contenido:**
-- Flujo de solicitud de protección
-- Flujo de verificación
-- Flujo de control de protecciones
-- Interacciones entre componentes
-
----
-
-### [SERVICIO_REAL_VERIFICACION.md](./SERVICIO_REAL_VERIFICACION.md)
-**Descripción:** Verificación de que el servicio funciona en modo real.
-
-**Contenido:**
-- Pruebas de modo real
-- Verificación de protecciones aplicadas
-- Comparación con modo simulación
-
----
-
-### [DIAGNOSTICO_MODO_ACTUAL.md](./DIAGNOSTICO_MODO_ACTUAL.md)
-**Descripción:** Diagnóstico del modo actual del sistema (Real/Simulación).
-
-**Contenido:**
-- Cómo determinar el modo actual
-- Configuración necesaria para modo real
-- Troubleshooting de modo
 
 ---
 
@@ -243,44 +168,22 @@ Esta carpeta contiene toda la documentación adicional del proyecto **Sistema de
 
 ---
 
-### [DEPLOYMENT_FIX.md](./DEPLOYMENT_FIX.md)
-**Descripción:** Correcciones comunes de problemas de despliegue.
-
-**Contenido:**
-- Problemas conocidos
-- Soluciones aplicadas
-- Workarounds
-- Mejores prácticas
-
----
-
 ### [SOLUCION_VERCEL_LIMIT.md](./SOLUCION_VERCEL_LIMIT.md)
 **Descripción:** Solución aplicada para cumplir el límite de funciones serverless en Vercel Hobby (consolidación de endpoints y ajustes de routing).
 
 ---
 
-## 🎨 Mejoras y Diseño
+## 🧪 Evidencias y Pruebas
 
-### [DESIGN_IMPROVEMENTS.md](./DESIGN_IMPROVEMENTS.md)
-**Descripción:** Documentación de mejoras de diseño implementadas.
-
-**Contenido:**
-- Mejoras visuales
-- UX improvements
-- Nuevos componentes
-- Paleta de colores
-- Tipografía
+### [Informe_Evidencias_Pruebas_CSaas_2026-01-29.md](./Informe_Evidencias_Pruebas_CSaas_2026-01-29.md)
+**Descripción:** Evidencia académica de ejecución de pruebas (14/14) con resultados y cobertura.
 
 ---
 
-### [RESPONSIVE_IMPROVEMENTS.md](./RESPONSIVE_IMPROVEMENTS.md)
-**Descripción:** Mejoras de diseño responsive implementadas.
+## 🎨 Mejoras y Diseño
 
-**Contenido:**
-- Breakpoints utilizados
-- Adaptaciones móviles
-- Adaptaciones tablet
-- Testing en diferentes dispositivos
+### [OPTIMIZATION_SUMMARY.md](./OPTIMIZATION_SUMMARY.md)
+**Descripción:** Resumen de optimizaciones realizadas en el proyecto.
 
 ---
 
@@ -290,6 +193,7 @@ Esta carpeta contiene toda la documentación adicional del proyecto **Sistema de
 
 **Para Desarrolladores:**
 - [VERIFICACION_DELEGACION.md](./VERIFICACION_DELEGACION.md)
+- [API_REFERENCE.md](./API_REFERENCE.md)
 - [CLOUDFLARE_INTEGRATION.md](./CLOUDFLARE_INTEGRATION.md)
 - [DEPLOYMENT.md](./DEPLOYMENT.md)
 - [IMPLEMENTACION_MULTI_TENANT.md](./IMPLEMENTACION_MULTI_TENANT.md)
@@ -300,13 +204,12 @@ Esta carpeta contiene toda la documentación adicional del proyecto **Sistema de
 - [README_DIAGNOSTICO.md](./README_DIAGNOSTICO.md)
 
 **Para Gestión:**
-- [RESUMEN_EJECUTIVO_VERIFICACION.md](./RESUMEN_EJECUTIVO_VERIFICACION.md)
-- [CONFIRMACION_FINAL.md](./CONFIRMACION_FINAL.md)
+- [RESUMEN_CAMBIOS.txt](./RESUMEN_CAMBIOS.txt)
+- [PRESENTACION_TESIS.md](./PRESENTACION_TESIS.md)
+- [Informe_Evidencias_Pruebas_CSaas_2026-01-29.md](./Informe_Evidencias_Pruebas_CSaas_2026-01-29.md)
 
-**Para Diseño:**
-- [UI_MOCKUPS_VERIFICACION.md](./UI_MOCKUPS_VERIFICACION.md)
-- [DESIGN_IMPROVEMENTS.md](./DESIGN_IMPROVEMENTS.md)
-- [RESPONSIVE_IMPROVEMENTS.md](./RESPONSIVE_IMPROVEMENTS.md)
+**Para Presentación:**
+- [PRESENTACION_TESIS.md](./PRESENTACION_TESIS.md)
 
 ---
 

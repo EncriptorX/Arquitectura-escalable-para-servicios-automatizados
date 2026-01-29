@@ -286,6 +286,14 @@ RESULTADO FINAL: 6/6 tests pasados
 ✅ Compatible con plan gratuito de Cloudflare
 ```
 
+```bash
+$ python scripts/run_all_tests.py
+...
+TOTAL: 14/14 tests pasaron
+```
+
+✅ Suite completa verificada (validación, unitarios e integración)
+
 ### Validaciones Realizadas
 
 1. ✅ **Imports**: Todos los módulos se importan correctamente
@@ -461,8 +469,8 @@ Esta solución permite a pequeñas empresas y startups:
    GET /api/csaas-list
    ```
 
-4. **Verificar Mapeo**
-   - Mapa del proxy: `democlient-abc123.suncarsrl.com` → `example.com`
+4. **Verificar Estado**
+   - Confirmar `hostname`, `status` y `ssl_status` en el listado
 
 ---
 
@@ -470,7 +478,7 @@ Esta solución permite a pequeñas empresas y startups:
 
 ✅ Arquitectura completa implementada
 
-✅ 6/6 tests automatizados pasados
+✅ 14/14 tests automatizados pasados
 
 ✅ 5 documentos técnicos generados
 

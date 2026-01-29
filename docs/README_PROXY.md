@@ -70,6 +70,7 @@ src/components/
 ├── ARQUITECTURA_PROXY.md      # Arquitectura completa
 ├── CAMBIOS_ARQUITECTURA.md    # Resumen de cambios
 ├── README_PROXY.md            # Este archivo
+├── Informe_Evidencias_Pruebas_CSaas_2026-01-29.md # Evidencias de pruebas
 └── scripts/
     └── test_proxy_architecture.py  # Tests de la arquitectura
 ```
@@ -113,6 +114,9 @@ ALLOWED_HOSTS=localhost,127.0.0.1,*.vercel.app
 
 ```bash
 python scripts/test_proxy_architecture.py
+
+# Suite completa de verificación
+python scripts/run_all_tests.py
 ```
 
 **Salida esperada**:
@@ -127,6 +131,8 @@ python scripts/test_proxy_architecture.py
 RESULTADO FINAL: 6/6 tests pasados
 🎉 ¡Todos los tests pasaron exitosamente!
 ```
+
+**Suite completa:** `14/14 tests pasados ✅`
 
 ### 4. Ejecutar en Desarrollo
 
@@ -182,17 +188,14 @@ npm run dev
   "total_clients": 1,
   "clients": [
     {
-      "client_key": "CLI-12345",
-      "client_name": "Acme Corporation",
-      "subdomain": "acmecorporation-abc123.suncarsrl.com",
-      "protected_url": "https://acmecorporation-abc123.suncarsrl.com",
-      "origin_urls": ["www.acme.com"],
-      "status": "active"
+      "id": "CLI-12345",
+      "hostname": "acmecorporation-abc123.suncarsrl.com",
+      "status": "active",
+      "ssl_status": "active",
+      "created_at": "2026-01-29T09:51:40Z",
+      "verification_errors": []
     }
-  ],
-  "proxy_map": {
-    "acmecorporation-abc123.suncarsrl.com": "www.acme.com"
-  }
+  ]
 }
 ```
 

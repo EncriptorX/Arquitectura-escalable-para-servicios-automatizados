@@ -1,5 +1,13 @@
 # Verificación de Protección Perimetral Cloudflare
 
+Este documento aplica a dos flujos del sistema:
+
+- **Flujo estándar**: `api/solicitar-proteccion.py`
+- **Flujo CSaaS con proxy**: `api/csaas-provision.py` + `api/proxy.py`
+
+En ambos casos se aplican las mismas políticas perimetrales (WAF, HTTPS, nivel de seguridad, etc.).
+El estado puede consultarse además con `POST /api/status` y el listado CSaaS con `GET /api/csaas-list`.
+
 ## ✅ Protecciones Implementadas
 
 El script `api/solicitar-proteccion.py` implementa **TODAS** las protecciones de seguridad perimetral de Cloudflare:

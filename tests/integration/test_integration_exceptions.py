@@ -13,6 +13,7 @@ from api.exceptions import (
     ValidationError,
     AuthenticationError,
     CloudflareAPIError,
+    CloudflarePermissionError,
     DNSError,
     NetworkError,
     ServiceDisabledError,
@@ -111,7 +112,8 @@ def test_cloudflare_error_mapping():
     }
     
     error = handle_cloudflare_error(error_body, "/zones")
-    assert "CloudflareAPIError" in error.__class__.__name__
+    assert isinstance(error, CloudflareAPIError)
+    assert isinstance(error, CloudflarePermissionError)
     assert error.status_code == 403
     print("  ✓ Error 10000 → CloudflarePermissionError")
     
