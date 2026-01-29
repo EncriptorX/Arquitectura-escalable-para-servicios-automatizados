@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Globe, Lock, Server, Settings, Shield, ShieldCheck, Sparkles, Eye } from 'lucide-react';
+import { CheckCircle, Globe, Lock, Server, Settings, Shield, Sparkles } from 'lucide-react';
 import {
   csaasModeHighlights,
   directModeHighlights,

@@ -1,12 +1,13 @@
-import { useCallback, useState } from 'react';
-import ServiceRequestForm from './components/ServiceRequestForm';
-import ProcessInfoPage from './components/ProcessInfoPage';
-import ControlPanelPage from './components/ControlPanelPage';
-import CSaaSRequestForm from './components/CSaaSRequestForm';
-import CSaaSResultPage from './components/CSaaSResultPage';
-import CSaaSClientsPage from './components/CSaaSClientsPage';
+import { Suspense, lazy, useCallback, useState } from 'react';
 import HomePage from './components/HomePage';
 import type { CSaaSInfo, ProcessInfo, View } from './types/app';
+
+const ServiceRequestForm = lazy(() => import('./components/ServiceRequestForm'));
+const ProcessInfoPage = lazy(() => import('./components/ProcessInfoPage'));
+const ControlPanelPage = lazy(() => import('./components/ControlPanelPage'));
+const CSaaSRequestForm = lazy(() => import('./components/CSaaSRequestForm'));
+const CSaaSResultPage = lazy(() => import('./components/CSaaSResultPage'));
+const CSaaSClientsPage = lazy(() => import('./components/CSaaSClientsPage'));
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('home');
@@ -46,62 +47,64 @@ function App() {
 
   if (currentView === 'control-panel') {
     return (
-      <ControlPanelPage 
-        onBack={handleBackHome}
-        onRequestProtection={() => setCurrentView('form')}
-      />
+      <Suspense fallback={null}>
+        <ControlPanelPage
+          onBack={handleBackHome}
+          onRequestProtection={() => setCurrentView('form')}
+        />
+      </Suspense>
     );
   }
 
   if (currentView === 'csaas-clients') {
     return (
-      <CSaaSClientsPage
-        onBack={handleBackHome}
-      />
+      <Suspense fallback={null}>
+        <CSaaSClientsPage onBack={handleBackHome} />
+      </Suspense>
     );
   }
 
   if (currentView === 'csaas-result' && csaasInfo) {
     return (
-      <CSaaSResultPage
-        subdomain={csaasInfo.subdomain}
-        protected_url={csaasInfo.protected_url}
-        origin_urls={csaasInfo.origin_urls}
-        message={csaasInfo.message}
-        logs={csaasInfo.logs}
-        onBack={handleBackHome}
-        onNewRequest={handleNewCSaaSRequest}
-      />
+      <Suspense fallback={null}>
+        <CSaaSResultPage
+          subdomain={csaasInfo.subdomain}
+          protected_url={csaasInfo.protected_url}
+          origin_urls={csaasInfo.origin_urls}
+          message={csaasInfo.message}
+          logs={csaasInfo.logs}
+          onBack={handleBackHome}
+          onNewRequest={handleNewCSaaSRequest}
+        />
+      </Suspense>
     );
   }
 
   if (currentView === 'process' && processInfo) {
     return (
-      <ProcessInfoPage
-        urls={processInfo.urls}
-        message={processInfo.message}
-        output={processInfo.output}
-        onBack={handleBackHome}
-        onNewRequest={handleNewRequest}
-      />
+      <Suspense fallback={null}>
+        <ProcessInfoPage
+          urls={processInfo.urls}
+          message={processInfo.message}
+          output={processInfo.output}
+          onBack={handleBackHome}
+          onNewRequest={handleNewRequest}
+        />
+      </Suspense>
     );
   }
 
   return (
     <>
-      {currentView === 'form' && (
-        <ServiceRequestForm
-          onClose={handleBackHome}
-          onSuccess={handleSuccess}
-        />
-      )}
+      <Suspense fallback={null}>
+        {currentView === 'form' && (
+          <ServiceRequestForm onClose={handleBackHome} onSuccess={handleSuccess} />
+        )}
 
-      {currentView === 'csaas-form' && (
-        <CSaaSRequestForm
-          onClose={handleBackHome}
-          onSuccess={handleCSaaSSuccess}
-        />
-      )}
+        {currentView === 'csaas-form' && (
+          <CSaaSRequestForm onClose={handleBackHome} onSuccess={handleCSaaSSuccess} />
+        )}
+      </Suspense>
 
       {(currentView === 'home' || currentView === 'form' || currentView === 'csaas-form') && (
         <HomePage

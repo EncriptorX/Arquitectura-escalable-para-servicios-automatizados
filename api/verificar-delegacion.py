@@ -7,10 +7,44 @@ import json
 import os
 import socket
 import urllib.request
+import urllib.error
 import sys
 
 # Agregar el directorio api al path
 sys.path.insert(0, os.path.dirname(__file__))
+
+try:
+    from config import CF_API_TOKEN, CF_ZONE_ID
+    from utils import make_cloudflare_request
+    CONFIG_AVAILABLE = True
+except ImportError:
+    CONFIG_AVAILABLE = False
+    CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
+    CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
+
+    def make_cloudflare_request(method: str, endpoint: str, data=None):
+        url = f"https://api.cloudflare.com/client/v4/{endpoint}"
+        headers = {
+            "Authorization": f"Bearer {CF_API_TOKEN}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            req = urllib.request.Request(url, headers=headers, method=method)
+            with urllib.request.urlopen(req, timeout=10) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            return {
+                "success": False,
+                "errors": [{"message": f"HTTP {e.code}: {e.reason}"}],
+                "status_code": e.code,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "errors": [{"message": str(e)}],
+                "status_code": None,
+            }
 
 try:
     import dns.resolver
@@ -52,10 +86,13 @@ except ImportError:
     get_user_friendly_message = lambda e: str(e)
 
 
-# Configuración desde Vercel ENV
-CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
-CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
-
+def _extract_error_message(result: dict, fallback: str) -> str:
+    if not isinstance(result, dict):
+        return fallback
+    errors = result.get("errors") or []
+    if errors and isinstance(errors, list) and isinstance(errors[0], dict):
+        return errors[0].get("message", fallback)
+    return result.get("error") or fallback
 
 def verify_dns(domain, expected_ns):
     """
@@ -163,29 +200,20 @@ def obtener_nameservers_alternativo(dominio):
         return None, f"Error en verificación alternativa: {str(e)}"
 
 
-def obtener_nameservers_cloudflare(zone_id, api_token):
+def obtener_nameservers_cloudflare(zone_id, _api_token):
     """
     Obtiene los nameservers asignados por Cloudflare para la zona.
     """
     try:
-        url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}"
-        headers = {
-            "Authorization": f"Bearer {api_token}",
-            "Content-Type": "application/json"
-        }
-        
-        req = urllib.request.Request(url, headers=headers, method='GET')
-        
-        with urllib.request.urlopen(req, timeout=10) as response:
-            result = json.loads(response.read().decode('utf-8'))
-        
-        if result.get("success"):
+        result = make_cloudflare_request("GET", f"zones/{zone_id}")
+
+        if result and result.get("success"):
             zone_data = result["result"]
             return zone_data.get("name_servers", []), zone_data.get("name", "")
         
-        return None, None
+        return None, _extract_error_message(result, "No se pudo obtener nameservers de Cloudflare")
     except Exception as e:
-        return None, None
+        return None, str(e)
 
 
 def verificar_delegacion(dominio_actual, nameservers_cloudflare):
