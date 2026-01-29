@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 try:
     from utils import get_cors_headers
+    from utils import is_host_allowed
 except ImportError:
     def get_cors_headers(origin):
         allowed_origin = "null"
@@ -36,6 +37,11 @@ except ImportError:
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Vary": "Origin",
         }
+    def is_host_allowed(host: str) -> bool:
+        allowed = {h.strip().lower() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()}
+        normalized = (host or "").split(":")[0].strip().lower()
+        vercel_url = os.getenv("VERCEL_URL", "").strip().lower()
+        return bool(normalized and (normalized in allowed or (vercel_url and normalized == vercel_url)))
 
 try:
     from config import is_service_enabled
@@ -94,6 +100,12 @@ except ImportError:
     CloudflareAPIError = BaseAPIError
     NetworkError = BaseAPIError
     TimeoutError = BaseAPIError
+    def _reject_invalid_host(self) -> bool:
+        host = self.headers.get('Host', '')
+        if not is_host_allowed(host):
+            self._send_error("Host no autorizado", 400, host=host)
+            return True
+        return False
     ServiceDisabledError = BaseAPIError
 
 # ===============================
@@ -691,10 +703,14 @@ class handler(BaseHTTPRequestHandler):
     
     def do_OPTIONS(self):
         """Maneja preflight CORS"""
+        if self._reject_invalid_host():
+            return
         self._send_json({"message": "OK"}, 200)
     
     def do_GET(self):
         """Health check y listado de clientes provisionados"""
+        if self._reject_invalid_host():
+            return
         # Listar clientes provisionados
         clients = []
         for key, info in CSaaSConfig.PROVISIONED_CLIENTS.items():
@@ -733,6 +749,8 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Provisiona un nuevo cliente en CSaaS"""
         try:
+            if self._reject_invalid_host():
+                return
             # Verificar si el servicio está habilitado
             if not is_service_enabled():
                 if EXCEPTIONS_AVAILABLE:

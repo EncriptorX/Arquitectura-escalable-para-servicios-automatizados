@@ -37,6 +37,11 @@ except ImportError:
         return True
 
 try:
+    def is_host_allowed(host: str) -> bool:
+        allowed = {h.strip().lower() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()}
+        normalized = (host or "").split(":")[0].strip().lower()
+        vercel_url = os.getenv("VERCEL_URL", "").strip().lower()
+        return bool(normalized and (normalized in allowed or (vercel_url and normalized == vercel_url)))
     from logger import (
         protection_logger,
         log_protection_request,
@@ -56,6 +61,12 @@ except ImportError:
         def error(self, *args, **kwargs): pass
         def audit(self, *args, **kwargs): pass
     
+    def _reject_invalid_host(self) -> bool:
+        host = self.headers.get('Host', '')
+        if not is_host_allowed(host):
+            self._send_error("Host no autorizado", 400, host=host)
+            return True
+        return False
     protection_logger = DummyLogger()
     log_protection_request = lambda *args, **kwargs: None
     log_dns_configuration = lambda *args, **kwargs: None
@@ -63,6 +74,8 @@ except ImportError:
     log_firewall_rule = lambda *args, **kwargs: None
     log_api_error = lambda *args, **kwargs: None
     log_turnstile_verification = lambda *args, **kwargs: None
+        if self._reject_invalid_host():
+            return
 
 try:
     from config import (
@@ -769,6 +782,8 @@ class handler(BaseHTTPRequestHandler):
     
     def do_OPTIONS(self):
         """Maneja preflight CORS"""
+        if self._reject_invalid_host():
+            return
         self._send_json({"message": "OK"}, 200)
     
     def do_GET(self):
@@ -783,6 +798,8 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Procesa solicitud de protección"""
         try:
+            if self._reject_invalid_host():
+                return
             # Verificar si el servicio está habilitado
             if not is_service_enabled():
                 if EXCEPTIONS_AVAILABLE:

@@ -60,6 +60,11 @@ Este documento resume las medidas de seguridad implementadas en el proyecto.
 - **X-Content-Type-Options: nosniff** para evitar MIME sniffing.
 - **Referrer-Policy: no-referrer** para limitar fuga de URLs.
 
+## 11) Validación de Host (virtual host)
+
+- Allowlist de `Host` para evitar acceso por hosts inesperados.
+- Uso de `ALLOWED_HOSTS` y `VERCEL_URL`.
+
 ---
 
 Si necesitas ajustar alguna política (por ejemplo, permitir `frame-ancestors` para un dominio de confianza), indícalo y se actualiza.
