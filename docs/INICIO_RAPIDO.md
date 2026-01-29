@@ -7,9 +7,12 @@
 ```bash
 # Ejecutar tests
 python scripts/test_proxy_architecture.py
+
+# Ejecutar suite completa
+python scripts/run_all_tests.py
 ```
 
-**Resultado esperado**: `6/6 tests pasados ✅`
+**Resultado esperado**: `14/14 tests pasados ✅`
 
 ### 2. Configurar Variables de Entorno
 
@@ -50,7 +53,7 @@ Abrir navegador en `http://localhost:5173` y:
 
 ### Antes de Presentar
 
-- [ ] Tests pasando (6/6)
+- [ ] Tests pasando (14/14)
 - [ ] Variables de entorno configuradas
 - [ ] Frontend funcionando
 - [ ] Backend funcionando
@@ -63,6 +66,7 @@ Abrir navegador en `http://localhost:5173` y:
 - [ ] `PRESENTACION_TESIS.md` - Presentación visual
 - [ ] `RESUMEN_CAMBIOS.txt` - Resumen ejecutivo
 - [ ] `README_PROXY.md` - Guía de uso
+- [ ] `Informe_Evidencias_Pruebas_CSaas_2026-01-29.md` - Evidencias de pruebas
 
 ---
 
@@ -86,7 +90,7 @@ Cliente → Subdominio → Backend Proxy → Dominio Real
 - ✅ Defendible académicamente
 
 ### 5. Resultados
-- ✅ 6/6 tests pasados
+- ✅ 14/14 tests pasados
 - ✅ Código funcional
 - ✅ Documentación completa
 
@@ -134,7 +138,7 @@ forward_request(origin_url, path, headers, body)
 
 | Métrica | Objetivo | Resultado |
 |---------|----------|-----------|
-| Tests Pasados | 6/6 | ✅ 6/6 |
+| Tests Pasados | 14/14 | ✅ 14/14 |
 | Documentos | 5+ | ✅ 8 |
 | Código Funcional | Sí | ✅ Sí |
 | Compatible Free | Sí | ✅ Sí |

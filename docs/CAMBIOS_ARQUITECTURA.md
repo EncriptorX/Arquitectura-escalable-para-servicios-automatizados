@@ -221,10 +221,16 @@ curl http://localhost:5173/api/csaas-list
 {
   "status": "ok",
   "total_clients": 1,
-  "clients": [...],
-  "proxy_map": {
-    "testclient-abc123.suncarsrl.com": "example.com"
-  }
+  "clients": [
+    {
+      "id": "CLI-12345",
+      "hostname": "testclient-abc123.suncarsrl.com",
+      "status": "active",
+      "ssl_status": "active",
+      "created_at": "2026-01-29T09:51:40Z",
+      "verification_errors": []
+    }
+  ]
 }
 ```
 

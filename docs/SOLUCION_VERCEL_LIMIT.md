@@ -52,29 +52,20 @@ def do_GET(self):
     """Health check y listado de clientes provisionados"""
     clients = []
     for key, info in CSaaSConfig.PROVISIONED_CLIENTS.items():
-        clients.append({
-            "client_key": key,
-            "client_name": info["client_name"],
-            "subdomain": info["subdomain"],
-            "protected_url": f"https://{info['subdomain']}",
-            "status": info["status"],
-            "origin_urls": info["origin_urls"],
-            "created_at": info["created_at"]
-        })
-    
-    # Obtener mapeo del proxy
-    try:
-        from proxy import ProxyConfig
-        proxy_map = dict(ProxyConfig.SUBDOMAIN_MAP)
-    except ImportError:
-        proxy_map = {}
+      clients.append({
+        "id": key,
+        "hostname": info["subdomain"],
+        "status": info.get("status", "unknown"),
+        "ssl_status": info.get("ssl_status", "unknown"),
+        "created_at": info.get("created_at"),
+        "verification_errors": info.get("verification_errors") or []
+      })
     
     self._send_json({
         "status": "ok",
-        "message": "CSaaS Provisioning API funcionando",
-        "provisioned_clients": clients,
+        "message": "CSaaS List API funcionando",
+        "clients": clients,
         "total_clients": len(clients),
-        "proxy_map": proxy_map,
         "architecture": {
             "type": "Reverse Proxy (Plan Gratuito)",
             "description": "Backend proxy inteligente sin custom_origin_server",
@@ -209,11 +200,8 @@ Ambos endpoints devuelven la misma respuesta:
 ```json
 {
   "status": "ok",
-  "message": "CSaaS Provisioning API funcionando",
-  "provisioned_clients": [...],
   "total_clients": 1,
-  "proxy_map": {...},
-  "architecture": {...}
+  "clients": [...]
 }
 ```
 

@@ -211,11 +211,76 @@ Configura protección perimetral completa para uno o más dominios.
 
 ---
 
-### 3. Control de Protección
+---
+
+### 3. CSaaS (Cloudflare as a Service)
+
+Provisiona clientes en modo CSaaS y expone el listado de clientes registrados.
+
+#### 3.1 Provisionar Cliente CSaaS
+
+**Endpoint:** `POST /api/csaas-provision`
+
+**Request Body:**
+```json
+{
+  "client_name": "Acme Corporation",
+  "client_id": "CLI-12345",
+  "urls": ["www.acme.com", "app.acme.com"]
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "ok",
+  "message": "Cliente provisionado exitosamente en CSaaS",
+  "subdomain": "acmecorporation-abc123.suncarsrl.com",
+  "protected_url": "https://acmecorporation-abc123.suncarsrl.com",
+  "custom_hostname_id": "ch_abc123xyz",
+  "origin_urls": ["www.acme.com"],
+  "security_rules": {
+    "waf": true,
+    "https_redirect": true,
+    "security_level": true,
+    "bot_fight_mode": true
+  }
+}
+```
+
+**Notas:**
+- No utiliza `custom_origin_server` ni `custom_origin_sni` (plan gratuito).
+- El proxy se gestiona desde el backend en `api/proxy.py`.
+
+#### 3.2 Listar Clientes CSaaS
+
+**Endpoint:** `GET /api/csaas-list`
+
+**Response (200 OK):**
+```json
+{
+  "status": "ok",
+  "total_clients": 1,
+  "clients": [
+    {
+      "id": "CLI-12345",
+      "hostname": "acmecorporation-abc123.suncarsrl.com",
+      "status": "active",
+      "ssl_status": "active",
+      "created_at": "2026-01-29T09:51:40Z",
+      "verification_errors": []
+    }
+  ]
+}
+```
+
+---
+
+### 4. Control de Protección
 
 Obtiene el estado o activa/desactiva protecciones.
 
-#### 3.1 Obtener Estado
+#### 4.1 Obtener Estado
 
 **Endpoint:** `GET /api/toggle-protection`
 
@@ -239,7 +304,7 @@ Obtiene el estado o activa/desactiva protecciones.
 }
 ```
 
-#### 3.2 Activar/Desactivar Protección
+#### 4.2 Activar/Desactivar Protección
 
 **Endpoint:** `POST /api/toggle-protection`
 
@@ -280,11 +345,11 @@ Obtiene el estado o activa/desactiva protecciones.
 
 ---
 
-### 3. Verificación de Delegación DNS
+### 5. Verificación de Delegación DNS
 
 Verifica si un dominio está delegado correctamente a Cloudflare usando verificación DNS real con dnspython.
 
-#### 3.1 Health Check
+#### 5.1 Health Check
 
 **Endpoint:** `GET /api/verificar-delegacion`
 
@@ -297,7 +362,7 @@ Verifica si un dominio está delegado correctamente a Cloudflare usando verifica
 }
 ```
 
-#### 3.2 Verificar Dominio
+#### 5.2 Verificar Dominio
 
 **Endpoint:** `POST /api/verificar-delegacion`
 
@@ -365,11 +430,11 @@ Verifica si un dominio está delegado correctamente a Cloudflare usando verifica
 
 ---
 
-### 5. Estado del Dominio (NUEVO)
+### 6. Estado del Dominio
 
 Consulta el estado actual de un dominio en Cloudflare. Demuestra evidencia técnica de idempotencia, recursos existentes y configuración actual.
 
-#### 5.1 Health Check
+#### 6.1 Health Check
 
 **Endpoint:** `GET /api/status`
 
@@ -382,7 +447,7 @@ Consulta el estado actual de un dominio en Cloudflare. Demuestra evidencia técn
 }
 ```
 
-#### 5.2 Consultar Estado de Dominio
+#### 6.2 Consultar Estado de Dominio
 
 **Endpoint:** `POST /api/status`
 
