@@ -97,6 +97,10 @@
         {
           "key": "Content-Security-Policy",
           "value": "frame-ancestors 'none'"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()"
         }
       ]
     }
