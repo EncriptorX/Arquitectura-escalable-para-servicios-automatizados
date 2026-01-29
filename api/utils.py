@@ -7,8 +7,9 @@ import urllib.error
 import urllib.parse
 import re
 import socket
+import fnmatch
 from typing import Dict, Any, Optional, Tuple
-from api.config import CF_API_BASE_URL, get_headers, API_TIMEOUT, TURNSTILE_VERIFY_URL, TURNSTILE_SECRET_KEY
+from api.config import CF_API_BASE_URL, get_headers, API_TIMEOUT, TURNSTILE_VERIFY_URL, TURNSTILE_SECRET_KEY, ALLOWED_ORIGINS
 
 
 def make_cloudflare_request(method: str, endpoint: str, data: Optional[Dict] = None) -> Optional[Dict]:
@@ -281,3 +282,26 @@ def check_domain_in_zone(domain: str, zone_name: str) -> bool:
         True si pertenece, False si no
     """
     return domain == zone_name or domain.endswith(f".{zone_name}")
+
+
+def is_origin_allowed(origin: str) -> bool:
+    """Valida si un origin está permitido por la allowlist."""
+    if not origin:
+        return False
+
+    origin = origin.strip().lower()
+    for pattern in ALLOWED_ORIGINS:
+        if fnmatch.fnmatch(origin, pattern.lower()):
+            return True
+    return False
+
+
+def get_cors_headers(origin: Optional[str]) -> Dict[str, str]:
+    """Construye headers CORS basados en allowlist."""
+    allowed_origin = origin if origin and is_origin_allowed(origin) else "null"
+    return {
+        "Access-Control-Allow-Origin": allowed_origin,
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Vary": "Origin",
+    }

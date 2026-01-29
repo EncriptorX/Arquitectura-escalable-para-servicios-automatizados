@@ -5,6 +5,16 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 
+try:
+    from utils import get_cors_headers
+except ImportError:
+    def get_cors_headers(origin):
+        return {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        }
+
 
 class handler(BaseHTTPRequestHandler):
     """Handler de diagnóstico"""
@@ -12,7 +22,14 @@ class handler(BaseHTTPRequestHandler):
     def _set_headers(self, status_code=200):
         self.send_response(status_code)
         self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
+        origin = self.headers.get('Origin')
+        for key, value in get_cors_headers(origin).items():
+            self.send_header(key, value)
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('X-Frame-Options', 'DENY')
+        self.send_header('Referrer-Policy', 'no-referrer')
+        self.send_header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
+        self.send_header('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()')
         self.end_headers()
     
     def do_GET(self):
@@ -33,17 +50,14 @@ class handler(BaseHTTPRequestHandler):
             "configuracion": {
                 "CF_API_TOKEN": {
                     "configurado": bool(CF_API_TOKEN),
-                    "preview": CF_API_TOKEN[:10] + "..." if CF_API_TOKEN else "NO CONFIGURADO",
                     "longitud": len(CF_API_TOKEN) if CF_API_TOKEN else 0
                 },
                 "CF_ZONE_ID": {
                     "configurado": bool(CF_ZONE_ID),
-                    "preview": CF_ZONE_ID[:8] + "..." if CF_ZONE_ID else "NO CONFIGURADO",
                     "longitud": len(CF_ZONE_ID) if CF_ZONE_ID else 0
                 },
                 "TURNSTILE_SECRET_KEY": {
                     "configurado": bool(TURNSTILE_SECRET_KEY),
-                    "preview": TURNSTILE_SECRET_KEY[:10] + "..." if TURNSTILE_SECRET_KEY else "NO CONFIGURADO",
                     "longitud": len(TURNSTILE_SECRET_KEY) if TURNSTILE_SECRET_KEY else 0
                 }
             },

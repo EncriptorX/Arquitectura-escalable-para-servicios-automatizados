@@ -14,6 +14,16 @@ from typing import Optional, Dict
 sys.path.insert(0, os.path.dirname(__file__))
 
 try:
+    from utils import get_cors_headers
+except ImportError:
+    def get_cors_headers(origin):
+        return {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        }
+
+try:
     from config import CF_API_TOKEN, CF_ZONE_ID, API_TIMEOUT
     from utils import validate_url, make_cloudflare_request
     UTILS_AVAILABLE = True
@@ -279,9 +289,14 @@ class handler(BaseHTTPRequestHandler):
         """Configura los headers de respuesta"""
         self.send_response(status_code)
         self.send_header('Content-Type', content_type)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        origin = self.headers.get('Origin')
+        for key, value in get_cors_headers(origin).items():
+            self.send_header(key, value)
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('X-Frame-Options', 'DENY')
+        self.send_header('Referrer-Policy', 'no-referrer')
+        self.send_header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
+        self.send_header('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()')
         self.end_headers()
     
     def _send_json(self, data, status_code=200):
