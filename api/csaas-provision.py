@@ -51,6 +51,7 @@ except ImportError:
 
 try:
     from config import CF_API_TOKEN, CF_ZONE_ID, CSAAS_ZONE, CSAAS_CNAME_TARGET, API_TIMEOUT
+    from config import CSaaSConfig as SharedCSaaSConfig
     CONFIG_AVAILABLE = True
 except ImportError:
     CONFIG_AVAILABLE = False
@@ -59,6 +60,8 @@ except ImportError:
     CSAAS_ZONE = os.getenv("CSAAS_ZONE", "suncarsrl.com")
     CSAAS_CNAME_TARGET = os.getenv("CSAAS_CNAME_TARGET", "customers.suncarsrl.com")
     API_TIMEOUT = 30
+    class SharedCSaaSConfig:
+        PROVISIONED_CLIENTS = {}
 
 try:
     from logger import protection_logger, log_api_error
@@ -620,17 +623,31 @@ class CloudflareSaaSClient:
         # PASO 5: Almacenar en memoria y configurar proxy
         self.log(f"[PASO 5/5] Almacenando información del cliente y configurando proxy...")
         client_key = client_id or hashlib.md5(client_name.encode()).hexdigest()[:16]
-        CSaaSConfig.PROVISIONED_CLIENTS[client_key] = {
+        ssl_status = None
+        verification_errors = []
+        if active_details and isinstance(active_details, dict):
+            ssl_status = active_details.get("ssl", {}).get("status")
+            verification_errors = active_details.get("verification_errors") or []
+        if not ssl_status and ch_details and isinstance(ch_details, dict):
+            ssl_status = ch_details.get("ssl", {}).get("status")
+            verification_errors = verification_errors or (ch_details.get("verification_errors") or [])
+
+        client_record = {
             "client_name": client_name,
             "client_id": client_id,
             "subdomain": subdomain,
             "custom_hostname_id": ch_id,
             "cname_record_id": record_id,
             "origin_urls": urls,
-            "status": "active",
+            "status": final_status,
+            "ssl_status": ssl_status or "unknown",
+            "verification_errors": verification_errors,
             "security_rules": security_results,
             "created_at": time.time()
         }
+
+        CSaaSConfig.PROVISIONED_CLIENTS[client_key] = client_record
+        SharedCSaaSConfig.PROVISIONED_CLIENTS[client_key] = client_record
         
         # Configurar mapa del proxy: subdominio -> dominio real del cliente
         try:
