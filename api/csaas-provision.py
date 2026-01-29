@@ -532,17 +532,36 @@ class CloudflareSaaSClient:
         # Rate Limiting básico usando Firewall Rules (disponible en todos los planes)
         self.log("  → Configurando Rate Limiting básico...")
         try:
-            # Crear regla de firewall para rate limiting básico
-            rate_limit_rule = {
-                "filter": {
-                    "expression": f'(http.host eq "{hostname}")',
-                    "paused": False
-                },
-                "action": "challenge",
-                "description": f"Rate limiting básico para {hostname}"
-            }
-            rl_res = self.request("POST", f"zones/{self.zone_id}/firewall/rules", rate_limit_rule)
-            results["rate_limiting"] = bool(rl_res and rl_res.get("success"))
+            cas_description = f"CAS Rate Limiting - {hostname}"
+            filter_expression = f'(http.host eq "{hostname}")'
+
+            # Verificar si ya existe una regla CAS para este hostname (idempotente)
+            existing = self.request("GET", f"zones/{self.zone_id}/firewall/rules")
+            existing_rules = existing.get("result", []) if existing and existing.get("success") else []
+            matched = next(
+                (
+                    r for r in existing_rules
+                    if r.get("description") == cas_description
+                    and r.get("filter", {}).get("expression") == filter_expression
+                ),
+                None
+            )
+
+            if matched:
+                self.log("  ✓ Regla de rate limiting ya existe (CAS)")
+                results["rate_limiting"] = True
+            else:
+                # Crear regla de firewall para rate limiting básico
+                rate_limit_rule = {
+                    "filter": {
+                        "expression": filter_expression,
+                        "paused": False
+                    },
+                    "action": "challenge",
+                    "description": cas_description
+                }
+                rl_res = self.request("POST", f"zones/{self.zone_id}/firewall/rules", rate_limit_rule)
+                results["rate_limiting"] = bool(rl_res and rl_res.get("success"))
         except Exception as e:
             self.log(f"  ⚠️ No se pudo configurar rate limiting: {str(e)}", "WARN")
             results["rate_limiting"] = False
