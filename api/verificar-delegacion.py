@@ -14,7 +14,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 try:
-    from utils import get_cors_headers
+    from utils import get_cors_headers, is_host_allowed
 except ImportError:
     def get_cors_headers(origin):
         allowed_origin = "null"
@@ -24,6 +24,11 @@ except ImportError:
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Vary": "Origin",
         }
+    def is_host_allowed(host: str) -> bool:
+        allowed = {h.strip().lower() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()}
+        normalized = (host or "").split(":")[0].strip().lower()
+        vercel_url = os.getenv("VERCEL_URL", "").strip().lower()
+        return bool(normalized and (normalized in allowed or (vercel_url and normalized == vercel_url)))
 
 try:
     from config import CF_API_TOKEN, CF_ZONE_ID
@@ -251,6 +256,17 @@ def verificar_delegacion(dominio_actual, nameservers_cloudflare):
 
 class handler(BaseHTTPRequestHandler):
     """Handler para Vercel Serverless Function"""
+
+    def _reject_invalid_host(self) -> bool:
+        host = self.headers.get('Host', '')
+        if not is_host_allowed(host):
+            self._send_json({
+                "status": "error",
+                "message": "Host no autorizado",
+                "host": host
+            }, 400)
+            return True
+        return False
     
     def _set_headers(self, status_code=200, content_type='application/json'):
         """Configura los headers de respuesta"""
@@ -291,10 +307,14 @@ class handler(BaseHTTPRequestHandler):
     
     def do_OPTIONS(self):
         """Maneja preflight CORS"""
+        if self._reject_invalid_host():
+            return
         self._send_json({"message": "OK"}, 200)
     
     def do_GET(self):
         """Health check"""
+        if self._reject_invalid_host():
+            return
         self._send_json({
             "status": "ok",
             "message": "API de verificación de delegación DNS funcionando",
@@ -304,6 +324,8 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Verifica el estado de delegación DNS de un dominio"""
         try:
+            if self._reject_invalid_host():
+                return
             data, parse_error = self._read_json()
             if parse_error:
                 self._send_error(f"Error parseando JSON: {parse_error}", 400)

@@ -2,6 +2,7 @@
 Utilidades compartidas para las APIs
 """
 import json
+import os
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -9,7 +10,7 @@ import re
 import socket
 import fnmatch
 from typing import Dict, Any, Optional, Tuple
-from api.config import CF_API_BASE_URL, get_headers, API_TIMEOUT, TURNSTILE_VERIFY_URL, TURNSTILE_SECRET_KEY, ALLOWED_ORIGINS
+from api.config import CF_API_BASE_URL, get_headers, API_TIMEOUT, TURNSTILE_VERIFY_URL, TURNSTILE_SECRET_KEY, ALLOWED_ORIGINS, ALLOWED_HOSTS
 
 
 def make_cloudflare_request(method: str, endpoint: str, data: Optional[Dict] = None) -> Optional[Dict]:
@@ -293,3 +294,23 @@ def get_cors_headers(origin: Optional[str]) -> Dict[str, str]:
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
         "Vary": "Origin",
     }
+
+
+def is_host_allowed(host: Optional[str]) -> bool:
+    """Valida si el Host es permitido por la allowlist."""
+    if not host:
+        return False
+
+    normalized = host.split(":")[0].strip().lower()
+    if not normalized:
+        return False
+
+    vercel_url = os.getenv("VERCEL_URL", "").strip().lower()
+    if vercel_url and normalized == vercel_url:
+        return True
+
+    for pattern in ALLOWED_HOSTS:
+        if fnmatch.fnmatch(normalized, pattern.lower()):
+            return True
+
+    return False

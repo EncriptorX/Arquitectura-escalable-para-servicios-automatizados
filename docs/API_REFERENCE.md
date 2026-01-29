@@ -747,7 +747,8 @@ if (result.error_category === "user_error") {
 2. **Formato de Dominio:** Validación de formato DNS válido
 3. **Zona:** Verificación de que el dominio pertenece a la zona configurada
 4. **CORS:** Bloqueado para terceros (`Access-Control-Allow-Origin: null`)
-5. **Rate Limiting:** (Futuro) Límite de peticiones por IP
+5. **Host:** Validación de `Host` contra allowlist
+6. **Rate Limiting:** (Futuro) Límite de peticiones por IP
 
 ### Mejores Prácticas
 

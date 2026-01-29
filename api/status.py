@@ -14,7 +14,7 @@ import urllib.error
 sys.path.insert(0, os.path.dirname(__file__))
 
 try:
-    from utils import get_cors_headers
+    from utils import get_cors_headers, is_host_allowed
 except ImportError:
     def get_cors_headers(origin):
         allowed_origin = "null"
@@ -24,6 +24,11 @@ except ImportError:
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Vary": "Origin",
         }
+    def is_host_allowed(host: str) -> bool:
+        allowed = {h.strip().lower() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()}
+        normalized = (host or "").split(":")[0].strip().lower()
+        vercel_url = os.getenv("VERCEL_URL", "").strip().lower()
+        return bool(normalized and (normalized in allowed or (vercel_url and normalized == vercel_url)))
 
 try:
     from logger import get_logger, log_api_error
@@ -257,6 +262,17 @@ def get_firewall_rules(zone_id: str, api_token: str) -> dict:
 
 class handler(BaseHTTPRequestHandler):
     """Handler para Vercel Serverless Function"""
+
+    def _reject_invalid_host(self) -> bool:
+        host = self.headers.get('Host', '')
+        if not is_host_allowed(host):
+            self._send_json({
+                "status": "error",
+                "message": "Host no autorizado",
+                "host": host
+            }, 400)
+            return True
+        return False
     
     def _set_headers(self, status_code=200, content_type='application/json'):
         """Configura los headers de respuesta"""
@@ -280,10 +296,14 @@ class handler(BaseHTTPRequestHandler):
     
     def do_OPTIONS(self):
         """Maneja preflight CORS"""
+        if self._reject_invalid_host():
+            return
         self._send_json({"message": "OK"}, 200)
     
     def do_GET(self):
         """Health check"""
+        if self._reject_invalid_host():
+            return
         self._send_json({
             "status": "ok",
             "message": "API de estado de dominio funcionando",
@@ -293,6 +313,8 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Obtiene el estado completo de un dominio"""
         try:
+            if self._reject_invalid_host():
+                return
             # Leer el body
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length)

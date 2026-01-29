@@ -6,7 +6,7 @@ import json
 import os
 
 try:
-    from utils import get_cors_headers
+    from utils import get_cors_headers, is_host_allowed
 except ImportError:
     def get_cors_headers(origin):
         allowed_origin = "null"
@@ -16,10 +16,27 @@ except ImportError:
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Vary": "Origin",
         }
+    def is_host_allowed(host: str) -> bool:
+        allowed = {h.strip().lower() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()}
+        normalized = (host or "").split(":")[0].strip().lower()
+        vercel_url = os.getenv("VERCEL_URL", "").strip().lower()
+        return bool(normalized and (normalized in allowed or (vercel_url and normalized == vercel_url)))
 
 
 class handler(BaseHTTPRequestHandler):
     """Handler de diagnóstico"""
+
+    def _reject_invalid_host(self) -> bool:
+        host = self.headers.get('Host', '')
+        if not is_host_allowed(host):
+            self._set_headers(400)
+            self.wfile.write(json.dumps({
+                "status": "error",
+                "message": "Host no autorizado",
+                "host": host
+            }, ensure_ascii=False).encode('utf-8'))
+            return True
+        return False
     
     def _set_headers(self, status_code=200):
         self.send_response(status_code)
@@ -37,6 +54,8 @@ class handler(BaseHTTPRequestHandler):
     
     def do_GET(self):
         """Retorna el estado de configuración"""
+        if self._reject_invalid_host():
+            return
         
         # Obtener variables de entorno
         CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")

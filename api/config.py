@@ -35,6 +35,17 @@ ALLOWED_ORIGINS = [
     "https://*.vercel.app"
 ]
 
+# Host allowlist (para validar cabecera Host)
+_DEFAULT_ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "::1",
+    "*.vercel.app",
+    "*.suncarsrl.com"
+]
+_env_allowed_hosts = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()]
+ALLOWED_HOSTS = _env_allowed_hosts if _env_allowed_hosts else _DEFAULT_ALLOWED_HOSTS
+
 # Service State (Global)
 SERVICE_ENABLED = True
 
