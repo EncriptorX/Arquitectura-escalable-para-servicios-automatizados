@@ -109,10 +109,13 @@ console.log(data.service_enabled); // true o false
 
 **Endpoint:** `POST /api/toggle-service`
 
+**Requiere:** `ADMIN_API_KEY` enviada en `X-Admin-Key` o `Authorization: Bearer`.
+
 **Ejemplo con cURL (Deshabilitar):**
 ```bash
 curl -X POST https://tu-dominio.vercel.app/api/toggle-service \
   -H "Content-Type: application/json" \
+  -H "X-Admin-Key: TU_ADMIN_API_KEY" \
   -d '{"enabled": false}'
 ```
 
@@ -120,6 +123,7 @@ curl -X POST https://tu-dominio.vercel.app/api/toggle-service \
 ```bash
 curl -X POST https://tu-dominio.vercel.app/api/toggle-service \
   -H "Content-Type: application/json" \
+  -H "X-Admin-Key: TU_ADMIN_API_KEY" \
   -d '{"enabled": true}'
 ```
 
@@ -129,7 +133,8 @@ async function toggleService(enabled) {
   const response = await fetch('/api/toggle-service', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'X-Admin-Key': 'TU_ADMIN_API_KEY'
     },
     body: JSON.stringify({ enabled })
   });

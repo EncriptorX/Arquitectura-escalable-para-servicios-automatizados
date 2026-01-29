@@ -23,6 +23,8 @@ import sys
 import urllib.request
 import urllib.parse
 import urllib.error
+import ipaddress
+import socket
 from typing import Optional, Dict, Tuple
 
 # Agregar el directorio api al path
@@ -32,10 +34,18 @@ try:
     from utils import get_cors_headers
 except ImportError:
     def get_cors_headers(origin):
+        allowed_origins = {
+            item.strip().lower()
+            for item in os.getenv("ALLOWED_ORIGINS", "").split(",")
+            if item.strip()
+        }
+        normalized_origin = (origin or "").strip().lower()
+        allowed_origin = normalized_origin if normalized_origin in allowed_origins else "null"
         return {
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": allowed_origin,
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Vary": "Origin",
         }
 
 try:
@@ -48,6 +58,24 @@ except ImportError:
         def error(self, *args, **kwargs): pass
     protection_logger = DummyLogger()
     log_api_error = lambda *args, **kwargs: None
+
+try:
+    from utils import validate_url, resolve_domain_ip
+    UTILS_AVAILABLE = True
+except ImportError:
+    UTILS_AVAILABLE = False
+    def validate_url(url: str):
+        if not url or not isinstance(url, str):
+            return False, None, "URL vacía o inválida"
+        if "://" in url or "/" in url or "?" in url or "#" in url or ":" in url:
+            return False, None, "Formato de dominio inválido"
+        return True, url.strip().lower(), None
+
+    def resolve_domain_ip(domain: str) -> Optional[str]:
+        try:
+            return socket.gethostbyname(domain)
+        except socket.gaierror:
+            return None
 
 # ===============================
 # Configuración del Proxy
@@ -218,6 +246,20 @@ def _build_origin_headers(request_headers: Dict[str, str], origin_url: str) -> D
     return origin_headers
 
 
+def _is_public_ip(ip: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(ip)
+        return not (
+            addr.is_private
+            or addr.is_loopback
+            or addr.is_link_local
+            or addr.is_multicast
+            or addr.is_reserved
+        )
+    except ValueError:
+        return False
+
+
 # ===============================
 # Handler de Vercel
 # ===============================
@@ -297,6 +339,26 @@ class handler(BaseHTTPRequestHandler):
                 "hint": "El subdominio no está registrado en el sistema CSaaS"
             }, 404)
             return
+
+        valid, normalized_origin, error = validate_url(origin_url)
+        if not valid:
+            self._send_json({
+                "error": "Invalid Origin",
+                "message": f"Dominio de origen inválido: {error}",
+                "origin": origin_url
+            }, 400)
+            return
+
+        origin_ip = resolve_domain_ip(normalized_origin)
+        if not origin_ip or not _is_public_ip(origin_ip):
+            self._send_json({
+                "error": "Unsafe Origin",
+                "message": "El dominio de origen no es público o no se pudo resolver",
+                "origin": normalized_origin
+            }, 400)
+            return
+
+        origin_url = normalized_origin
         
         # Leer body si existe
         body = None

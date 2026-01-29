@@ -338,7 +338,7 @@ export default function CSaaSResultPage({
                 <span>
                   <strong>Importante:</strong> Esta arquitectura está optimizada para el plan gratuito de Cloudflare. 
                   No se usa <code className="bg-black/30 px-1 rounded">custom_origin_server</code> ni <code className="bg-black/30 px-1 rounded">custom_origin_sni</code> 
-                  (no disponibles en plan Free). El proxy se maneja completamente en el backend Python.
+                  (no disponibles en plan Free). El proxy se maneja completamente en el backend.
                 </span>
               </p>
             </div>
