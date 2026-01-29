@@ -311,6 +311,11 @@ El sistema tiene CORS bloqueado para terceros (`Access-Control-Allow-Origin: nul
 
 Si necesitas habilitar un frontend específico, ajusta la política CORS en la API.
 
+### Host allowlist
+
+El backend valida el header `Host` contra `ALLOWED_HOSTS` (y `VERCEL_URL`).
+Asegúrate de incluir tus dominios válidos para evitar rechazos.
+
 ---
 
 ## 📈 Escalabilidad

@@ -16,7 +16,7 @@ from typing import Optional, Dict, Tuple, List
 sys.path.insert(0, os.path.dirname(__file__))
 
 try:
-    from utils import get_cors_headers
+    from utils import get_cors_headers, is_host_allowed
     CORS_AVAILABLE = True
 except ImportError:
     CORS_AVAILABLE = False
@@ -28,6 +28,11 @@ except ImportError:
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Vary": "Origin",
         }
+    def is_host_allowed(host: str) -> bool:
+        allowed = {h.strip().lower() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()}
+        normalized = (host or "").split(":")[0].strip().lower()
+        vercel_url = os.getenv("VERCEL_URL", "").strip().lower()
+        return bool(normalized and (normalized in allowed or (vercel_url and normalized == vercel_url)))
 
 try:
     from config import is_service_enabled
@@ -37,11 +42,6 @@ except ImportError:
         return True
 
 try:
-    def is_host_allowed(host: str) -> bool:
-        allowed = {h.strip().lower() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()}
-        normalized = (host or "").split(":")[0].strip().lower()
-        vercel_url = os.getenv("VERCEL_URL", "").strip().lower()
-        return bool(normalized and (normalized in allowed or (vercel_url and normalized == vercel_url)))
     from logger import (
         protection_logger,
         log_protection_request,
@@ -61,12 +61,6 @@ except ImportError:
         def error(self, *args, **kwargs): pass
         def audit(self, *args, **kwargs): pass
     
-    def _reject_invalid_host(self) -> bool:
-        host = self.headers.get('Host', '')
-        if not is_host_allowed(host):
-            self._send_error("Host no autorizado", 400, host=host)
-            return True
-        return False
     protection_logger = DummyLogger()
     log_protection_request = lambda *args, **kwargs: None
     log_dns_configuration = lambda *args, **kwargs: None
@@ -74,8 +68,6 @@ except ImportError:
     log_firewall_rule = lambda *args, **kwargs: None
     log_api_error = lambda *args, **kwargs: None
     log_turnstile_verification = lambda *args, **kwargs: None
-        if self._reject_invalid_host():
-            return
 
 try:
     from config import (
@@ -779,6 +771,13 @@ class handler(BaseHTTPRequestHandler):
     def _get_client_ip(self) -> str:
         """Obtiene IP del cliente desde headers"""
         return self.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+
+    def _reject_invalid_host(self) -> bool:
+        host = self.headers.get('Host', '')
+        if not is_host_allowed(host):
+            self._send_error("Host no autorizado", 400, host=host)
+            return True
+        return False
     
     def do_OPTIONS(self):
         """Maneja preflight CORS"""
@@ -788,6 +787,8 @@ class handler(BaseHTTPRequestHandler):
     
     def do_GET(self):
         """Health check"""
+        if self._reject_invalid_host():
+            return
         self._send_json({
             "status": "ok",
             "message": "API funcionando correctamente",
