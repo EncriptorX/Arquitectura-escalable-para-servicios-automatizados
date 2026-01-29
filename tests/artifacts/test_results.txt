@@ -1,0 +1,64 @@
+python : Exception in thread Thread-1 (_readerthread):
+En línea: 1 Carácter: 1
++ python scripts/run_all_tests.py > test_results.txt 2>&1 ; echo "Exit  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Exception in th..._readerthread)::String) [], Rem 
+   oteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Traceback (most recent call last):
+  File "C:\Users\Patterson\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 
+1044, in _bootstrap_inner
+    self.run()
+    ~~~~~~~~^^
+  File "C:\Users\Patterson\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 
+995, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patterson\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 
+1615, in _readerthread
+    buffer.append(fh.read())
+                  ~~~~~~~^^
+  File "C:\Users\Patterson\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", 
+line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 336: character maps to 
+<undefined>
+
+======================================================================
+EJECUTANDO SUITE COMPLETA DE TESTS
+======================================================================
+
+======================================================================
+EJECUTANDO: Validaci¾n - Suite Completa
+======================================================================
+
+Traceback (most recent call last):
+  File "C:\Me\School\Tesis\Projects\Cuban CAS\scripts\run_all_tests.py", line 66, in run_test
+    print(f"\u2705 {name}: PASADO")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patterson\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", 
+line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2705' in position 0: character 
+maps to <undefined>
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Me\School\Tesis\Projects\Cuban CAS\scripts\run_all_tests.py", line 138, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Me\School\Tesis\Projects\Cuban CAS\scripts\run_all_tests.py", line 90, in main
+    passed = run_test(name, script_path)
+  File "C:\Me\School\Tesis\Projects\Cuban CAS\scripts\run_all_tests.py", line 77, in run_test
+    print(f"\U0001f4a5 {name}: ERROR - {str(e)}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patterson\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", 
+line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f4a5' in position 0: 
+character maps to <undefined>

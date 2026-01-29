@@ -54,6 +54,24 @@ python scripts/verificar_proteccion_aplicada.py
 
 ## Scripts de Testing
 
+### `test_endpoint.py`
+
+Prueba básica del módulo `api/csaas-provision.py` (import, generación de subdominio y validación).
+
+**Uso:**
+```bash
+python scripts/test_endpoint.py
+```
+
+### `test_http_request.py`
+
+Prueba de petición HTTP real contra el endpoint local.
+
+**Uso:**
+```bash
+python scripts/test_http_request.py
+```
+
 ### `test_verificacion_delegacion.py`
 
 Script para probar la verificación de delegación DNS.

@@ -21,12 +21,12 @@ El proyecto ha sido completamente adaptado para funcionar con el **plan gratuito
 - ✅ **Protección Completa**: Todas las protecciones de Cloudflare activas
 
 **Documentación Completa:**
-- 📖 [ARQUITECTURA_PROXY.md](./ARQUITECTURA_PROXY.md) - Arquitectura completa
-- 📖 [CAMBIOS_ARQUITECTURA.md](./CAMBIOS_ARQUITECTURA.md) - Resumen de cambios
-- 📖 [README_PROXY.md](./README_PROXY.md) - Guía de uso del proxy
-- 📖 [PRESENTACION_TESIS.md](./PRESENTACION_TESIS.md) - Presentación visual
-- 📖 [INICIO_RAPIDO.md](./INICIO_RAPIDO.md) - Inicio rápido
-- 📖 [RESUMEN_CAMBIOS.txt](./RESUMEN_CAMBIOS.txt) - Resumen ejecutivo
+- 📖 [ARQUITECTURA_PROXY.md](./docs/ARQUITECTURA_PROXY.md) - Arquitectura completa
+- 📖 [CAMBIOS_ARQUITECTURA.md](./docs/CAMBIOS_ARQUITECTURA.md) - Resumen de cambios
+- 📖 [README_PROXY.md](./docs/README_PROXY.md) - Guía de uso del proxy
+- 📖 [PRESENTACION_TESIS.md](./docs/PRESENTACION_TESIS.md) - Presentación visual
+- 📖 [INICIO_RAPIDO.md](./docs/INICIO_RAPIDO.md) - Inicio rápido
+- 📖 [RESUMEN_CAMBIOS.txt](./docs/RESUMEN_CAMBIOS.txt) - Resumen ejecutivo
 
 **Tests:**
 ```bash
@@ -2292,7 +2292,7 @@ Para soporte, abre un issue en GitHub o contacta a través de:
 - ✅ 0 errores de TypeScript
 - ⚠️ 2 warnings menores de ESLint
 
-Ver [OPTIMIZATION_SUMMARY.md](./OPTIMIZATION_SUMMARY.md) para detalles completos.
+Ver [OPTIMIZATION_SUMMARY.md](./docs/OPTIMIZATION_SUMMARY.md) para detalles completos.
 
 ---
 
