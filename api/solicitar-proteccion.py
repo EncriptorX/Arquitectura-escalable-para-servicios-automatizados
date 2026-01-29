@@ -51,6 +51,25 @@ except ImportError:
     log_turnstile_verification = lambda *args, **kwargs: None
 
 try:
+    from config import (
+        CF_API_TOKEN as CONFIG_CF_API_TOKEN,
+        CF_ZONE_ID as CONFIG_CF_ZONE_ID,
+        TURNSTILE_SECRET_KEY as CONFIG_TURNSTILE_SECRET_KEY,
+        TURNSTILE_VERIFY_URL as CONFIG_TURNSTILE_VERIFY_URL,
+        API_TIMEOUT as CONFIG_API_TIMEOUT,
+        CF_API_BASE_URL as CONFIG_CF_API_BASE_URL,
+    )
+    CONFIG_AVAILABLE = True
+except ImportError:
+    CONFIG_AVAILABLE = False
+    CONFIG_CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
+    CONFIG_CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
+    CONFIG_TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
+    CONFIG_TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+    CONFIG_API_TIMEOUT = 30
+    CONFIG_CF_API_BASE_URL = "https://api.cloudflare.com/client/v4"
+
+try:
     from exceptions import (
         BaseAPIError,
         ValidationError,
@@ -90,12 +109,12 @@ except ImportError:
 # ===============================
 class Config:
     """Configuración centralizada"""
-    TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
-    CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
-    CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
-    API_TIMEOUT = 30
-    TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
-    CF_API_BASE_URL = "https://api.cloudflare.com/client/v4"
+    TURNSTILE_SECRET_KEY = CONFIG_TURNSTILE_SECRET_KEY
+    CF_API_TOKEN = CONFIG_CF_API_TOKEN
+    CF_ZONE_ID = CONFIG_CF_ZONE_ID
+    API_TIMEOUT = CONFIG_API_TIMEOUT
+    TURNSTILE_VERIFY_URL = CONFIG_TURNSTILE_VERIFY_URL
+    CF_API_BASE_URL = CONFIG_CF_API_BASE_URL
     
     # Patrones compilados para mejor rendimiento
     FQDN_PATTERN = re.compile(r"^(?=.{1,253}$)(?!-)([A-Za-z0-9-]{1,63}(?<!-)\.)+[A-Za-z]{2,63}$")
@@ -698,9 +717,35 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         self.end_headers()
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
+
+    def _send_error(self, message: str, status_code: int, error_type: Optional[str] = None, error_category: Optional[str] = None, **extra):
+        """Envía respuesta de error estandarizada"""
+        payload = {
+            "status": "error",
+            "message": message,
+        }
+        if error_type:
+            payload["error_type"] = error_type
+        if error_category:
+            payload["error_category"] = error_category
+        payload.update(extra)
+        self._send_json(payload, status_code)
+
+    def _read_json(self) -> Tuple[Optional[Dict], Optional[str]]:
+        """Lee y parsea el body JSON de la request"""
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length)
+        try:
+            return json.loads(body.decode('utf-8')), None
+        except json.JSONDecodeError as e:
+            return None, str(e)
+
+    def _get_client_ip(self) -> str:
+        """Obtiene IP del cliente desde headers"""
+        return self.headers.get("X-Forwarded-For", "").split(",")[0].strip()
     
     def do_OPTIONS(self):
         """Maneja preflight CORS"""
@@ -722,43 +767,39 @@ class handler(BaseHTTPRequestHandler):
             if not is_service_enabled():
                 if EXCEPTIONS_AVAILABLE:
                     error = ServiceDisabledError()
-                    self._send_json({
-                        "status": "error",
-                        "message": error.message,
-                        "error_type": error.__class__.__name__,
-                        "error_category": error.error_category,
-                        "service_disabled": True
-                    }, error.status_code)
+                    self._send_error(
+                        error.message,
+                        error.status_code,
+                        error_type=error.__class__.__name__,
+                        error_category=error.error_category,
+                        service_disabled=True,
+                    )
                 else:
-                    self._send_json({
-                        "status": "error",
-                        "message": "El servicio está deshabilitado temporalmente",
-                        "service_disabled": True
-                    }, 503)
+                    self._send_error(
+                        "El servicio está deshabilitado temporalmente",
+                        503,
+                        service_disabled=True,
+                    )
                 return
             
             # Leer y parsear body
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            
-            try:
-                data = json.loads(body.decode('utf-8'))
-            except json.JSONDecodeError as e:
+            data, parse_error = self._read_json()
+            if parse_error:
                 if EXCEPTIONS_AVAILABLE:
-                    error = ValidationError(f"Error parseando JSON: {str(e)}", field="body")
-                    self._send_json({
-                        "status": "error",
-                        "message": error.message,
-                        "error_type": error.__class__.__name__,
-                        "error_category": error.error_category
-                    }, error.status_code)
+                    error = ValidationError(f"Error parseando JSON: {parse_error}", field="body")
+                    self._send_error(
+                        error.message,
+                        error.status_code,
+                        error_type=error.__class__.__name__,
+                        error_category=error.error_category,
+                    )
                 else:
-                    self._send_json({"status": "error", "message": f"Error parseando JSON: {str(e)}"}, 400)
+                    self._send_error(f"Error parseando JSON: {parse_error}", 400)
                 return
             
             # Validar token de Turnstile
             token = data.get("turnstileToken")
-            client_ip = self.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+            client_ip = self._get_client_ip()
             
             if not token:
                 log_api_error(
@@ -772,19 +813,19 @@ class handler(BaseHTTPRequestHandler):
                         "Falta el token de seguridad (Turnstile)",
                         reason="missing_token"
                     )
-                    self._send_json({
-                        "status": "error",
-                        "message": error.message,
-                        "error_type": error.__class__.__name__,
-                        "error_category": error.error_category,
-                        "error_code": "MISSING_TURNSTILE_TOKEN"
-                    }, error.status_code)
+                    self._send_error(
+                        error.message,
+                        error.status_code,
+                        error_type=error.__class__.__name__,
+                        error_category=error.error_category,
+                        error_code="MISSING_TURNSTILE_TOKEN",
+                    )
                 else:
-                    self._send_json({
-                        "status": "error",
-                        "message": "Falta el token de seguridad (Turnstile)",
-                        "error_code": "MISSING_TURNSTILE_TOKEN"
-                    }, 400)
+                    self._send_error(
+                        "Falta el token de seguridad (Turnstile)",
+                        400,
+                        error_code="MISSING_TURNSTILE_TOKEN",
+                    )
                 return
             
             # Validar Turnstile con manejo de excepciones
@@ -808,24 +849,24 @@ class handler(BaseHTTPRequestHandler):
                     error_code = "TURNSTILE_VERIFICATION_FAILED"
                     status_code = 403
                 
-                self._send_json({
-                    "status": "error",
-                    "message": e.message if EXCEPTIONS_AVAILABLE else "Verificación de seguridad fallida",
-                    "error_type": e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "AuthenticationError",
-                    "error_category": e.error_category if EXCEPTIONS_AVAILABLE else "user_error",
-                    "error_code": error_code,
-                    "detail": "Por favor, recarga la página e intenta nuevamente"
-                }, status_code)
+                self._send_error(
+                    e.message if EXCEPTIONS_AVAILABLE else "Verificación de seguridad fallida",
+                    status_code,
+                    error_type=e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "AuthenticationError",
+                    error_category=e.error_category if EXCEPTIONS_AVAILABLE else "user_error",
+                    error_code=error_code,
+                    detail="Por favor, recarga la página e intenta nuevamente",
+                )
                 return
             
             except NetworkError as e:
-                self._send_json({
-                    "status": "error",
-                    "message": e.message if EXCEPTIONS_AVAILABLE else "Error de red al verificar seguridad",
-                    "error_type": e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "NetworkError",
-                    "error_category": e.error_category if EXCEPTIONS_AVAILABLE else "network_error",
-                    "error_code": "TURNSTILE_NETWORK_ERROR"
-                }, 503)
+                self._send_error(
+                    e.message if EXCEPTIONS_AVAILABLE else "Error de red al verificar seguridad",
+                    503,
+                    error_type=e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "NetworkError",
+                    error_category=e.error_category if EXCEPTIONS_AVAILABLE else "network_error",
+                    error_code="TURNSTILE_NETWORK_ERROR",
+                )
                 return
             
             # Obtener y validar URLs
@@ -833,14 +874,14 @@ class handler(BaseHTTPRequestHandler):
             if not urls:
                 if EXCEPTIONS_AVAILABLE:
                     error = ValidationError("No se proporcionaron URLs", field="urls")
-                    self._send_json({
-                        "status": "error",
-                        "message": error.message,
-                        "error_type": error.__class__.__name__,
-                        "error_category": error.error_category
-                    }, error.status_code)
+                    self._send_error(
+                        error.message,
+                        error.status_code,
+                        error_type=error.__class__.__name__,
+                        error_category=error.error_category,
+                    )
                 else:
-                    self._send_json({"status": "error", "message": "No se proporcionaron URLs"}, 400)
+                    self._send_error("No se proporcionaron URLs", 400)
                 return
             
             # Validar cada URL
@@ -848,13 +889,13 @@ class handler(BaseHTTPRequestHandler):
                 for url in urls:
                     validate_fqdn(url)
             except ValidationError as e:
-                self._send_json({
-                    "status": "error",
-                    "message": e.message if EXCEPTIONS_AVAILABLE else f"URL inválida: {url}",
-                    "error_type": e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "ValidationError",
-                    "error_category": e.error_category if EXCEPTIONS_AVAILABLE else "user_error",
-                    "invalid_url": e.details.get("value") if EXCEPTIONS_AVAILABLE else url
-                }, 400)
+                self._send_error(
+                    e.message if EXCEPTIONS_AVAILABLE else f"URL inválida: {url}",
+                    400,
+                    error_type=e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "ValidationError",
+                    error_category=e.error_category if EXCEPTIONS_AVAILABLE else "user_error",
+                    invalid_url=e.details.get("value") if EXCEPTIONS_AVAILABLE else url,
+                )
                 return
             
             # Verificar configuración de Cloudflare

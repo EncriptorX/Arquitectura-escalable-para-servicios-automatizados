@@ -59,13 +59,30 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', content_type)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         self.end_headers()
     
     def _send_json(self, data, status_code=200):
         """Envía una respuesta JSON"""
         self._set_headers(status_code)
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
+
+    def _send_error(self, message: str, status_code: int, error_type: str = None, error_category: str = None, **extra):
+        payload = {"status": "error", "message": message}
+        if error_type:
+            payload["error_type"] = error_type
+        if error_category:
+            payload["error_category"] = error_category
+        payload.update(extra)
+        self._send_json(payload, status_code)
+
+    def _read_json(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length)
+        try:
+            return json.loads(body.decode('utf-8')), None
+        except json.JSONDecodeError as e:
+            return None, str(e)
     
     def do_OPTIONS(self):
         """Maneja preflight CORS"""
@@ -92,44 +109,32 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Activa o desactiva el servicio"""
         try:
-            # Leer el body
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            
-            # Parsear JSON
-            try:
-                data = json.loads(body.decode('utf-8'))
-            except json.JSONDecodeError as e:
+            data, parse_error = self._read_json()
+            if parse_error:
                 if EXCEPTIONS_AVAILABLE:
-                    error = ValidationError(f"Error parseando JSON: {str(e)}", field="body")
-                    self._send_json({
-                        "status": "error",
-                        "message": error.message,
-                        "error_type": error.__class__.__name__,
-                        "error_category": error.error_category
-                    }, error.status_code)
+                    error = ValidationError(f"Error parseando JSON: {parse_error}", field="body")
+                    self._send_error(
+                        error.message,
+                        error.status_code,
+                        error_type=error.__class__.__name__,
+                        error_category=error.error_category,
+                    )
                 else:
-                    self._send_json({
-                        "status": "error",
-                        "message": f"Error parseando JSON: {str(e)}"
-                    }, 400)
+                    self._send_error(f"Error parseando JSON: {parse_error}", 400)
                 return
             
             # Obtener parámetro enabled
             if "enabled" not in data:
                 if EXCEPTIONS_AVAILABLE:
                     error = ValidationError("Falta el parámetro 'enabled' (true/false)", field="enabled")
-                    self._send_json({
-                        "status": "error",
-                        "message": error.message,
-                        "error_type": error.__class__.__name__,
-                        "error_category": error.error_category
-                    }, error.status_code)
+                    self._send_error(
+                        error.message,
+                        error.status_code,
+                        error_type=error.__class__.__name__,
+                        error_category=error.error_category,
+                    )
                 else:
-                    self._send_json({
-                        "status": "error",
-                        "message": "Falta el parámetro 'enabled' (true/false)"
-                    }, 400)
+                    self._send_error("Falta el parámetro 'enabled' (true/false)", 400)
                 return
             
             enabled = data.get("enabled")
@@ -142,17 +147,14 @@ class handler(BaseHTTPRequestHandler):
                         value=enabled,
                         expected_type="boolean"
                     )
-                    self._send_json({
-                        "status": "error",
-                        "message": error.message,
-                        "error_type": error.__class__.__name__,
-                        "error_category": error.error_category
-                    }, error.status_code)
+                    self._send_error(
+                        error.message,
+                        error.status_code,
+                        error_type=error.__class__.__name__,
+                        error_category=error.error_category,
+                    )
                 else:
-                    self._send_json({
-                        "status": "error",
-                        "message": "El parámetro 'enabled' debe ser booleano (true/false)"
-                    }, 400)
+                    self._send_error("El parámetro 'enabled' debe ser booleano (true/false)", 400)
                 return
             
             # Obtener estado anterior
@@ -184,18 +186,18 @@ class handler(BaseHTTPRequestHandler):
         
         except BaseAPIError as e:
             # Capturar excepciones tipadas
-            self._send_json({
-                "status": "error",
-                "message": get_user_friendly_message(e) if EXCEPTIONS_AVAILABLE else str(e),
-                "error_type": e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "Error",
-                "error_category": e.error_category if EXCEPTIONS_AVAILABLE else "unknown",
-                "technical_message": e.message if EXCEPTIONS_AVAILABLE else str(e)
-            }, getattr(e, 'status_code', 500))
+            self._send_error(
+                get_user_friendly_message(e) if EXCEPTIONS_AVAILABLE else str(e),
+                getattr(e, 'status_code', 500),
+                error_type=e.__class__.__name__ if EXCEPTIONS_AVAILABLE else "Error",
+                error_category=e.error_category if EXCEPTIONS_AVAILABLE else "unknown",
+                technical_message=e.message if EXCEPTIONS_AVAILABLE else str(e),
+            )
         
         except Exception as e:
-            self._send_json({
-                "status": "error",
-                "message": f"Error cambiando estado del servicio: {str(e)}",
-                "error_type": type(e).__name__,
-                "error_category": "internal_error"
-            }, 500)
+            self._send_error(
+                f"Error cambiando estado del servicio: {str(e)}",
+                500,
+                error_type=type(e).__name__,
+                error_category="internal_error",
+            )

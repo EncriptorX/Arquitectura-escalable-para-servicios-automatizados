@@ -137,27 +137,7 @@ def forward_request(
     # Usar HTTPS por defecto para seguridad
     full_url = f"https://{origin_url}{path}"
     
-    # Preparar headers para el origin
-    origin_headers = {}
-    
-    # Copiar headers importantes
-    for key, value in headers.items():
-        key_lower = key.lower()
-        
-        # Excluir headers que no deben reenviarse
-        if key_lower in ['host', 'connection', 'content-length']:
-            continue
-        
-        origin_headers[key] = value
-    
-    # Configurar Host header correcto
-    origin_headers['Host'] = origin_url
-    
-    # Agregar X-Forwarded headers
-    origin_headers['X-Forwarded-Proto'] = 'https'
-    
-    if 'X-Forwarded-For' not in origin_headers:
-        origin_headers['X-Forwarded-For'] = headers.get('X-Real-IP', '0.0.0.0')
+    origin_headers = _build_origin_headers(headers, origin_url)
     
     # Realizar request al origin
     try:
@@ -208,6 +188,24 @@ def forward_request(
             "message": "Error interno del proxy",
             "details": str(e)
         }).encode('utf-8')
+
+
+def _build_origin_headers(request_headers: Dict[str, str], origin_url: str) -> Dict[str, str]:
+    """Prepara los headers que se reenviarán al origin"""
+    origin_headers: Dict[str, str] = {}
+
+    for key, value in request_headers.items():
+        key_lower = key.lower()
+        if key_lower in ['host', 'connection', 'content-length']:
+            continue
+        origin_headers[key] = value
+
+    origin_headers['Host'] = origin_url
+    origin_headers['X-Forwarded-Proto'] = 'https'
+    if 'X-Forwarded-For' not in origin_headers:
+        origin_headers['X-Forwarded-For'] = request_headers.get('X-Real-IP', '0.0.0.0')
+
+    return origin_headers
 
 
 # ===============================
