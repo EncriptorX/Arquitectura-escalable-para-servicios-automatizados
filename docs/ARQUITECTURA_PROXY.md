@@ -57,6 +57,7 @@ El proxy maneja:
 - Identificación del subdominio (ej: `cliente-abc123.suncarsrl.com`)
 - Resolución del dominio real del cliente usando mapa en memoria
 - Reenvío de la solicitud HTTP/HTTPS al dominio real
+- Validación de `Host` contra allowlist (`ALLOWED_HOSTS`)
 - Manejo correcto de headers:
   - `Host`: Dominio real del cliente
   - `X-Forwarded-For`: IP del cliente original

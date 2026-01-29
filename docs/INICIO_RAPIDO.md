@@ -150,6 +150,9 @@ forward_request(origin_url, path, headers, body)
 ### ¿Cómo funciona el proxy?
 **R**: Lee el header Host, identifica el subdominio, busca el dominio real en un mapa y reenvía la solicitud.
 
+### ¿Qué pasa si el Host no está permitido?
+**R**: La API rechaza la solicitud. Debes configurar `ALLOWED_HOSTS` (o `VERCEL_URL`) para permitir el dominio correcto.
+
 ### ¿Qué pasa si se reinicia el servidor?
 **R**: Los mapeos se pierden (almacenamiento en memoria). Solución futura: base de datos.
 

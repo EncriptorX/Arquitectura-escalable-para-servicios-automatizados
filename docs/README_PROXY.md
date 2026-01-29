@@ -101,6 +101,12 @@ CSAAS_CNAME_TARGET=customers.suncarsrl.com
 
 # Turnstile (opcional)
 TURNSTILE_SECRET_KEY=tu_turnstile_secret
+
+# Admin API Key (endpoints administrativos)
+ADMIN_API_KEY=tu_admin_api_key
+
+# Host allowlist (coma-separados)
+ALLOWED_HOSTS=localhost,127.0.0.1,*.vercel.app
 ```
 
 ### 3. Ejecutar Tests
