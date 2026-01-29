@@ -8,6 +8,7 @@ import os
 import urllib.request
 import urllib.error
 import sys
+import secrets
 from typing import Optional, Dict
 
 # Agregar el directorio api al path
@@ -17,10 +18,18 @@ try:
     from utils import get_cors_headers
 except ImportError:
     def get_cors_headers(origin):
+        allowed_origins = {
+            item.strip().lower()
+            for item in os.getenv("ALLOWED_ORIGINS", "").split(",")
+            if item.strip()
+        }
+        normalized_origin = (origin or "").strip().lower()
+        allowed_origin = normalized_origin if normalized_origin in allowed_origins else "null"
         return {
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": allowed_origin,
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Vary": "Origin",
         }
 
 try:
@@ -39,6 +48,21 @@ except ImportError:
         return True, url.strip().lower(), None
     def make_cloudflare_request(method: str, endpoint: str, data: Optional[Dict] = None):
         return None
+
+try:
+    from config import ADMIN_API_KEY
+except ImportError:
+    ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "")
+
+
+def _is_authorized(headers) -> bool:
+    if not ADMIN_API_KEY:
+        return False
+    supplied = headers.get("X-Admin-Key", "")
+    auth_header = headers.get("Authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        supplied = auth_header[7:].strip()
+    return secrets.compare_digest(supplied, ADMIN_API_KEY)
 
 
 class CloudflareProtectionToggle:
@@ -356,6 +380,13 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Habilita o deshabilita las protecciones"""
         try:
+            if not _is_authorized(self.headers):
+                self._send_error(
+                    "No autorizado. Configure ADMIN_API_KEY y envíe la clave en X-Admin-Key o Authorization: Bearer.",
+                    403,
+                )
+                return
+
             data, parse_error = self._read_json()
             if parse_error:
                 self._send_error(f"Error parseando JSON: {parse_error}", 400)

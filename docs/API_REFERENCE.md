@@ -13,9 +13,18 @@ Documentación completa de todos los endpoints de la API del Sistema de Protecci
 
 Las APIs utilizan Cloudflare Turnstile para validación anti-bot en endpoints públicos.
 
+Los endpoints administrativos requieren una clave adicional configurada en `ADMIN_API_KEY`.
+
 **Headers requeridos:**
 ```http
 Content-Type: application/json
+```
+
+**Headers administrativos (solo POST admin):**
+```http
+X-Admin-Key: <ADMIN_API_KEY>
+# o
+Authorization: Bearer <ADMIN_API_KEY>
 ```
 
 ---
@@ -43,6 +52,8 @@ Permite activar o desactivar el servicio de protección globalmente.
 
 **Endpoint:** `POST /api/toggle-service`
 
+**Requiere:** `ADMIN_API_KEY` en `X-Admin-Key` o `Authorization: Bearer`.
+
 **Request Body:**
 ```json
 {
@@ -62,6 +73,7 @@ Permite activar o desactivar el servicio de protección globalmente.
 
 **Errores:**
 - `400` - Parámetro 'enabled' faltante o inválido
+- `403` - No autorizado (ADMIN_API_KEY faltante o incorrecta)
 - `500` - Error interno del servidor
 
 **Notas:**
@@ -231,6 +243,8 @@ Obtiene el estado o activa/desactiva protecciones.
 
 **Endpoint:** `POST /api/toggle-protection`
 
+**Requiere:** `ADMIN_API_KEY` en `X-Admin-Key` o `Authorization: Bearer`.
+
 **Request Body:**
 ```json
 {
@@ -261,6 +275,7 @@ Obtiene el estado o activa/desactiva protecciones.
 
 **Errores:**
 - `400` - Parámetros inválidos
+- `403` - No autorizado (ADMIN_API_KEY faltante o incorrecta)
 - `500` - Error al aplicar protecciones
 
 ---

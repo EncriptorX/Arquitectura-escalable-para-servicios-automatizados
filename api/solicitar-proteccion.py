@@ -21,10 +21,18 @@ try:
 except ImportError:
     CORS_AVAILABLE = False
     def get_cors_headers(origin):
+        allowed_origins = {
+            item.strip().lower()
+            for item in os.getenv("ALLOWED_ORIGINS", "").split(",")
+            if item.strip()
+        }
+        normalized_origin = (origin or "").strip().lower()
+        allowed_origin = normalized_origin if normalized_origin in allowed_origins else "null"
         return {
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": allowed_origin,
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Vary": "Origin",
         }
 
 try:

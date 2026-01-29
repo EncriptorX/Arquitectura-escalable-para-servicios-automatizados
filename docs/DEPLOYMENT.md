@@ -10,6 +10,7 @@ Debes configurar las siguientes variables de entorno en tu proyecto de Vercel:
 2. **CF_ACCOUNT_ID**: ID de cuenta de Cloudflare
 3. **TURNSTILE_SECRET_KEY**: Clave secreta de Cloudflare Turnstile
 4. **VITE_TURNSTILE_SITE_KEY**: Clave pública de Turnstile (para el frontend)
+5. **ADMIN_API_KEY**: Clave para endpoints administrativos (toggle-service / toggle-protection)
 
 ### Cómo agregar variables de entorno en Vercel:
 

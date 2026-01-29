@@ -300,7 +300,7 @@ pip install -r requirements.txt
 VITE_TURNSTILE_SITE_KEY=tu_turnstile_site_key
 ```
 
-#### Backend (Vercel)
+#### Backend (Vercel y local)
 
 Las variables del backend se configuran en Vercel Dashboard:
 
@@ -308,6 +308,7 @@ Las variables del backend se configuran en Vercel Dashboard:
 TURNSTILE_SECRET_KEY=tu_turnstile_secret_key
 CF_API_TOKEN=tu_cloudflare_api_token
 CF_ZONE_ID=tu_cloudflare_zone_id
+ADMIN_API_KEY=tu_admin_api_key
 ```
 
 ---

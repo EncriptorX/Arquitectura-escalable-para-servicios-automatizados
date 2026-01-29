@@ -25,6 +25,9 @@ TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverif
 API_TIMEOUT = 30
 DNS_PROPAGATION_TIME = "15 minutos a 48 horas"
 
+# Admin API Key (para endpoints administrativos)
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "")
+
 # Security Settings
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
