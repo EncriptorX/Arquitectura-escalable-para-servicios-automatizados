@@ -241,6 +241,11 @@ Esta carpeta contiene toda la documentación adicional del proyecto **Sistema de
 
 ---
 
+### [SOLUCION_VERCEL_LIMIT.md](./SOLUCION_VERCEL_LIMIT.md)
+**Descripción:** Solución aplicada para cumplir el límite de funciones serverless en Vercel Hobby (consolidación de endpoints y ajustes de routing).
+
+---
+
 ## 🎨 Mejoras y Diseño
 
 ### [DESIGN_IMPROVEMENTS.md](./DESIGN_IMPROVEMENTS.md)

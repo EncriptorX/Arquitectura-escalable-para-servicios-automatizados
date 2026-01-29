@@ -39,6 +39,13 @@ tests/
 python scripts/run_all_tests.py
 ```
 
+### Resultados (Log generado)
+
+- [tests/artifacts/test_results.txt](tests/artifacts/test_results.txt) es un **artefacto generado** (salida capturada de una corrida), no un test.
+- Si quieres regenerarlo:
+  - PowerShell: `python scripts/run_all_tests.py > tests/artifacts/test_results.txt 2>&1`
+- Si no lo necesitas versionado, puedes borrarlo sin afectar la suite.
+
 ### Por Categoría
 
 ```bash

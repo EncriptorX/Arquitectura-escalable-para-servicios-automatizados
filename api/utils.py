@@ -36,23 +36,28 @@ def make_cloudflare_request(method: str, endpoint: str, data: Optional[Dict] = N
         error_body = e.read().decode('utf-8') if e.fp else ""
         try:
             error_json = json.loads(error_body)
+            if isinstance(error_json, dict):
+                error_json.setdefault("status_code", e.code)
             return error_json
         except:
             return {
                 "success": False,
-                "errors": [{"message": f"HTTP {e.code}: {e.reason}"}]
+                "errors": [{"message": f"HTTP {e.code}: {e.reason}"}],
+                "status_code": e.code
             }
     
     except urllib.error.URLError as e:
         return {
             "success": False,
-            "errors": [{"message": f"Error de conexión: {str(e.reason)}"}]
+            "errors": [{"message": f"Error de conexión: {str(e.reason)}"}],
+            "status_code": None
         }
     
     except Exception as e:
         return {
             "success": False,
-            "errors": [{"message": f"Error inesperado: {str(e)}"}]
+            "errors": [{"message": f"Error inesperado: {str(e)}"}],
+            "status_code": None
         }
 
 
