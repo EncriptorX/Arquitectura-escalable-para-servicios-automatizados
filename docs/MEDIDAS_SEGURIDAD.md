@@ -25,7 +25,9 @@ Este documento resume las medidas de seguridad implementadas en el proyecto.
 
 ## 4) CORS con allowlist
 
-- `Access-Control-Allow-Origin` basado en allowlist.
+## 4) CORS bloqueado (sin acceso de terceros)
+
+- `Access-Control-Allow-Origin` bloqueado con `null` para impedir acceso XHR desde cualquier sitio.
 - `Vary: Origin` para evitar caché insegura.
 
 ## 5) Protección de endpoints administrativos
@@ -47,6 +49,16 @@ Este documento resume las medidas de seguridad implementadas en el proyecto.
 
 - `.env` sin credenciales reales.
 - Uso de `.env.example` con placeholders.
+
+## 9) Permissions-Policy
+
+- `Permissions-Policy` aplicado globalmente para restringir APIs del navegador.
+
+## 10) Cabeceras adicionales
+
+- **Strict-Transport-Security (HSTS)** para forzar HTTPS.
+- **X-Content-Type-Options: nosniff** para evitar MIME sniffing.
+- **Referrer-Policy: no-referrer** para limitar fuga de URLs.
 
 ---
 

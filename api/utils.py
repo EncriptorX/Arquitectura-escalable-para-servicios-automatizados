@@ -284,21 +284,9 @@ def check_domain_in_zone(domain: str, zone_name: str) -> bool:
     return domain == zone_name or domain.endswith(f".{zone_name}")
 
 
-def is_origin_allowed(origin: str) -> bool:
-    """Valida si un origin está permitido por la allowlist."""
-    if not origin:
-        return False
-
-    origin = origin.strip().lower()
-    for pattern in ALLOWED_ORIGINS:
-        if fnmatch.fnmatch(origin, pattern.lower()):
-            return True
-    return False
-
-
 def get_cors_headers(origin: Optional[str]) -> Dict[str, str]:
-    """Construye headers CORS basados en allowlist."""
-    allowed_origin = origin if origin and is_origin_allowed(origin) else "null"
+    """Construye headers CORS restringidos (bloquea acceso XHR de terceros)."""
+    allowed_origin = "null"
     return {
         "Access-Control-Allow-Origin": allowed_origin,
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",

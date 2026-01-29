@@ -200,7 +200,7 @@ Esta carpeta contiene toda la documentación adicional del proyecto **Sistema de
 **Contenido:**
 - Cabeceras anti-clickjacking
 - CSP con `frame-ancestors`
-- CORS con allowlist
+- CORS bloqueado (Access-Control-Allow-Origin: null)
 - Endpoints administrativos con `ADMIN_API_KEY`
 - Validación estricta de entradas
 - Mitigación SSRF en proxy

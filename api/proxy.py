@@ -34,13 +34,7 @@ try:
     from utils import get_cors_headers
 except ImportError:
     def get_cors_headers(origin):
-        allowed_origins = {
-            item.strip().lower()
-            for item in os.getenv("ALLOWED_ORIGINS", "").split(",")
-            if item.strip()
-        }
-        normalized_origin = (origin or "").strip().lower()
-        allowed_origin = normalized_origin if normalized_origin in allowed_origins else "null"
+        allowed_origin = "null"
         return {
             "Access-Control-Allow-Origin": allowed_origin,
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
