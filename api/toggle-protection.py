@@ -5,27 +5,30 @@ Permite habilitar o deshabilitar las políticas de seguridad de Cloudflare
 from http.server import BaseHTTPRequestHandler
 import json
 import os
-import re
 import urllib.request
+import urllib.error
 import sys
+from typing import Optional, Dict
 
 # Agregar el directorio api al path
 sys.path.insert(0, os.path.dirname(__file__))
 
 try:
-    from utils import validate_url
+    from config import CF_API_TOKEN, CF_ZONE_ID, API_TIMEOUT
+    from utils import validate_url, make_cloudflare_request
     UTILS_AVAILABLE = True
 except ImportError:
     UTILS_AVAILABLE = False
+    CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
+    CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
+    API_TIMEOUT = 30
     # Fallback básico
     def validate_url(url):
         if not url or "://" in url or "/" in url:
             return False, None, "Formato de dominio inválido"
         return True, url.strip().lower(), None
-
-# Configuración desde Vercel ENV
-CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
-CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
+    def make_cloudflare_request(method: str, endpoint: str, data: Optional[Dict] = None):
+        return None
 
 
 class CloudflareProtectionToggle:
@@ -39,6 +42,7 @@ class CloudflareProtectionToggle:
             "Content-Type": "application/json"
         }
         self.logs = []
+        self.timeout = API_TIMEOUT
     
     def _log(self, message, level="INFO"):
         """Helper para logging"""
@@ -48,68 +52,68 @@ class CloudflareProtectionToggle:
     
     def _request(self, method, endpoint, data=None):
         """Wrapper para realizar peticiones HTTP a la API de Cloudflare"""
+        # Usar utilitario centralizado si está disponible (token desde env)
+        if UTILS_AVAILABLE:
+            result = make_cloudflare_request(method, endpoint, data)
+            if not result or not result.get("success"):
+                self._log("Error en request a Cloudflare", "ERROR")
+            return result
+
         url = f"{self.base_url}/{endpoint}"
         try:
             data_encoded = json.dumps(data).encode('utf-8') if data else None
             headers_dict = self.headers.copy()
-            
+
             req = urllib.request.Request(url, data=data_encoded, headers=headers_dict, method=method)
-            
-            with urllib.request.urlopen(req, timeout=30) as response:
+
+            with urllib.request.urlopen(req, timeout=self.timeout) as response:
                 return json.loads(response.read().decode('utf-8'))
         except urllib.error.HTTPError as err:
             self._log(f"Error HTTP {err.code}: {err.reason}", "ERROR")
             try:
                 error_body = json.loads(err.read().decode('utf-8'))
                 self._log(f"Detalle: {json.dumps(error_body)}", "ERROR")
-            except:
+            except Exception:
                 pass
             return None
         except Exception as e:
             self._log(f"Error en request: {str(e)}", "ERROR")
             return None
+
+    def _toggle_setting(self, setting_key: str, enable: bool, value_on: str, value_off: str, label: str) -> bool:
+        """Helper genérico para toggles de settings"""
+        value = value_on if enable else value_off
+        self._log(f"{'Activando' if enable else 'Desactivando'} {label}...")
+
+        res = self._request("PATCH", f"zones/{self.zone_id}/settings/{setting_key}", {"value": value})
+
+        if res and res.get("success"):
+            self._log(f"✓ {label} {'activado' if enable else 'desactivado'}")
+            return True
+
+        self._log(f"Error al {'activar' if enable else 'desactivar'} {label}", "ERROR")
+        return False
+
+    def _get_setting_value(self, setting_key: str) -> Optional[str]:
+        """Obtiene valor de un setting"""
+        res = self._request("GET", f"zones/{self.zone_id}/settings/{setting_key}")
+        if res and res.get("success"):
+            return res["result"].get("value")
+        return None
     
     def toggle_waf(self, enable):
         """Habilita o deshabilita el WAF"""
-        value = "on" if enable else "off"
-        self._log(f"{'Activando' if enable else 'Desactivando'} WAF...")
-        
-        res = self._request("PATCH", f"zones/{self.zone_id}/settings/waf", {"value": value})
-        
-        if res and res.get("success"):
-            self._log(f"✓ WAF {'activado' if enable else 'desactivado'}")
-            return True
-        else:
-            self._log(f"Error al {'activar' if enable else 'desactivar'} WAF", "ERROR")
-            return False
+        return self._toggle_setting("waf", enable, "on", "off", "WAF")
     
     def toggle_https_redirect(self, enable):
         """Habilita o deshabilita la redirección HTTPS"""
-        value = "on" if enable else "off"
-        self._log(f"{'Activando' if enable else 'Desactivando'} Always Use HTTPS...")
-        
-        res = self._request("PATCH", f"zones/{self.zone_id}/settings/always_use_https", {"value": value})
-        
-        if res and res.get("success"):
-            self._log(f"✓ Redirección HTTPS {'activada' if enable else 'desactivada'}")
-            return True
-        else:
-            self._log(f"Error al {'activar' if enable else 'desactivar'} redirección HTTPS", "ERROR")
-            return False
+        return self._toggle_setting("always_use_https", enable, "on", "off", "Always Use HTTPS")
     
     def toggle_security_level(self, enable):
         """Ajusta el nivel de seguridad"""
         value = "high" if enable else "medium"
         self._log(f"Ajustando nivel de seguridad a {value}...")
-        
-        res = self._request("PATCH", f"zones/{self.zone_id}/settings/security_level", {"value": value})
-        
-        if res and res.get("success"):
-            self._log(f"✓ Nivel de seguridad ajustado a {value}")
-            return True
-        else:
-            self._log(f"Error al ajustar nivel de seguridad", "ERROR")
-            return False
+        return self._toggle_setting("security_level", enable, "high", "medium", "nivel de seguridad")
     
     def toggle_firewall_rules(self, enable):
         """Habilita o deshabilita las reglas de firewall CAS"""
@@ -202,19 +206,17 @@ class CloudflareProtectionToggle:
         }
         
         # WAF
-        waf_res = self._request("GET", f"zones/{self.zone_id}/settings/waf")
-        if waf_res and waf_res.get("success"):
-            status["waf"] = waf_res["result"]["value"] == "on"
+        waf_value = self._get_setting_value("waf")
+        if waf_value is not None:
+            status["waf"] = waf_value == "on"
         
         # HTTPS Redirect
-        https_res = self._request("GET", f"zones/{self.zone_id}/settings/always_use_https")
-        if https_res and https_res.get("success"):
-            status["https_redirect"] = https_res["result"]["value"] == "on"
+        https_value = self._get_setting_value("always_use_https")
+        if https_value is not None:
+            status["https_redirect"] = https_value == "on"
         
         # Security Level
-        sec_res = self._request("GET", f"zones/{self.zone_id}/settings/security_level")
-        if sec_res and sec_res.get("success"):
-            status["security_level"] = sec_res["result"]["value"]
+        status["security_level"] = self._get_setting_value("security_level")
         
         # Firewall Rules
         fw_res = self._request("GET", f"zones/{self.zone_id}/firewall/rules")

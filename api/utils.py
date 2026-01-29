@@ -4,6 +4,7 @@ Utilidades compartidas para las APIs
 import json
 import urllib.request
 import urllib.error
+import urllib.parse
 import re
 import socket
 from typing import Dict, Any, Optional, Tuple
