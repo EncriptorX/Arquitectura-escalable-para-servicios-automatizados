@@ -194,6 +194,19 @@ Esta carpeta contiene toda la documentación adicional del proyecto **Sistema de
 
 ---
 
+### [MEDIDAS_SEGURIDAD.md](./MEDIDAS_SEGURIDAD.md)
+**Descripción:** Resumen de hardening y controles de seguridad aplicados.
+
+**Contenido:**
+- Cabeceras anti-clickjacking
+- CSP con `frame-ancestors`
+- CORS con allowlist
+- Endpoints administrativos con `ADMIN_API_KEY`
+- Validación estricta de entradas
+- Mitigación SSRF en proxy
+
+---
+
 ## 🚀 Implementación y Despliegue
 
 ### [IMPLEMENTACION_MULTI_TENANT.md](./IMPLEMENTACION_MULTI_TENANT.md)

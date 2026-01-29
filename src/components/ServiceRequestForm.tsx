@@ -69,6 +69,8 @@ export default function ServiceRequestForm({ onClose, onSuccess }: ServiceReques
     if (!existingScript) {
       const script = document.createElement('script');
       script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+      script.integrity = "sha512-1xBrR23Cyl9vX895/p5p1y0nsS3susE88gu+wo/XxecqkggC7qmxXkGAMlJHFUgpBTPaNT7sXmbOkhGFS7cggw==";
+      script.crossOrigin = "anonymous";
       script.id = scriptId;
       script.async = true;
       script.defer = true;

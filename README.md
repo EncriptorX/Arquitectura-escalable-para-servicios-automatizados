@@ -59,6 +59,7 @@ Cliente → cliente-abc.suncarsrl.com → Backend Proxy → www.cliente.com
 - [Limitaciones](#limitaciones)
 - [Escalabilidad](#escalabilidad)
 - [Documentación Adicional](#documentación-adicional)
+- [Medidas de Seguridad](#medidas-de-seguridad)
 - [Troubleshooting](#troubleshooting)
 - [Contribución](#contribución)
 - [Licencia](#licencia)
@@ -1560,6 +1561,7 @@ Toda la documentación adicional se encuentra en la carpeta **`docs/`**.
 #### 🛡️ Protección y Seguridad
 - **[VALIDACION_ENTRADAS.md](./docs/VALIDACION_ENTRADAS.md)** - Sistema de validación de entradas
 - **[PROTECTION_VERIFICATION.md](./docs/PROTECTION_VERIFICATION.md)** - Verificación de protecciones
+- **[MEDIDAS_SEGURIDAD.md](./docs/MEDIDAS_SEGURIDAD.md)** - Medidas de hardening aplicadas
 
 #### 🚀 Implementación
 - **[IMPLEMENTACION_MULTI_TENANT.md](./docs/IMPLEMENTACION_MULTI_TENANT.md)** - Guía multi-tenant
@@ -1571,6 +1573,12 @@ Toda la documentación adicional se encuentra en la carpeta **`docs/`**.
 - **[UI_MOCKUPS_VERIFICACION.md](./docs/UI_MOCKUPS_VERIFICACION.md)** - Mockups de UI
 
 ---
+
+## 🔐 Medidas de Seguridad
+
+Resumen de hardening y controles aplicados:
+- 📄 [MEDIDAS_SEGURIDAD.md](./docs/MEDIDAS_SEGURIDAD.md)
+- Incluye SRI con SHA-512 para scripts externos.
 
 ## 🔧 Troubleshooting
 

@@ -96,6 +96,7 @@ class handler(BaseHTTPRequestHandler):
             self.send_header(key, value)
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('X-Frame-Options', 'DENY')
+        self.send_header('Content-Security-Policy', "frame-ancestors 'none'")
         self.send_header('Referrer-Policy', 'no-referrer')
         self.send_header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
         self.send_header('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()')
