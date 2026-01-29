@@ -32,6 +32,17 @@ except ImportError:
         return True
 
 try:
+    from config import CF_API_TOKEN, CF_ZONE_ID, CSAAS_ZONE, CSAAS_CNAME_TARGET, API_TIMEOUT
+    CONFIG_AVAILABLE = True
+except ImportError:
+    CONFIG_AVAILABLE = False
+    CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
+    CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
+    CSAAS_ZONE = os.getenv("CSAAS_ZONE", "suncarsrl.com")
+    CSAAS_CNAME_TARGET = os.getenv("CSAAS_CNAME_TARGET", "customers.suncarsrl.com")
+    API_TIMEOUT = 30
+
+try:
     from logger import protection_logger, log_api_error
     LOGGING_AVAILABLE = True
 except ImportError:
@@ -41,6 +52,18 @@ except ImportError:
         def error(self, *args, **kwargs): pass
     protection_logger = DummyLogger()
     log_api_error = lambda *args, **kwargs: None
+
+try:
+    from utils import validate_url
+    UTILS_AVAILABLE = True
+except ImportError:
+    UTILS_AVAILABLE = False
+    def validate_url(url: str):
+        if not url or not isinstance(url, str):
+            return False, None, "URL inválida"
+        if "://" in url or "/" in url or " " in url:
+            return False, None, f"URL debe ser un dominio FQDN sin esquemas ni rutas: {url}"
+        return True, url.strip().lower(), None
 
 try:
     from exceptions import (
@@ -66,13 +89,13 @@ except ImportError:
 # ===============================
 class CSaaSConfig:
     """Configuración para Cloudflare for SaaS"""
-    CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
-    CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
+    CF_API_TOKEN = CF_API_TOKEN
+    CF_ZONE_ID = CF_ZONE_ID
     CF_API_BASE_URL = "https://api.cloudflare.com/client/v4"
     
     # Configuración de la zona SaaS
-    SAAS_ZONE = "suncarsrl.com"  # Zona principal donde se crearán subdominios
-    CNAME_TARGET = "customers.suncarsrl.com"  # CNAME target fijo para Custom Hostnames
+    SAAS_ZONE = CSAAS_ZONE  # Zona principal donde se crearán subdominios
+    CNAME_TARGET = CSAAS_CNAME_TARGET  # CNAME target fijo para Custom Hostnames
     
     # Configuración de polling
     MAX_POLLING_ATTEMPTS = 30  # 30 intentos (reducido de 60)
@@ -140,12 +163,9 @@ def validate_client_data(data: Dict) -> Tuple[bool, Optional[str]]:
     
     # Validar formato de URLs
     for url in urls:
-        if not url or not isinstance(url, str):
-            return False, f"URL inválida: {url}"
-        
-        # Validar formato básico de dominio
-        if "://" in url or "/" in url or " " in url:
-            return False, f"URL debe ser un dominio FQDN sin esquemas ni rutas: {url}"
+        is_valid, _, error = validate_url(url)
+        if not is_valid:
+            return False, error or f"URL inválida: {url}"
     
     return True, None
 
@@ -160,6 +180,7 @@ class CloudflareSaaSClient:
         self.api_token = api_token
         self.zone_id = zone_id
         self.logs = []
+        self.timeout = API_TIMEOUT
     
     def log(self, message: str, level: str = "INFO"):
         """Registra un mensaje"""
@@ -186,7 +207,7 @@ class CloudflareSaaSClient:
                 method=method
             )
             
-            with urllib.request.urlopen(req, timeout=30) as response:
+            with urllib.request.urlopen(req, timeout=self.timeout) as response:
                 return json.loads(response.read().decode('utf-8'))
         
         except urllib.error.HTTPError as err:
@@ -629,9 +650,26 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         self.end_headers()
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
+
+    def _send_error(self, message: str, status_code: int, error_type: str = None, error_category: str = None, **extra):
+        payload = {"status": "error", "message": message}
+        if error_type:
+            payload["error_type"] = error_type
+        if error_category:
+            payload["error_category"] = error_category
+        payload.update(extra)
+        self._send_json(payload, status_code)
+
+    def _read_json(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length)
+        try:
+            return json.loads(body.decode('utf-8')), None
+        except json.JSONDecodeError as e:
+            return None, str(e)
     
     def do_OPTIONS(self):
         """Maneja preflight CORS"""
@@ -681,39 +719,21 @@ class handler(BaseHTTPRequestHandler):
             if not is_service_enabled():
                 if EXCEPTIONS_AVAILABLE:
                     error = ServiceDisabledError()
-                    self._send_json({
-                        "status": "error",
-                        "message": error.message,
-                        "service_disabled": True
-                    }, error.status_code)
+                    self._send_error(error.message, error.status_code, service_disabled=True)
                 else:
-                    self._send_json({
-                        "status": "error",
-                        "message": "El servicio está deshabilitado temporalmente",
-                        "service_disabled": True
-                    }, 503)
+                    self._send_error("El servicio está deshabilitado temporalmente", 503, service_disabled=True)
                 return
             
             # Leer y parsear body
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            
-            try:
-                data = json.loads(body.decode('utf-8'))
-            except json.JSONDecodeError as e:
-                self._send_json({
-                    "status": "error",
-                    "message": f"Error parseando JSON: {str(e)}"
-                }, 400)
+            data, parse_error = self._read_json()
+            if parse_error:
+                self._send_error(f"Error parseando JSON: {parse_error}", 400)
                 return
             
             # Validar datos del cliente
             valid, error_msg = validate_client_data(data)
             if not valid:
-                self._send_json({
-                    "status": "error",
-                    "message": error_msg
-                }, 400)
+                self._send_error(error_msg, 400)
                 return
             
             # Extraer datos
@@ -723,11 +743,11 @@ class handler(BaseHTTPRequestHandler):
             
             # Verificar configuración de Cloudflare
             if not CSaaSConfig.CF_API_TOKEN or not CSaaSConfig.CF_ZONE_ID:
-                self._send_json({
-                    "status": "error",
-                    "message": "Cloudflare no está configurado. Configure CF_API_TOKEN y CF_ZONE_ID",
-                    "simulation_mode": True
-                }, 500)
+                self._send_error(
+                    "Cloudflare no está configurado. Configure CF_API_TOKEN y CF_ZONE_ID",
+                    500,
+                    simulation_mode=True,
+                )
                 return
             
             # Provisionar cliente

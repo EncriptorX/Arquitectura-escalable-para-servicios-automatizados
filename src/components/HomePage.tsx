@@ -115,7 +115,7 @@ function HomePage({
               className="inline-flex items-center gap-2 glass px-4 py-2 rounded-full"
             >
               <Lock className="w-4 h-4 text-cyan-400" />
-              <span className="text-sm text-gray-300">Protección Perimetral Cloudflare</span>
+              <span className="text-sm text-gray-300">Protección Perimetral basada en Cloudflare</span>
             </motion.div>
 
             <motion.h1

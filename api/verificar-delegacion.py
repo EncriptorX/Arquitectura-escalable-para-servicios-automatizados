@@ -246,13 +246,30 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', content_type)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         self.end_headers()
     
     def _send_json(self, data, status_code=200):
         """Envía una respuesta JSON"""
         self._set_headers(status_code)
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
+
+    def _send_error(self, message: str, status_code: int, error_type: str = None, error_category: str = None, **extra):
+        payload = {"status": "error", "message": message}
+        if error_type:
+            payload["error_type"] = error_type
+        if error_category:
+            payload["error_category"] = error_category
+        payload.update(extra)
+        self._send_json(payload, status_code)
+
+    def _read_json(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length)
+        try:
+            return json.loads(body.decode('utf-8')), None
+        except json.JSONDecodeError as e:
+            return None, str(e)
     
     def do_OPTIONS(self):
         """Maneja preflight CORS"""
@@ -269,72 +286,48 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Verifica el estado de delegación DNS de un dominio"""
         try:
-            # Leer el body
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            
-            # Parsear JSON
-            try:
-                data = json.loads(body.decode('utf-8'))
-            except json.JSONDecodeError as e:
-                self._send_json({
-                    "status": "error",
-                    "message": f"Error parseando JSON: {str(e)}"
-                }, 400)
+            data, parse_error = self._read_json()
+            if parse_error:
+                self._send_error(f"Error parseando JSON: {parse_error}", 400)
                 return
             
             # Obtener y validar dominio
             dominio = data.get("dominio", "").strip().lower()
             
             if not dominio:
-                self._send_json({
-                    "status": "error",
-                    "message": "Falta el parámetro 'dominio'"
-                }, 400)
+                self._send_error("Falta el parámetro 'dominio'", 400)
                 return
             
             # Validar formato de dominio (solo FQDN, sin esquemas ni rutas)
             if "://" in dominio:
-                self._send_json({
-                    "status": "error",
-                    "message": "No se permiten esquemas (http://, https://). Use solo el dominio FQDN"
-                }, 400)
+                self._send_error("No se permiten esquemas (http://, https://). Use solo el dominio FQDN", 400)
                 return
             
             if "/" in dominio or "?" in dominio or "#" in dominio or ":" in dominio or "@" in dominio:
-                self._send_json({
-                    "status": "error",
-                    "message": "Formato de dominio inválido. Use solo el dominio FQDN (ejemplo: ejemplo.com)"
-                }, 400)
+                self._send_error("Formato de dominio inválido. Use solo el dominio FQDN (ejemplo: ejemplo.com)", 400)
                 return
             
             # Validar que no sea una IP
             import re
             ip_pattern = r"^(\d{1,3}\.){3}\d{1,3}$"
             if re.match(ip_pattern, dominio):
-                self._send_json({
-                    "status": "error",
-                    "message": "No se permiten direcciones IP. Use un dominio FQDN"
-                }, 400)
+                self._send_error("No se permiten direcciones IP. Use un dominio FQDN", 400)
                 return
             
             # Validar formato FQDN básico
             domain_pattern = r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63}(?<!-))*\.[A-Za-z]{2,}$"
             if not re.match(domain_pattern, dominio):
-                self._send_json({
-                    "status": "error",
-                    "message": "Formato de dominio inválido. Use un dominio FQDN válido (ejemplo: ejemplo.com)"
-                }, 400)
+                self._send_error("Formato de dominio inválido. Use un dominio FQDN válido (ejemplo: ejemplo.com)", 400)
                 return
             
             # Verificar configuración de Cloudflare
             if not CF_API_TOKEN or not CF_ZONE_ID:
-                self._send_json({
-                    "status": "error",
-                    "message": "Cloudflare no está configurado (CF_API_TOKEN y CF_ZONE_ID requeridos)",
-                    "delegado": False,
-                    "puede_continuar": False
-                }, 200)
+                self._send_error(
+                    "Cloudflare no está configurado (CF_API_TOKEN y CF_ZONE_ID requeridos)",
+                    200,
+                    delegado=False,
+                    puede_continuar=False,
+                )
                 return
             
             # Obtener nameservers de Cloudflare
