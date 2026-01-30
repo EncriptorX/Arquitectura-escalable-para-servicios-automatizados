@@ -255,6 +255,11 @@ class CloudflareSimpleClient:
         
         results = {}
         
+        # SSL Mode - Flexible (para compatibilidad con orígenes sin SSL válido)
+        self.log("  → Configurando SSL Mode...")
+        ssl_res = self.request("PATCH", f"zones/{self.zone_id}/settings/ssl", {"value": "flexible"})
+        results["ssl_mode"] = bool(ssl_res and ssl_res.get("success"))
+        
         # WAF
         self.log("  → Configurando WAF...")
         waf_res = self.request("PATCH", f"zones/{self.zone_id}/settings/waf", {"value": "on"})
