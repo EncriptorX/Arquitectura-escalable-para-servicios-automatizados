@@ -103,12 +103,6 @@ except ImportError:
     CloudflareAPIError = BaseAPIError
     NetworkError = BaseAPIError
     TimeoutError = BaseAPIError
-    def _reject_invalid_host(self) -> bool:
-        host = self.headers.get('Host', '')
-        if not is_host_allowed(host):
-            self._send_error("Host no autorizado", 400, host=host)
-            return True
-        return False
     ServiceDisabledError = BaseAPIError
 
 # ===============================
@@ -736,6 +730,14 @@ class handler(BaseHTTPRequestHandler):
             return json.loads(body.decode('utf-8')), None
         except json.JSONDecodeError as e:
             return None, str(e)
+    
+    def _reject_invalid_host(self) -> bool:
+        """Verifica si el host está permitido"""
+        host = self.headers.get('Host', '')
+        if not is_host_allowed(host):
+            self._send_error("Host no autorizado", 400, host=host)
+            return True
+        return False
     
     def do_OPTIONS(self):
         """Maneja preflight CORS"""
