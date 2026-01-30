@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useState } from 'react';
+import { Analytics } from '@vercel/analytics/next';
 import HomePage from './components/HomePage';
 import type { CSaaSInfo, ProcessInfo, View } from './types/app';
 
@@ -47,50 +48,62 @@ function App() {
 
   if (currentView === 'control-panel') {
     return (
-      <Suspense fallback={null}>
-        <ControlPanelPage
-          onBack={handleBackHome}
-          onRequestProtection={() => setCurrentView('form')}
-        />
-      </Suspense>
+      <>
+        <Suspense fallback={null}>
+          <ControlPanelPage
+            onBack={handleBackHome}
+            onRequestProtection={() => setCurrentView('form')}
+          />
+        </Suspense>
+        <Analytics />
+      </>
     );
   }
 
   if (currentView === 'csaas-clients') {
     return (
-      <Suspense fallback={null}>
-        <CSaaSClientsPage onBack={handleBackHome} />
-      </Suspense>
+      <>
+        <Suspense fallback={null}>
+          <CSaaSClientsPage onBack={handleBackHome} />
+        </Suspense>
+        <Analytics />
+      </>
     );
   }
 
   if (currentView === 'csaas-result' && csaasInfo) {
     return (
-      <Suspense fallback={null}>
-        <CSaaSResultPage
-          subdomain={csaasInfo.subdomain}
-          protected_url={csaasInfo.protected_url}
-          origin_urls={csaasInfo.origin_urls}
-          message={csaasInfo.message}
-          logs={csaasInfo.logs}
-          onBack={handleBackHome}
-          onNewRequest={handleNewCSaaSRequest}
-        />
-      </Suspense>
+      <>
+        <Suspense fallback={null}>
+          <CSaaSResultPage
+            subdomain={csaasInfo.subdomain}
+            protected_url={csaasInfo.protected_url}
+            origin_urls={csaasInfo.origin_urls}
+            message={csaasInfo.message}
+            logs={csaasInfo.logs}
+            onBack={handleBackHome}
+            onNewRequest={handleNewCSaaSRequest}
+          />
+        </Suspense>
+        <Analytics />
+      </>
     );
   }
 
   if (currentView === 'process' && processInfo) {
     return (
-      <Suspense fallback={null}>
-        <ProcessInfoPage
-          urls={processInfo.urls}
-          message={processInfo.message}
-          output={processInfo.output}
-          onBack={handleBackHome}
-          onNewRequest={handleNewRequest}
-        />
-      </Suspense>
+      <>
+        <Suspense fallback={null}>
+          <ProcessInfoPage
+            urls={processInfo.urls}
+            message={processInfo.message}
+            output={processInfo.output}
+            onBack={handleBackHome}
+            onNewRequest={handleNewRequest}
+          />
+        </Suspense>
+        <Analytics />
+      </>
     );
   }
 
@@ -114,6 +127,7 @@ function App() {
           onOpenDirectForm={handleOpenDirectForm}
         />
       )}
+      <Analytics />
     </>
   );
 }
