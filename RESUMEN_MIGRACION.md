@@ -44,7 +44,7 @@
 CSAAS_ZONE=cubansaas.tech
 CSAAS_CNAME_TARGET=customers.cubansaas.tech
 CF_ZONE_ID=<tu_zone_id_de_cubansaas_tech>
-ALLOWED_HOSTS=localhost,127.0.0.1,*.vercel.app,*.cubansaas.tech
+ALLOWED_HOSTS=localhost,127.0.0.1,*.vercel.app,cubansaas.tech,*.cubansaas.tech
 ```
 
 ### 2. Verificar Delegación DNS
@@ -227,7 +227,7 @@ Cliente → cliente-abc.cubansaas.tech → Custom Hostname → Backend Proxy →
 
 **1. Error: "Host no autorizado"**
 - Verificar `ALLOWED_HOSTS` en Vercel
-- Debe incluir: `*.cubansaas.tech`
+- Debe incluir: `cubansaas.tech,*.cubansaas.tech`
 
 **2. Error: "Zone ID inválido"**
 - Verificar `CF_ZONE_ID` en Vercel
