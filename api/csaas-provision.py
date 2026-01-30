@@ -149,7 +149,7 @@ def generate_subdomain(client_name: str, client_id: Optional[str] = None) -> str
         client_id: ID opcional del cliente
     
     Returns:
-        Subdominio único (ej: cliente123.suncarsrl.com)
+        Subdominio único (ej: cliente123.cubansaas.tech)
     """
     # Limpiar nombre del cliente
     clean_name = ''.join(c.lower() for c in client_name if c.isalnum())[:20]
