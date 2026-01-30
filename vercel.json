@@ -34,7 +34,7 @@
     },
     {
       "source": "/api/csaas-list",
-      "destination": "/api/csaas-provision.py"
+      "destination": "/api/csaas-list.py"
     },
     {
       "source": "/api/proxy",
