@@ -41,6 +41,7 @@ _DEFAULT_ALLOWED_HOSTS = [
     "127.0.0.1",
     "::1",
     "*.vercel.app",
+    "cubansaas.tech",
     "*.cubansaas.tech"
 ]
 _env_allowed_hosts = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()]
