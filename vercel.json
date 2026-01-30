@@ -1,54 +1,44 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    },
-    {
-      "src": "api/solicitar-proteccion.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/status.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/toggle-service.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/toggle-protection.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/verificar-delegacion.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/diagnostico.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/csaas-provision.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/csaas-simple-provision.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/proxy.py",
-      "use": "@vercel/python"
-    }
-  ],
   "rewrites": [
     {
+      "source": "/api/solicitar-proteccion",
+      "destination": "/api/solicitar-proteccion.py"
+    },
+    {
+      "source": "/api/status",
+      "destination": "/api/status.py"
+    },
+    {
+      "source": "/api/toggle-service",
+      "destination": "/api/toggle-service.py"
+    },
+    {
+      "source": "/api/toggle-protection",
+      "destination": "/api/toggle-protection.py"
+    },
+    {
+      "source": "/api/verificar-delegacion",
+      "destination": "/api/verificar-delegacion.py"
+    },
+    {
+      "source": "/api/diagnostico",
+      "destination": "/api/diagnostico.py"
+    },
+    {
+      "source": "/api/csaas-provision",
+      "destination": "/api/csaas-provision.py"
+    },
+    {
+      "source": "/api/csaas-simple-provision",
+      "destination": "/api/csaas-simple-provision.py"
+    },
+    {
       "source": "/api/csaas-list",
-      "destination": "/api/csaas-provision"
+      "destination": "/api/csaas-provision.py"
+    },
+    {
+      "source": "/api/proxy",
+      "destination": "/api/proxy.py"
     }
   ],
   "headers": [
