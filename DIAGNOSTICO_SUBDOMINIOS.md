@@ -2,7 +2,17 @@
 
 ## 📋 Síntoma
 
-Los subdominios se generan y agregan correctamente a Cloudflare, pero al acceder a ellos no ocurre nada.
+Los subdominios se generan y agregan correctamente a Cloudflare, pero al acceder a ellos aparece un error.
+
+## ⚡ Diagnóstico Rápido
+
+**ANTES DE CONTINUAR**: Ejecuta este comando para diagnóstico automático:
+
+```bash
+python scripts/diagnosticar_subdominio.py <tu-subdominio>.cubansaas.tech
+```
+
+El script te dirá exactamente qué está mal y cómo solucionarlo.
 
 ---
 
