@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useState } from 'react';
-import { Analytics } from '@vercel/analytics/next';
+import { Analytics } from '@vercel/analytics/react';
 import HomePage from './components/HomePage';
 import type { CSaaSInfo, ProcessInfo, View } from './types/app';
 
