@@ -9,8 +9,8 @@ CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
 CF_API_BASE_URL = "https://api.cloudflare.com/client/v4"
 
 # Cloudflare for SaaS Configuration
-CSAAS_ZONE = os.getenv("CSAAS_ZONE", "suncarsrl.com")
-CSAAS_CNAME_TARGET = os.getenv("CSAAS_CNAME_TARGET", "customers.suncarsrl.com")
+CSAAS_ZONE = os.getenv("CSAAS_ZONE", "cubansaas.tech")
+CSAAS_CNAME_TARGET = os.getenv("CSAAS_CNAME_TARGET", "customers.cubansaas.tech")
 
 # CSaaS - Almacenamiento en memoria (sin base de datos)
 class CSaaSConfig:
@@ -41,7 +41,7 @@ _DEFAULT_ALLOWED_HOSTS = [
     "127.0.0.1",
     "::1",
     "*.vercel.app",
-    "*.suncarsrl.com"
+    "*.cubansaas.tech"
 ]
 _env_allowed_hosts = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()]
 ALLOWED_HOSTS = _env_allowed_hosts if _env_allowed_hosts else _DEFAULT_ALLOWED_HOSTS

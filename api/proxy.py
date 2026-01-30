@@ -97,7 +97,7 @@ def extract_subdomain(host: str) -> Optional[str]:
     Extrae el subdominio del header Host
     
     Args:
-        host: Header Host (ej: cliente-abc123.suncarsrl.com)
+        host: Header Host (ej: cliente-abc123.cubansaas.tech)
     
     Returns:
         Subdominio completo o None si no es válido
@@ -108,8 +108,8 @@ def extract_subdomain(host: str) -> Optional[str]:
     # Remover puerto si existe
     host = host.split(':')[0]
     
-    # Verificar que sea un subdominio de suncarsrl.com
-    if not host.endswith('.suncarsrl.com'):
+    # Verificar que sea un subdominio de cubansaas.tech
+    if not host.endswith('.cubansaas.tech'):
         return None
     
     return host
@@ -339,7 +339,7 @@ class handler(BaseHTTPRequestHandler):
         if not subdomain:
             self._send_json({
                 "error": "Invalid Host",
-                "message": "El header Host no es un subdominio válido de suncarsrl.com",
+                "message": "El header Host no es un subdominio válido de cubansaas.tech",
                 "host": host
             }, 400)
             return

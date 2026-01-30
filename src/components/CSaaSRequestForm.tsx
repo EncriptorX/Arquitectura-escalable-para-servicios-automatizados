@@ -282,10 +282,10 @@ export default function CSaaSRequestForm({ onClose, onSuccess }: CSaaSRequestFor
                   Sistema CSaaS con Proxy Inteligente (Plan Gratuito)
                 </p>
                 <p className="text-cyan-300/80 text-xs mb-2">
-                  Generaremos un subdominio único bajo <strong>suncarsrl.com</strong> que actuará como proxy reverso a tu dominio original.
+                  Generaremos un subdominio único bajo <strong>cubansaas.tech</strong> que actuará como proxy reverso a tu dominio original.
                 </p>
                 <div className="bg-black/30 p-2 rounded text-[10px] font-mono text-cyan-300/70">
-                  <p>Cliente → subdominio.suncarsrl.com → Backend Proxy → tu-dominio.com</p>
+                  <p>Cliente → subdominio.cubansaas.tech → Backend Proxy → tu-dominio.com</p>
                 </div>
                 <p className="text-cyan-300/60 text-[10px] mt-2">
                   ✓ Sin modificar custom_origin_server (no disponible en plan Free)<br/>
@@ -314,7 +314,7 @@ export default function CSaaSRequestForm({ onClose, onSuccess }: CSaaSRequestFor
               placeholder="Acme Corporation"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Se usará para generar el subdominio (ej: acme-abc123.suncarsrl.com)
+              Se usará para generar el subdominio (ej: acme-abc123.cubansaas.tech)
             </p>
           </motion.div>
 
