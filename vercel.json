@@ -29,15 +29,15 @@
       "destination": "/api/csaas-provision.py"
     },
     {
-      "source": "/api/csaas-simple-provision",
-      "destination": "/api/csaas-simple-provision.py"
-    },
-    {
       "source": "/api/csaas-list",
       "destination": "/api/csaas-list.py"
     },
     {
       "source": "/api/proxy",
+      "destination": "/api/proxy.py"
+    },
+    {
+      "source": "/(.*)",
       "destination": "/api/proxy.py"
     }
   ],

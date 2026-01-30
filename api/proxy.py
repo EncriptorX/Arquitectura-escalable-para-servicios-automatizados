@@ -120,7 +120,7 @@ def get_origin_for_subdomain(subdomain: str) -> Optional[str]:
     Obtiene el dominio real del cliente para un subdominio
     
     Args:
-        subdomain: Subdominio (ej: cliente-abc123.suncarsrl.com)
+        subdomain: Subdominio (ej: cliente-abc123.cubansaas.tech)
     
     Returns:
         Dominio real del cliente o None si no existe
@@ -145,6 +145,24 @@ def get_origin_for_subdomain(subdomain: str) -> Optional[str]:
                     ProxyConfig.SUBDOMAIN_MAP[subdomain] = origin
                     return origin
     except ImportError:
+        pass
+    
+    # Intentar importar desde csaas-provision
+    try:
+        import sys
+        import os
+        sys.path.insert(0, os.path.dirname(__file__))
+        from csaas_provision import CSaaSConfig as ProvisionConfig
+        
+        for client_key, client_info in ProvisionConfig.PROVISIONED_CLIENTS.items():
+            if client_info.get('subdomain') == subdomain:
+                origin_urls = client_info.get('origin_urls', [])
+                if origin_urls:
+                    origin = origin_urls[0]
+                    # Actualizar mapa en memoria
+                    ProxyConfig.SUBDOMAIN_MAP[subdomain] = origin
+                    return origin
+    except (ImportError, AttributeError):
         pass
     
     return None
