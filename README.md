@@ -100,6 +100,7 @@ Este sistema automatiza todo el proceso en **menos de 30 segundos**, aplicando:
 - ✅ Interfaz web moderna y responsive (React + TypeScript + Tailwind CSS)
 - ✅ Formulario de solicitud con validación en tiempo real
 - ✅ Protección anti-bot con Cloudflare Turnstile
+- ✅ Analítica de uso con Vercel Analytics
 - ✅ Visualización de logs en tiempo real
 - ✅ Indicadores de progreso animados
 - ✅ **Panel de Control de Protección** - Activar/Desactivar políticas de seguridad
@@ -226,6 +227,7 @@ Este sistema automatiza todo el proceso en **menos de 30 segundos**, aplicando:
 - **Framer Motion** - Animaciones
 - **Lucide React** - Iconos
 - **Cloudflare Turnstile** - Protección anti-bot
+- **Vercel Analytics** - Métricas de uso en producción
 
 ### Backend
 - **Python 3.9+** - Lenguaje de programación
