@@ -37,6 +37,10 @@
       "use": "@vercel/python"
     },
     {
+      "src": "api/csaas-simple-provision.py",
+      "use": "@vercel/python"
+    },
+    {
       "src": "api/proxy.py",
       "use": "@vercel/python"
     }
@@ -69,6 +73,10 @@
     {
       "src": "/api/csaas-provision",
       "dest": "api/csaas-provision.py"
+    },
+    {
+      "src": "/api/csaas-simple-provision",
+      "dest": "api/csaas-simple-provision.py"
     },
     {
       "src": "/api/csaas-list",

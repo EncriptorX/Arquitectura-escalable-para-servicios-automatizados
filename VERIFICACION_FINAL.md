@@ -57,7 +57,11 @@ ALLOWED_HOSTS = ["*.cubansaas.tech"]
 - `CAMBIOS_DOMINIO_CUBANSAAS.md` ✓
 - `RESUMEN_MIGRACION.md` ✓
 - `DEPLOYMENT_RAPIDO.md` ✓
+- `ADVERTENCIA_VERCEL.md` ✓
 - `scripts/test_migration.py` ✓
+
+### 9. ✅ Configuración de Vercel
+- `vercel.json` actualizado con nuevo endpoint ✓
 
 ---
 
