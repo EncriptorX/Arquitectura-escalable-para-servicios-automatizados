@@ -1,15 +1,25 @@
 """
-Vercel Serverless Function - Cloudflare for SaaS (CSaaS) Provisioning
-Sistema completo de protección perimetral automatizada usando Custom Hostnames
+Vercel Serverless Function - CSaaS Provisioning con Proxy Backend
+Sistema automatizado de protección perimetral usando CNAME + Proxy Reverso
 
-Flujo CSaaS:
-1. Cliente envía formulario con nombre/ID y URLs a proteger
-2. Generar subdominio único bajo suncarsrl.com (ej: cliente123.suncarsrl.com)
-3. Crear registro CNAME proxied en suncarsrl.com apuntando a customers.suncarsrl.com
-4. Crear Custom Hostname en Cloudflare for SaaS con SSL DV HTTP
-5. Polling hasta que Custom Hostname esté "active"
-6. Aplicar reglas de seguridad (WAF, rate-limiting)
-7. Devolver URL protegida al cliente
+ARQUITECTURA (Compatible con Plan Gratuito):
+1. Cliente envía formulario con nombre/ID y URL a proteger
+2. Generar subdominio único bajo cubansaas.tech (ej: cliente123.cubansaas.tech)
+3. Crear registro CNAME proxied apuntando a customers.cubansaas.tech
+4. Registrar el mapeo subdominio → dominio_real en memoria para el proxy
+5. Aplicar reglas de seguridad a nivel de zona
+6. Devolver URL protegida al cliente
+
+FLUJO DE TRÁFICO:
+Usuario → cliente-abc.cubansaas.tech
+       ↓ (DNS CNAME)
+    customers.cubansaas.tech (Vercel)
+       ↓ (Vercel routing)
+    /api/proxy.py
+       ↓ (Backend fetch)
+    dominio-real-cliente.com
+       ↓
+    ✅ Contenido del cliente
 """
 from http.server import BaseHTTPRequestHandler
 import json
@@ -26,8 +36,7 @@ from typing import Optional, Dict, List, Tuple
 sys.path.insert(0, os.path.dirname(__file__))
 
 try:
-    from utils import get_cors_headers
-    from utils import is_host_allowed
+    from utils import get_cors_headers, is_host_allowed
 except ImportError:
     def get_cors_headers(origin):
         allowed_origin = "null"
@@ -44,22 +53,18 @@ except ImportError:
         return bool(normalized and (normalized in allowed or (vercel_url and normalized == vercel_url)))
 
 try:
-    from config import is_service_enabled
-except ImportError:
-    def is_service_enabled():
-        return True
-
-try:
-    from config import CF_API_TOKEN, CF_ZONE_ID, CSAAS_ZONE, CSAAS_CNAME_TARGET, API_TIMEOUT
+    from config import is_service_enabled, CF_API_TOKEN, CF_ZONE_ID, CSAAS_ZONE, CSAAS_CNAME_TARGET, API_TIMEOUT
     from config import CSaaSConfig as SharedCSaaSConfig
     CONFIG_AVAILABLE = True
 except ImportError:
     CONFIG_AVAILABLE = False
     CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
     CF_ZONE_ID = os.getenv("CF_ZONE_ID", "")
-    CSAAS_ZONE = os.getenv("CSAAS_ZONE", "suncarsrl.com")
-    CSAAS_CNAME_TARGET = os.getenv("CSAAS_CNAME_TARGET", "customers.suncarsrl.com")
+    CSAAS_ZONE = os.getenv("CSAAS_ZONE", "cubansaas.tech")
+    CSAAS_CNAME_TARGET = os.getenv("CSAAS_CNAME_TARGET", "customers.cubansaas.tech")
     API_TIMEOUT = 30
+    def is_service_enabled():
+        return True
     class SharedCSaaSConfig:
         PROVISIONED_CLIENTS = {}
 
@@ -87,10 +92,7 @@ except ImportError:
         return True, url.strip().lower(), None
 
 try:
-    from exceptions import (
-        ValidationError, AuthenticationError, CloudflareAPIError,
-        NetworkError, TimeoutError, ServiceDisabledError
-    )
+    from exceptions import ValidationError, ServiceDisabledError
     EXCEPTIONS_AVAILABLE = True
 except ImportError:
     EXCEPTIONS_AVAILABLE = False
@@ -99,90 +101,50 @@ except ImportError:
         def to_dict(self):
             return {"error": str(self)}
     ValidationError = BaseAPIError
-    AuthenticationError = BaseAPIError
-    CloudflareAPIError = BaseAPIError
-    NetworkError = BaseAPIError
-    TimeoutError = BaseAPIError
     ServiceDisabledError = BaseAPIError
+
 
 # ===============================
 # Configuración CSaaS
 # ===============================
 class CSaaSConfig:
-    """Configuración para Cloudflare for SaaS"""
+    """Configuración para CSaaS con Proxy Backend"""
     CF_API_TOKEN = CF_API_TOKEN
     CF_ZONE_ID = CF_ZONE_ID
     CF_API_BASE_URL = "https://api.cloudflare.com/client/v4"
-    
-    # Configuración de la zona SaaS
-    SAAS_ZONE = CSAAS_ZONE  # Zona principal donde se crearán subdominios
-    CNAME_TARGET = CSAAS_CNAME_TARGET  # CNAME target fijo para Custom Hostnames
-    
-    # Configuración de polling
-    MAX_POLLING_ATTEMPTS = 30  # 30 intentos (reducido de 60)
-    POLLING_INTERVAL = 3  # 3 segundos entre intentos (reducido de 5)
-    # Total: máximo 90 segundos (1.5 minutos)
-    
-    # Configuración de SSL
-    SSL_METHOD = "http"  # DV por HTTP
-    SSL_TYPE = "dv"  # Domain Validation
-    
-    # Almacenamiento en memoria (sin base de datos)
-    PROVISIONED_CLIENTS = {}  # {client_id: {subdomain, custom_hostname_id, urls, status}}
+    SAAS_ZONE = CSAAS_ZONE
+    CNAME_TARGET = CSAAS_CNAME_TARGET
+    PROVISIONED_CLIENTS = {}
 
 
 # ===============================
-# Utilidades CSaaS
+# Utilidades
 # ===============================
 def generate_subdomain(client_name: str, client_id: Optional[str] = None) -> str:
-    """
-    Genera un subdominio único basado en el nombre del cliente
-    
-    Args:
-        client_name: Nombre del cliente
-        client_id: ID opcional del cliente
-    
-    Returns:
-        Subdominio único (ej: cliente123.cubansaas.tech)
-    """
-    # Limpiar nombre del cliente
+    """Genera un subdominio único"""
     clean_name = ''.join(c.lower() for c in client_name if c.isalnum())[:20]
     
-    # Generar hash único
     if client_id:
         unique_str = f"{client_name}-{client_id}-{int(time.time())}"
     else:
         unique_str = f"{client_name}-{int(time.time())}"
     
     hash_suffix = hashlib.md5(unique_str.encode()).hexdigest()[:8]
-    
-    # Construir subdominio
     subdomain = f"{clean_name}-{hash_suffix}.{CSaaSConfig.SAAS_ZONE}"
     
     return subdomain
 
 
 def validate_client_data(data: Dict) -> Tuple[bool, Optional[str]]:
-    """
-    Valida los datos del cliente
-    
-    Args:
-        data: Datos del formulario
-    
-    Returns:
-        (válido, mensaje_error)
-    """
-    # Validar nombre del cliente
+    """Valida los datos del cliente"""
     client_name = data.get("client_name", "").strip()
     if not client_name:
         return False, "El nombre del cliente es requerido"
     
-    # Validar URLs
     urls = data.get("urls", [])
     if not urls or not isinstance(urls, list):
         return False, "Debe proporcionar al menos una URL a proteger"
     
-    # Validar formato de URLs
     for url in urls:
         is_valid, _, error = validate_url(url)
         if not is_valid:
@@ -192,10 +154,10 @@ def validate_client_data(data: Dict) -> Tuple[bool, Optional[str]]:
 
 
 # ===============================
-# Cliente Cloudflare for SaaS
+# Cliente Cloudflare
 # ===============================
-class CloudflareSaaSClient:
-    """Cliente para Cloudflare for SaaS API"""
+class CloudflareClient:
+    """Cliente para Cloudflare API con Proxy Backend"""
     
     def __init__(self, api_token: str, zone_id: str):
         self.api_token = api_token
@@ -252,63 +214,18 @@ class CloudflareSaaSClient:
                 log_api_error(endpoint, str(e), type(e).__name__)
             return None
     
-    def verify_cname_target_exists(self, target: str) -> bool:
+    def create_cname_to_proxy(self, subdomain: str, target: str) -> Tuple[bool, Optional[str]]:
         """
-        Verifica que el CNAME target existe en la zona
+        Crea un registro CNAME proxied apuntando a customers.cubansaas.tech
         
         Args:
-            target: CNAME target a verificar (ej: customers.suncarsrl.com)
-        
-        Returns:
-            True si existe, False si no
-        """
-        self.log(f"[PASO 0.5/5] Verificando que el CNAME target existe: {target}")
-        
-        # Buscar el registro DNS del target
-        search_res = self.request("GET", f"zones/{self.zone_id}/dns_records?name={target}")
-        
-        if search_res and search_res.get("result"):
-            existing = search_res["result"]
-            if existing:
-                self.log(f"✓ CNAME target encontrado: {target}")
-                return True
-        
-        self.log(f"⚠️ CNAME target no encontrado: {target}. Se creará automáticamente.", "WARN")
-        
-        # Crear el CNAME target apuntando a un fallback (puede ser la zona misma o un servidor de origen)
-        # Por defecto, lo apuntamos a la zona principal para que funcione
-        fallback_target = CSaaSConfig.SAAS_ZONE
-        
-        payload = {
-            "type": "CNAME",
-            "name": target,
-            "content": fallback_target,
-            "proxied": True,
-            "ttl": 1,
-            "comment": "CNAME target automático para Cloudflare for SaaS"
-        }
-        
-        res = self.request("POST", f"zones/{self.zone_id}/dns_records", payload)
-        
-        if res and res.get("success"):
-            self.log(f"✓ CNAME target creado automáticamente: {target} -> {fallback_target}")
-            return True
-        
-        self.log(f"✗ No se pudo crear el CNAME target: {target}", "ERROR")
-        return False
-    
-    def create_cname_record(self, subdomain: str, target: str) -> Tuple[bool, Optional[str]]:
-        """
-        Crea un registro CNAME proxied en la zona
-        
-        Args:
-            subdomain: Subdominio completo (ej: cliente123.suncarsrl.com)
-            target: CNAME target (ej: customers.suncarsrl.com)
+            subdomain: Subdominio completo (ej: cliente123.cubansaas.tech)
+            target: CNAME target (customers.cubansaas.tech)
         
         Returns:
             (éxito, record_id)
         """
-        self.log(f"[PASO 1/5] Creando registro CNAME: {subdomain} -> {target}")
+        self.log(f"[PASO 1/3] Creando registro CNAME proxied: {subdomain} -> {target}")
         
         # Verificar si ya existe
         search_res = self.request("GET", f"zones/{self.zone_id}/dns_records?name={subdomain}&type=CNAME")
@@ -326,7 +243,8 @@ class CloudflareSaaSClient:
             "name": subdomain,
             "content": target,
             "proxied": True,
-            "ttl": 1
+            "ttl": 1,
+            "comment": f"CSaaS Proxy - Apunta a backend proxy en Vercel"
         }
         
         res = self.request("POST", f"zones/{self.zone_id}/dns_records", payload)
@@ -339,161 +257,18 @@ class CloudflareSaaSClient:
         self.log("✗ Error al crear registro CNAME", "ERROR")
         return False, None
     
-    def create_custom_hostname(self, hostname: str, origin_urls: List[str]) -> Tuple[bool, Optional[str], Optional[Dict]]:
-        """
-        Crea un Custom Hostname en Cloudflare for SaaS SIN custom_origin_server
-        
-        IMPORTANTE: En plan gratuito NO se usa custom_origin_server ni custom_origin_sni.
-        El proxy al dominio real del cliente se maneja en el backend.
-        
-        Args:
-            hostname: Hostname del cliente (subdominio)
-            origin_urls: URLs de origen del cliente (se almacenan en memoria para el proxy)
-        
-        Returns:
-            (éxito, custom_hostname_id, detalles)
-        """
-        self.log(f"[PASO 2/5] Creando Custom Hostname: {hostname}")
-        self.log(f"  → NOTA: Plan gratuito - NO se usa custom_origin_server")
-        self.log(f"  → El proxy al dominio del cliente se maneja en el backend")
-        
-        # Verificar si ya existe
-        self.log(f"  → Verificando si el Custom Hostname ya existe...")
-        search_res = self.request("GET", f"zones/{self.zone_id}/custom_hostnames?hostname={hostname}")
-        
-        if search_res and search_res.get("success"):
-            existing = search_res.get("result", [])
-            if existing:
-                ch = existing[0]
-                custom_hostname_id = ch["id"]
-                status = ch.get("status", "unknown")
-                self.log(f"✓ Custom Hostname ya existe (ID: {custom_hostname_id}, Status: {status})")
-                return True, custom_hostname_id, ch
-        
-        # Configuración del Custom Hostname SIN custom_origin_server
-        # Solo configuramos SSL DV por HTTP
-        payload = {
-            "hostname": hostname,
-            "ssl": {
-                "method": CSaaSConfig.SSL_METHOD,
-                "type": CSaaSConfig.SSL_TYPE,
-                "settings": {
-                    "http2": "on",
-                    "min_tls_version": "1.2",
-                    "tls_1_3": "on"
-                }
-            }
-        }
-        
-        # NO incluir custom_origin_server ni custom_origin_sni (no disponibles en plan Free)
-        self.log(f"  → Enviando petición para crear Custom Hostname...")
-        self.log(f"  → Payload (sin custom_origin_*): {json.dumps(payload, indent=2)}")
-        
-        # Crear Custom Hostname
-        res = self.request("POST", f"zones/{self.zone_id}/custom_hostnames", payload)
-        
-        if res and res.get("success"):
-            result = res["result"]
-            custom_hostname_id = result["id"]
-            status = result.get("status", "pending")
-            
-            self.log(f"✓ Custom Hostname creado (ID: {custom_hostname_id}, Status: {status})")
-            self.log(f"✓ El proxy a {origin_urls[0] if origin_urls else 'N/A'} se manejará en el backend")
-            
-            return True, custom_hostname_id, result
-        
-        # Log detallado del error
-        self.log("✗ Error al crear Custom Hostname", "ERROR")
-        if res:
-            errors = res.get("errors", [])
-            if errors:
-                self.log(f"  → Errores de Cloudflare:", "ERROR")
-                for error in errors:
-                    self.log(f"    • Código: {error.get('code')}", "ERROR")
-                    self.log(f"    • Mensaje: {error.get('message')}", "ERROR")
-            else:
-                self.log(f"  → Respuesta completa: {json.dumps(res, indent=2)}", "ERROR")
-        else:
-            self.log(f"  → No se recibió respuesta de Cloudflare", "ERROR")
-        
-        return False, None, res
-    
-    def poll_custom_hostname_status(self, custom_hostname_id: str) -> Tuple[bool, str, Optional[Dict]]:
-        """
-        Hace polling hasta que el Custom Hostname esté activo
-        
-        Args:
-            custom_hostname_id: ID del Custom Hostname
-        
-        Returns:
-            (éxito, status_final, detalles)
-        """
-        self.log(f"[PASO 3/5] Esperando activación del Custom Hostname...")
-        
-        for attempt in range(CSaaSConfig.MAX_POLLING_ATTEMPTS):
-            # Consultar estado
-            res = self.request("GET", f"zones/{self.zone_id}/custom_hostnames/{custom_hostname_id}")
-            
-            if not res or not res.get("success"):
-                self.log(f"⚠️ Error consultando estado (intento {attempt + 1}/{CSaaSConfig.MAX_POLLING_ATTEMPTS})", "WARN")
-                time.sleep(CSaaSConfig.POLLING_INTERVAL)
-                continue
-            
-            result = res["result"]
-            status = result.get("status", "unknown")
-            ssl_status = result.get("ssl", {}).get("status", "unknown")
-            
-            self.log(f"  Intento {attempt + 1}/{CSaaSConfig.MAX_POLLING_ATTEMPTS}: Status={status}, SSL={ssl_status}")
-            
-            # Verificar si está activo
-            if status == "active" and ssl_status == "active":
-                self.log(f"✓ Custom Hostname activo después de {attempt + 1} intentos ({(attempt + 1) * CSaaSConfig.POLLING_INTERVAL}s)")
-                return True, "active", result
-            
-            # Si está en pending_validation, es suficiente para continuar
-            # El SSL se activará automáticamente en los próximos minutos
-            if status == "active" and ssl_status in ["pending_validation", "pending_deployment"]:
-                self.log(f"✓ Custom Hostname creado, SSL en proceso de validación ({ssl_status})")
-                self.log(f"  El SSL se activará automáticamente en 1-5 minutos")
-                return True, "pending_ssl", result
-            
-            # Verificar si hay error
-            if status in ["blocked", "deleted"]:
-                self.log(f"✗ Custom Hostname en estado de error: {status}", "ERROR")
-                return False, status, result
-            
-            # Esperar antes del siguiente intento
-            time.sleep(CSaaSConfig.POLLING_INTERVAL)
-        
-        # Si llegamos aquí, el Custom Hostname está creado pero aún no completamente activo
-        # Esto es aceptable - se activará en los próximos minutos
-        self.log(f"⏱️ Tiempo de espera alcanzado, pero Custom Hostname está creado")
-        self.log(f"  El SSL se activará automáticamente en los próximos minutos")
-        
-        # Hacer una última consulta para obtener el estado actual
-        res = self.request("GET", f"zones/{self.zone_id}/custom_hostnames/{custom_hostname_id}")
-        if res and res.get("success"):
-            result = res["result"]
-            status = result.get("status", "unknown")
-            return True, "pending_activation", result
-        
-        return True, "pending_activation", None
-    
-    def apply_security_rules(self, hostname: str) -> Dict[str, bool]:
-        """
-        Aplica reglas de seguridad básicas al Custom Hostname
-        
-        Args:
-            hostname: Hostname del cliente
-        
-        Returns:
-            Diccionario con resultados de cada configuración
-        """
-        self.log(f"[PASO 4/5] Aplicando reglas de seguridad...")
+    def apply_security_rules(self) -> Dict[str, bool]:
+        """Aplica reglas de seguridad básicas"""
+        self.log(f"[PASO 2/3] Aplicando reglas de seguridad...")
         
         results = {}
         
-        # WAF Managed Rules
+        # SSL Mode - Flexible
+        self.log("  → Configurando SSL Mode...")
+        ssl_res = self.request("PATCH", f"zones/{self.zone_id}/settings/ssl", {"value": "flexible"})
+        results["ssl_mode"] = bool(ssl_res and ssl_res.get("success"))
+        
+        # WAF
         self.log("  → Configurando WAF...")
         waf_res = self.request("PATCH", f"zones/{self.zone_id}/settings/waf", {"value": "on"})
         results["waf"] = bool(waf_res and waf_res.get("success"))
@@ -508,7 +283,7 @@ class CloudflareSaaSClient:
         sec_res = self.request("PATCH", f"zones/{self.zone_id}/settings/security_level", {"value": "high"})
         results["security_level"] = bool(sec_res and sec_res.get("success"))
         
-        # Bot Fight Mode (disponible en planes Free/Pro/Business)
+        # Bot Fight Mode
         self.log("  → Configurando Bot Fight Mode...")
         bot_res = self.request("PATCH", f"zones/{self.zone_id}/settings/bot_fight_mode", {"value": "on"})
         results["bot_fight_mode"] = bool(bot_res and bot_res.get("success"))
@@ -518,56 +293,42 @@ class CloudflareSaaSClient:
         bic_res = self.request("PATCH", f"zones/{self.zone_id}/settings/browser_check", {"value": "on"})
         results["browser_check"] = bool(bic_res and bic_res.get("success"))
         
-        # Challenge Passage
-        self.log("  → Configurando Challenge Passage...")
-        cp_res = self.request("PATCH", f"zones/{self.zone_id}/settings/challenge_ttl", {"value": 1800})
-        results["challenge_ttl"] = bool(cp_res and cp_res.get("success"))
-        
-        # Rate Limiting básico usando Firewall Rules (disponible en todos los planes)
-        self.log("  → Configurando Rate Limiting básico...")
-        try:
-            cas_description = f"CAS Rate Limiting - {hostname}"
-            filter_expression = f'(http.host eq "{hostname}")'
-
-            # Verificar si ya existe una regla CAS para este hostname (idempotente)
-            existing = self.request("GET", f"zones/{self.zone_id}/firewall/rules")
-            existing_rules = existing.get("result", []) if existing and existing.get("success") else []
-            matched = next(
-                (
-                    r for r in existing_rules
-                    if r.get("description") == cas_description
-                    and r.get("filter", {}).get("expression") == filter_expression
-                ),
-                None
-            )
-
-            if matched:
-                self.log("  ✓ Regla de rate limiting ya existe (CAS)")
-                results["rate_limiting"] = True
-            else:
-                # Crear regla de firewall para rate limiting básico
-                rate_limit_rule = {
-                    "filter": {
-                        "expression": filter_expression,
-                        "paused": False
-                    },
-                    "action": "challenge",
-                    "description": cas_description
-                }
-                rl_res = self.request("POST", f"zones/{self.zone_id}/firewall/rules", rate_limit_rule)
-                results["rate_limiting"] = bool(rl_res and rl_res.get("success"))
-        except Exception as e:
-            self.log(f"  ⚠️ No se pudo configurar rate limiting: {str(e)}", "WARN")
-            results["rate_limiting"] = False
-        
         success_count = sum(results.values())
         self.log(f"✓ Reglas de seguridad aplicadas: {success_count}/{len(results)}")
         
         return results
     
+    def configure_proxy_mapping(self, subdomain: str, origin_url: str) -> bool:
+        """
+        Configura el mapeo del proxy en memoria
+        
+        Args:
+            subdomain: Subdominio completo
+            origin_url: Dominio real del cliente
+        
+        Returns:
+            True si se configuró correctamente
+        """
+        self.log(f"[PASO 3/3] Configurando mapeo del proxy...")
+        self.log(f"  → Mapeo: {subdomain} → {origin_url}")
+        
+        try:
+            # Importar ProxyConfig y configurar el mapeo
+            from proxy import ProxyConfig
+            ProxyConfig.SUBDOMAIN_MAP[subdomain] = origin_url
+            self.log(f"✓ Proxy configurado exitosamente")
+            return True
+        except ImportError:
+            self.log("⚠️ No se pudo importar ProxyConfig, se configurará dinámicamente", "WARN")
+            # El proxy se configurará dinámicamente desde PROVISIONED_CLIENTS
+            return True
+        except Exception as e:
+            self.log(f"✗ Error configurando proxy: {str(e)}", "ERROR")
+            return False
+    
     def provision_client(self, client_name: str, client_id: Optional[str], urls: List[str]) -> Dict:
         """
-        CONTROLADOR CENTRAL: Provisiona un cliente completo en CSaaS
+        CONTROLADOR CENTRAL: Provisiona un cliente con proxy backend
         
         Args:
             client_name: Nombre del cliente
@@ -578,25 +339,15 @@ class CloudflareSaaSClient:
             Resultado del provisionamiento
         """
         self.log("=" * 60)
-        self.log("=== INICIO PROVISIONAMIENTO CSaaS ===")
+        self.log("=== INICIO PROVISIONAMIENTO CSaaS CON PROXY ===")
         self.log("=" * 60)
         
         # PASO 0: Generar subdominio único
         subdomain = generate_subdomain(client_name, client_id)
-        self.log(f"[PASO 0/5] Subdominio generado: {subdomain}")
+        self.log(f"[PASO 0/3] Subdominio generado: {subdomain}")
         
-        # PASO 0.5: Verificar que el CNAME target existe
-        target_exists = self.verify_cname_target_exists(CSaaSConfig.CNAME_TARGET)
-        if not target_exists:
-            return {
-                "success": False,
-                "error": f"No se pudo verificar o crear el CNAME target: {CSaaSConfig.CNAME_TARGET}",
-                "step_failed": "cname_target_verification",
-                "logs": self.logs
-            }
-        
-        # PASO 1: Crear registro CNAME
-        cname_success, record_id = self.create_cname_record(subdomain, CSaaSConfig.CNAME_TARGET)
+        # PASO 1: Crear registro CNAME apuntando a customers.cubansaas.tech
+        cname_success, record_id = self.create_cname_to_proxy(subdomain, CSaaSConfig.CNAME_TARGET)
         if not cname_success:
             return {
                 "success": False,
@@ -605,77 +356,38 @@ class CloudflareSaaSClient:
                 "logs": self.logs
             }
         
-        # PASO 2: Crear Custom Hostname
-        ch_success, ch_id, ch_details = self.create_custom_hostname(subdomain, urls)
-        if not ch_success:
-            return {
-                "success": False,
-                "error": "No se pudo crear el Custom Hostname",
-                "step_failed": "custom_hostname_creation",
-                "logs": self.logs,
-                "details": ch_details
-            }
+        # PASO 2: Aplicar reglas de seguridad
+        security_results = self.apply_security_rules()
         
-        # PASO 3: Polling hasta activación
-        active_success, final_status, active_details = self.poll_custom_hostname_status(ch_id)
-        if not active_success:
-            return {
-                "success": False,
-                "error": f"Custom Hostname no se activó (status: {final_status})",
-                "step_failed": "custom_hostname_activation",
-                "status": final_status,
-                "logs": self.logs
-            }
+        # PASO 3: Configurar mapeo del proxy
+        proxy_success = self.configure_proxy_mapping(subdomain, urls[0])
+        if not proxy_success:
+            self.log("⚠️ Advertencia: El proxy puede no funcionar correctamente", "WARN")
         
-        # Nota: final_status puede ser "active", "pending_ssl" o "pending_activation"
-        # Todos son estados válidos - el SSL se activará automáticamente
-        
-        # PASO 4: Aplicar reglas de seguridad
-        security_results = self.apply_security_rules(subdomain)
-        
-        # PASO 5: Almacenar en memoria y configurar proxy
-        self.log(f"[PASO 5/5] Almacenando información del cliente y configurando proxy...")
+        # Almacenar en memoria
+        self.log(f"Almacenando información del cliente...")
         client_key = client_id or hashlib.md5(client_name.encode()).hexdigest()[:16]
-        ssl_status = None
-        verification_errors = []
-        if active_details and isinstance(active_details, dict):
-            ssl_status = active_details.get("ssl", {}).get("status")
-            verification_errors = active_details.get("verification_errors") or []
-        if not ssl_status and ch_details and isinstance(ch_details, dict):
-            ssl_status = ch_details.get("ssl", {}).get("status")
-            verification_errors = verification_errors or (ch_details.get("verification_errors") or [])
-
+        
         client_record = {
             "client_name": client_name,
             "client_id": client_id,
             "subdomain": subdomain,
-            "custom_hostname_id": ch_id,
             "cname_record_id": record_id,
             "origin_urls": urls,
-            "status": final_status,
-            "ssl_status": ssl_status or "unknown",
-            "verification_errors": verification_errors,
+            "status": "active",
             "security_rules": security_results,
-            "created_at": time.time()
+            "created_at": time.time(),
+            "architecture": "cname_proxy_backend"
         }
-
+        
         CSaaSConfig.PROVISIONED_CLIENTS[client_key] = client_record
         SharedCSaaSConfig.PROVISIONED_CLIENTS[client_key] = client_record
-        
-        # Configurar mapa del proxy: subdominio -> dominio real del cliente
-        try:
-            from proxy import ProxyConfig
-            if urls:
-                ProxyConfig.SUBDOMAIN_MAP[subdomain] = urls[0]
-                self.log(f"✓ Proxy configurado: {subdomain} → {urls[0]}")
-        except ImportError:
-            self.log("⚠️ No se pudo importar ProxyConfig, el proxy se configurará dinámicamente", "WARN")
         
         self.log("=" * 60)
         self.log("=== PROVISIONAMIENTO COMPLETADO ===")
         self.log(f"    URL Protegida: https://{subdomain}")
-        self.log(f"    Custom Hostname ID: {ch_id}")
-        self.log(f"    Status: {final_status}")
+        self.log(f"    Arquitectura: CNAME + Proxy Backend")
+        self.log(f"    Flujo: {subdomain} → {CSaaSConfig.CNAME_TARGET} → /api/proxy → {urls[0]}")
         self.log("=" * 60)
         
         return {
@@ -683,11 +395,11 @@ class CloudflareSaaSClient:
             "client_key": client_key,
             "subdomain": subdomain,
             "protected_url": f"https://{subdomain}",
-            "custom_hostname_id": ch_id,
             "cname_record_id": record_id,
-            "status": final_status,
+            "status": "active",
             "origin_urls": urls,
             "security_rules": security_results,
+            "architecture": "cname_proxy_backend",
             "logs": self.logs
         }
 
@@ -713,16 +425,12 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()')
         self.end_headers()
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
-
-    def _send_error(self, message: str, status_code: int, error_type: str = None, error_category: str = None, **extra):
+    
+    def _send_error(self, message: str, status_code: int, **extra):
         payload = {"status": "error", "message": message}
-        if error_type:
-            payload["error_type"] = error_type
-        if error_category:
-            payload["error_category"] = error_category
         payload.update(extra)
         self._send_json(payload, status_code)
-
+    
     def _read_json(self):
         content_length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(content_length)
@@ -746,10 +454,10 @@ class handler(BaseHTTPRequestHandler):
         self._send_json({"message": "OK"}, 200)
     
     def do_GET(self):
-        """Health check y listado de clientes provisionados"""
+        """Health check y listado de clientes"""
         if self._reject_invalid_host():
             return
-        # Listar clientes provisionados
+        
         clients = []
         for key, info in CSaaSConfig.PROVISIONED_CLIENTS.items():
             clients.append({
@@ -771,51 +479,43 @@ class handler(BaseHTTPRequestHandler):
         
         self._send_json({
             "status": "ok",
-            "message": "CSaaS Provisioning API funcionando",
+            "message": "CSaaS Provisioning API con Proxy Backend funcionando",
             "saas_zone": CSaaSConfig.SAAS_ZONE,
             "cname_target": CSaaSConfig.CNAME_TARGET,
             "provisioned_clients": clients,
             "total_clients": len(clients),
             "proxy_map": proxy_map,
             "architecture": {
-                "type": "Reverse Proxy (Plan Gratuito)",
-                "description": "Backend proxy inteligente sin custom_origin_server",
-                "flow": "Cliente → Subdominio → Backend Proxy → Dominio Real"
+                "type": "CNAME + Proxy Backend (Plan Gratuito)",
+                "description": "CNAME apunta a Vercel, backend hace proxy al dominio real",
+                "flow": "Cliente → Subdominio → customers.cubansaas.tech → /api/proxy → Dominio Real"
             }
         }, 200)
     
     def do_POST(self):
-        """Provisiona un nuevo cliente en CSaaS"""
+        """Provisiona un nuevo cliente"""
         try:
             if self._reject_invalid_host():
                 return
-            # Verificar si el servicio está habilitado
+            
             if not is_service_enabled():
-                if EXCEPTIONS_AVAILABLE:
-                    error = ServiceDisabledError()
-                    self._send_error(error.message, error.status_code, service_disabled=True)
-                else:
-                    self._send_error("El servicio está deshabilitado temporalmente", 503, service_disabled=True)
+                self._send_error("El servicio está deshabilitado temporalmente", 503, service_disabled=True)
                 return
             
-            # Leer y parsear body
             data, parse_error = self._read_json()
             if parse_error:
                 self._send_error(f"Error parseando JSON: {parse_error}", 400)
                 return
             
-            # Validar datos del cliente
             valid, error_msg = validate_client_data(data)
             if not valid:
                 self._send_error(error_msg, 400)
                 return
             
-            # Extraer datos
             client_name = data.get("client_name", "").strip()
             client_id = data.get("client_id", "").strip() or None
             urls = data.get("urls", [])
             
-            # Verificar configuración de Cloudflare
             if not CSaaSConfig.CF_API_TOKEN or not CSaaSConfig.CF_ZONE_ID:
                 self._send_error(
                     "Cloudflare no está configurado. Configure CF_API_TOKEN y CF_ZONE_ID",
@@ -824,47 +524,35 @@ class handler(BaseHTTPRequestHandler):
                 )
                 return
             
-            # Provisionar cliente
-            client = CloudflareSaaSClient(CSaaSConfig.CF_API_TOKEN, CSaaSConfig.CF_ZONE_ID)
+            client = CloudflareClient(CSaaSConfig.CF_API_TOKEN, CSaaSConfig.CF_ZONE_ID)
             result = client.provision_client(client_name, client_id, urls)
             
             if result.get("success"):
                 self._send_json({
                     "status": "ok",
-                    "message": "Cliente provisionado exitosamente en CSaaS",
+                    "message": "Cliente provisionado exitosamente con proxy backend",
                     "client_key": result["client_key"],
                     "subdomain": result["subdomain"],
                     "protected_url": result["protected_url"],
-                    "custom_hostname_id": result["custom_hostname_id"],
+                    "cname_record_id": result["cname_record_id"],
                     "origin_urls": result["origin_urls"],
                     "security_rules": result["security_rules"],
+                    "architecture": result["architecture"],
                     "logs": result["logs"]
                 }, 200)
             else:
-                # Error detallado
                 error_message = result.get("error", "Error desconocido")
                 step_failed = result.get("step_failed", "unknown")
                 logs = result.get("logs", [])
-                
-                # Agregar información adicional según el paso que falló
-                if step_failed == "custom_hostname_creation":
-                    error_message += "\n\nPosibles causas:\n"
-                    error_message += "1. Cloudflare for SaaS no está habilitado en tu zona\n"
-                    error_message += "2. Tu plan no incluye Custom Hostnames (requiere Business+)\n"
-                    error_message += "3. Has alcanzado el límite de Custom Hostnames\n"
-                    error_message += "4. El hostname ya existe en otra zona\n\n"
-                    error_message += "Revisa los logs para más detalles."
                 
                 self._send_json({
                     "status": "error",
                     "message": error_message,
                     "step_failed": step_failed,
-                    "logs": logs,
-                    "details": result.get("details")
+                    "logs": logs
                 }, 500)
         
         except Exception as e:
-            # Capturar el traceback completo
             import traceback
             error_traceback = traceback.format_exc()
             
@@ -872,7 +560,6 @@ class handler(BaseHTTPRequestHandler):
                 log_api_error("csaas_provision", str(e), type(e).__name__)
                 protection_logger.error(f"Traceback completo:\n{error_traceback}")
             
-            # Log en consola para debugging
             print(f"ERROR en csaas-provision: {str(e)}", file=sys.stderr)
             print(f"Traceback:\n{error_traceback}", file=sys.stderr)
             
