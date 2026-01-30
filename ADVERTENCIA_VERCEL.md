@@ -88,24 +88,25 @@ Esto significa que:
 
 ## 📝 Actualización Realizada
 
-He agregado el nuevo endpoint `csaas-simple-provision.py` a tu `vercel.json`:
+He simplificado tu `vercel.json` para eliminar el conflicto:
 
+**Cambios:**
+1. ✅ Eliminadas rutas redundantes (Vercel detecta automáticamente `/api/*.py`)
+2. ✅ Mantenido solo el rewrite necesario (`/api/csaas-list`)
+3. ✅ Agregado endpoint `csaas-simple-provision.py`
+4. ✅ Eliminado conflicto entre `routes` y `headers`
+
+**Configuración Final:**
 ```json
 {
-  "builds": [
-    ...
+  "builds": [...],
+  "rewrites": [
     {
-      "src": "api/csaas-simple-provision.py",
-      "use": "@vercel/python"
+      "source": "/api/csaas-list",
+      "destination": "/api/csaas-provision"
     }
   ],
-  "routes": [
-    ...
-    {
-      "src": "/api/csaas-simple-provision",
-      "dest": "api/csaas-simple-provision.py"
-    }
-  ]
+  "headers": [...]
 }
 ```
 

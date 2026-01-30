@@ -45,53 +45,10 @@
       "use": "@vercel/python"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/solicitar-proteccion",
-      "dest": "api/solicitar-proteccion.py"
-    },
-    {
-      "src": "/api/status",
-      "dest": "api/status.py"
-    },
-    {
-      "src": "/api/toggle-service",
-      "dest": "api/toggle-service.py"
-    },
-    {
-      "src": "/api/toggle-protection",
-      "dest": "api/toggle-protection.py"
-    },
-    {
-      "src": "/api/verificar-delegacion",
-      "dest": "api/verificar-delegacion.py"
-    },
-    {
-      "src": "/api/diagnostico",
-      "dest": "api/diagnostico.py"
-    },
-    {
-      "src": "/api/csaas-provision",
-      "dest": "api/csaas-provision.py"
-    },
-    {
-      "src": "/api/csaas-simple-provision",
-      "dest": "api/csaas-simple-provision.py"
-    },
-    {
-      "src": "/api/csaas-list",
-      "dest": "api/csaas-provision.py"
-    },
-    {
-      "src": "/api/proxy",
-      "dest": "api/proxy.py"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/api/csaas-list",
+      "destination": "/api/csaas-provision"
     }
   ],
   "headers": [
