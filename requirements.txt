@@ -8,4 +8,4 @@ dnspython==2.4.2
 python-dotenv==1.0.0
 
 # Database migrations
-asyncpg==0.29.0
+asyncpg==0.30.0
