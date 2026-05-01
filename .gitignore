@@ -1,4 +1,32 @@
-logs
+# ============================================
+# DEPENDENCIAS
+# ============================================
+node_modules/
+.pnp
+.pnp.js
+
+# ============================================
+# BUILD / DIST
+# ============================================
+dist/
+dist-ssr/
+build/
+*.local
+
+# ============================================
+# VARIABLES DE ENTORNO (NUNCA SUBIR)
+# ============================================
+.env
+.env.local
+.env.*.local
+.env.migration
+# .env.example  <- este SÍ se sube (es la plantilla)
+# .env.migration.example  <- este SÍ se sube
+
+# ============================================
+# LOGS
+# ============================================
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -6,23 +34,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-.env
-
-# Python
+# ============================================
+# PYTHON
+# ============================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -34,19 +48,41 @@ ENV/
 .venv
 *.pyc
 
-# IDE configs
-.bolt/
-.kiro/
+# ============================================
+# IDEs Y EDITORES
+# ============================================
 .vscode/*
 !.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
 
-# Test files
-*.test.html
-test-*.html
+# ============================================
+# HERRAMIENTAS INTERNAS (no van al repo)
+# ============================================
+.bolt/
+.kiro/
 
-# Temporary files
+# ============================================
+# SUPABASE
+# ============================================
+supabase/.branches/
+supabase/.temp/
+
+# ============================================
+# ARCHIVOS TEMPORALES
+# ============================================
 *.tmp
 *.bak
 *.swp
 *~
-.DS_Store
+
+# ============================================
+# TEST
+# ============================================
+*.test.html
+test-*.html

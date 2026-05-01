@@ -6,3 +6,6 @@ dnspython==2.4.2
 
 # Environment variables
 python-dotenv==1.0.0
+
+# Database migrations
+asyncpg==0.29.0
