@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🛡️ Cuban CAS - Cybersecurity as a Service Platform
 
 > Enterprise-grade SaaS platform for automated cybersecurity services with multi-tenant architecture and Stripe integration.
@@ -390,3 +391,7 @@ Este proyecto está bajo la Licencia MIT. Ver [`LICENSE`](LICENSE) para más det
 ---
 
 **Desarrollado con ❤️ para la comunidad de ciberseguridad**
+=======
+# Arquitectura-escalable-para-servicios-automatizados
+Arquitectura escalable para servicios automatizados de ciberseguridad en entornos web basados en la nube
+>>>>>>> 0f7f4f1bbc79941b92b20d721e3ffe755b1d3adb
