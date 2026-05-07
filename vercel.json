@@ -1,4 +1,12 @@
 {
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "functions": {
+    "api/*.py": {
+      "runtime": "python3.12"
+    }
+  },
   "rewrites": [
     {
       "source": "/api/solicitar-proteccion",
@@ -38,7 +46,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/api/proxy.py"
+      "destination": "/index.html"
     }
   ],
   "headers": [
