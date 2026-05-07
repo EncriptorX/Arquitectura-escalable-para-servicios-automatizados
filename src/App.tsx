@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useState } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import HomePage from './components/HomePage';
+import LoginPage from './components/LoginPage';
 import type { CSaaSInfo, ProcessInfo, View } from './types/app';
 
 const ServiceRequestForm = lazy(() => import('./components/ServiceRequestForm'));
@@ -12,8 +13,14 @@ const CSaaSClientsPage = lazy(() => import('./components/CSaaSClientsPage'));
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('home');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [processInfo, setProcessInfo] = useState<ProcessInfo | null>(null);
   const [csaasInfo, setCSaaSInfo] = useState<CSaaSInfo | null>(null);
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
 
   const handleSuccess = useCallback((payload: ProcessInfo) => {
     setProcessInfo(payload);
