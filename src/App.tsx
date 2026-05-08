@@ -17,11 +17,7 @@ function App() {
   const [processInfo, setProcessInfo] = useState<ProcessInfo | null>(null);
   const [csaasInfo, setCSaaSInfo] = useState<CSaaSInfo | null>(null);
 
-  // Show login page if not authenticated
-  if (!isAuthenticated) {
-    return <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} />;
-  }
-
+  // Todos los hooks ANTES de cualquier return condicional
   const handleSuccess = useCallback((payload: ProcessInfo) => {
     setProcessInfo(payload);
     setCurrentView('process');
@@ -49,9 +45,14 @@ function App() {
   }, []);
 
   const handleOpenControlPanel = useCallback(() => setCurrentView('control-panel'), []);
-  const handleOpenClients = useCallback(() => setCurrentView('csaas-clients'), []);
-  const handleOpenCSaaSForm = useCallback(() => setCurrentView('csaas-form'), []);
+  const handleOpenClients    = useCallback(() => setCurrentView('csaas-clients'), []);
+  const handleOpenCSaaSForm  = useCallback(() => setCurrentView('csaas-form'), []);
   const handleOpenDirectForm = useCallback(() => setCurrentView('form'), []);
+
+  // Return condicional DESPUÉS de todos los hooks
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
 
   if (currentView === 'control-panel') {
     return (
