@@ -341,65 +341,72 @@ async function gatherReportData(supabase: any, domain: any, reportType: string) 
 }
 
 async function generateAIContent(reportData: any, reportType: string, includeRecommendations: boolean) {
-  const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
-  
-  if (!openaiApiKey) {
-    throw new Error('OpenAI API key not configured')
+  const deepseekApiKey = Deno.env.get('DEEPSEEK_API_KEY')
+
+  if (!deepseekApiKey) {
+    throw new Error('DeepSeek API key not configured. Set DEEPSEEK_API_KEY in environment variables.')
   }
 
   const prompt = buildReportPrompt(reportData, reportType, includeRecommendations)
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${openaiApiKey}`,
-      'Content-Type': 'application/json'
+      'Authorization': `Bearer ${deepseekApiKey}`,
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4',
+      model: 'deepseek-chat',
       messages: [
         {
           role: 'system',
-          content: 'You are a cybersecurity expert generating professional security reports. Provide detailed, actionable insights based on the provided data.'
+          content: 'Eres un experto en ciberseguridad generando reportes profesionales de seguridad. Responde SIEMPRE con JSON válido siguiendo exactamente la estructura solicitada. Proporciona análisis detallados y recomendaciones accionables basadas en los datos proporcionados.',
         },
         {
           role: 'user',
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       temperature: 0.3,
-      max_tokens: 2000
-    })
+      max_tokens: 3000,
+      response_format: { type: 'json_object' },
+    }),
   })
 
   if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.statusText}`)
+    const errText = await response.text()
+    throw new Error(`DeepSeek API error ${response.status}: ${errText}`)
   }
 
   const aiResponse = await response.json()
-  const content = aiResponse.choices[0].message.content
+  const content = aiResponse.choices?.[0]?.message?.content
 
-  // Parse AI response (assuming structured JSON response)
+  if (!content) {
+    throw new Error('DeepSeek returned empty response')
+  }
+
   try {
     return JSON.parse(content)
   } catch {
-    // Fallback if AI doesn't return valid JSON
+    // Fallback si la respuesta no es JSON válido
     return {
       summary: content.substring(0, 500),
       findings: [
         {
-          title: 'AI Analysis',
+          title: 'Análisis de Seguridad',
           severity: 'info',
-          description: content
-        }
+          description: content,
+        },
       ],
-      recommendations: includeRecommendations ? [
-        {
-          title: 'General Recommendation',
-          priority: 'medium',
-          description: 'Review the detailed analysis and implement suggested security measures.'
-        }
-      ] : []
+      recommendations: includeRecommendations
+        ? [
+            {
+              title: 'Revisión General',
+              priority: 'medium',
+              description: 'Revise el análisis detallado e implemente las medidas de seguridad sugeridas.',
+            },
+          ]
+        : [],
     }
   }
 }
