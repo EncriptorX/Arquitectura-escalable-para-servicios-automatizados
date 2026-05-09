@@ -125,7 +125,6 @@ async function regenerateReport(supabase: any, context: any, body: any) {
     JSON.stringify({ data: existingReport }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   )
-  }
 }
 
 // =====================================================
