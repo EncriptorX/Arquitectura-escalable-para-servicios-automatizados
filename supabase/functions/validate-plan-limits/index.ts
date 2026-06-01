@@ -3,7 +3,6 @@
 // Validates if organization can perform action based on plan
 // =====================================================
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { withAuth, logAuditEvent } from '../_shared/auth-middleware.ts'
 
@@ -23,7 +22,7 @@ interface ValidationResponse {
   message: string
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', {

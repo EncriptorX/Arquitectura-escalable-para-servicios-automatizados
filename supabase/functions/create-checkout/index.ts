@@ -3,7 +3,6 @@
 // Creates a Stripe checkout session for plan subscription
 // =====================================================
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
 import { withAuth, logAuditEvent } from '../_shared/auth-middleware.ts'
@@ -15,7 +14,7 @@ interface CheckoutRequest {
   cancel_url?: string
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', {

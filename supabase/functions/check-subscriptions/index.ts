@@ -4,10 +4,9 @@
 // Run daily via cron: 0 0 * * * (midnight UTC)
 // =====================================================
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Verify cron secret for security
   const authHeader = req.headers.get('authorization')
   const cronSecret = Deno.env.get('CRON_SECRET')
