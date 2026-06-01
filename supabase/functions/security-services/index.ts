@@ -382,7 +382,7 @@ async function deleteExecution(supabase: any, context: any, executionId: string 
     JSON.stringify({ success: true }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   )
-}
+
   const { executionId } = body
 
   const { data, error } = await supabase
