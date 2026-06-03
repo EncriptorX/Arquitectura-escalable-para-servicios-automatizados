@@ -13,7 +13,7 @@ export function Layout({ children }: LayoutProps) {
           <div className="flex items-center gap-2 sm:gap-3">
             <ShieldCheck className="text-cyan-400" size={24} />
             <span className="text-base sm:text-lg md:text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-              SecurePerimeter
+              Cuban CAS
             </span>
           </div>
         </div>

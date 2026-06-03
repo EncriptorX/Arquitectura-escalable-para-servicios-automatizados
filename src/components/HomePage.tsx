@@ -43,7 +43,7 @@ function HomePage({
                   transition={{ duration: 2, repeat: Infinity }}
                 />
               </div>
-              <span className="text-xl font-bold gradient-text">SecurePerimeter</span>
+              <span className="text-xl font-bold gradient-text">Cuban CAS</span>
             </motion.div>
 
             <div className="flex items-center gap-3">
@@ -124,9 +124,9 @@ function HomePage({
               transition={{ duration: 0.6, delay: 0.1 }}
               className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight"
             >
-              <span className="text-white">Proteja Su</span>
+              <span className="text-white">Cuban CAS —</span>
               <br />
-              <span className="gradient-text">Perímetro Digital</span>
+              <span className="gradient-text">Ciberseguridad como Servicio</span>
             </motion.h1>
 
             <motion.p
@@ -135,7 +135,7 @@ function HomePage({
               transition={{ duration: 0.6, delay: 0.2 }}
               className="text-xl text-gray-400 max-w-2xl mx-auto"
             >
-              Protección integral con tecnología Cloudflare. Seguridad empresarial simplificada.
+              Plataforma SaaS multi-tenant de servicios automatizados de ciberseguridad con arquitectura Zero Trust y protección perimetral Cloudflare.
             </motion.p>
 
             <motion.div
@@ -220,7 +220,7 @@ function HomePage({
               </div>
               <p className="text-gray-300 mb-6">
                 Sistema automático que genera un subdominio único bajo{' '}
-                <strong className="text-purple-400">suncarsrl.com</strong> para proteger sus URLs sin modificar su DNS.
+                <strong className="text-purple-400">cubancas.tech</strong> para proteger sus URLs sin modificar su DNS.
               </p>
               <ul className="space-y-3 mb-6">
                 {csaasModeHighlights.map((item) => (
@@ -486,28 +486,28 @@ function HomePage({
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <Shield className="text-cyan-400 w-6 h-6" />
-                <span className="text-lg font-bold gradient-text">SecurePerimeter</span>
+                <span className="text-lg font-bold gradient-text">Cuban CAS</span>
               </div>
-              <p className="text-gray-400 text-sm">Protección perimetral integral respaldada por Cloudflare</p>
+              <p className="text-gray-400 text-sm">Plataforma SaaS de Ciberseguridad como Servicio (CaaS) con arquitectura multi-tenant</p>
             </div>
 
             <div>
               <h4 className="font-semibold mb-4 text-white">Contacto</h4>
               <div className="space-y-2 text-sm text-gray-400">
-                <p>kevinf@estudiantes.uci.cu</p>
-                <p>+53 5695 42 00</p>
-                <p>Lun-Vie, 9:00 - 18:00</p>
+                <p>diosmany@estudiantes.uci.cu</p>
+                <p>Universidad de las Ciencias Informáticas</p>
+                <p>La Habana, Cuba</p>
               </div>
             </div>
 
             <div>
               <h4 className="font-semibold mb-4 text-white">Legal</h4>
-              <p className="text-sm text-gray-400">Servicios profesionales de ciberseguridad</p>
+              <p className="text-sm text-gray-400">Proyecto de Tesis — Ingeniería en Ciberseguridad</p>
             </div>
           </div>
 
           <div className="border-t border-white/10 pt-8 text-center text-sm text-gray-500">
-            <p>© 2026 SecurePerimeter. Todos los derechos reservados.</p>
+            <p>© 2026 Cuban CAS. Todos los derechos reservados.</p>
             <p className="mt-2">Cloudflare® es una marca registrada de Cloudflare, Inc.</p>
           </div>
         </div>

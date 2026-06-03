@@ -243,7 +243,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
               />
             </div>
             <span className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-              SecurePerimeter
+              Cuban CAS
             </span>
           </motion.div>
 
@@ -255,7 +255,8 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
               </span>
             </h1>
             <p className="text-gray-400 text-lg">
-              Arquitectura de seguridad que no asume confianza implícita en ningún usuario, dispositivo o red.
+              Plataforma SaaS multi-tenant de ciberseguridad. Accede a tu panel para gestionar dominios,
+              ejecutar escaneos y generar reportes con IA.
             </p>
           </motion.div>
 
@@ -289,7 +290,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
           <div className="flex lg:hidden items-center gap-3 mb-8 justify-center">
             <Shield className="text-cyan-400 w-8 h-8" />
             <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-              SecurePerimeter
+              Cuban CAS
             </span>
           </div>
 

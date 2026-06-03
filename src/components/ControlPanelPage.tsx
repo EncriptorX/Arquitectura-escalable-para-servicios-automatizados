@@ -84,7 +84,7 @@ export default function ControlPanelPage({ onBack, onRequestProtection }: Contro
                   transition={{ duration: 2, repeat: Infinity }}
                 />
               </div>
-              <span className="text-xl font-bold gradient-text">SecurePerimeter</span>
+              <span className="text-xl font-bold gradient-text">Cuban CAS</span>
             </motion.div>
             
             <div className="flex items-center gap-3">

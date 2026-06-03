@@ -121,7 +121,7 @@ export default function ProcessInfoPage({
                   transition={{ duration: 2, repeat: Infinity }}
                 />
               </div>
-              <span className="text-xl font-bold gradient-text">SecurePerimeter</span>
+              <span className="text-xl font-bold gradient-text">Cuban CAS</span>
             </motion.div>
             
             <div className="flex gap-3">
