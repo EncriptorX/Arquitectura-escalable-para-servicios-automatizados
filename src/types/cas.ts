@@ -48,7 +48,7 @@ export interface OrganizationMember {
   id: string
   organization_id: string
   user_id: string
-  role: 'admin' | 'manager' | 'analyst' | 'viewer'
+  role: 'admin' | 'coordinator' | 'analyst' | 'viewer'
   permissions: string[]
   status: 'active' | 'inactive' | 'invited'
   
@@ -456,7 +456,7 @@ export interface UserInviteForm {
 // Utility Types
 // =====================================================
 
-export type UserRole = OrganizationMember['role']
+export type UserRole = 'admin' | 'coordinator' | 'analyst' | 'viewer'
 export type PlanSlug = Plan['slug']
 export type ServiceType = SecurityService['service_type']
 export type ExecutionStatus = ServiceExecution['status']
@@ -468,55 +468,72 @@ export type NotificationType = Notification['type']
 // =====================================================
 
 export const PERMISSIONS = {
-  // Organization management
-  MANAGE_ORGANIZATION: 'manage_organization',
-  MANAGE_USERS: 'manage_users',
-  MANAGE_BILLING: 'manage_billing',
-  
-  // Domain management
-  MANAGE_DOMAINS: 'manage_domains',
-  VIEW_DOMAINS: 'view_domains',
-  
-  // Service execution
-  EXECUTE_SCANS: 'execute_scans',
-  MANAGE_SERVICES: 'manage_services',
-  
-  // Reports
-  GENERATE_REPORTS: 'generate_reports',
-  VIEW_REPORTS: 'view_reports',
-  
-  // System
-  VIEW_AUDIT_LOGS: 'view_audit_logs',
-  MANAGE_NOTIFICATIONS: 'manage_notifications'
+  // Administrador — control total
+  MANAGE_ORGANIZATION: 'manage_organization',  // actualizar datos y configuración de la org
+  MANAGE_USERS:        'manage_users',          // invitar, asignar roles, revocar accesos
+  MANAGE_BILLING:      'manage_billing',         // seleccionar plan, actualizar pago
+
+  // Coordinador — gestión operativa
+  MANAGE_DOMAINS:      'manage_domains',         // agregar, editar, eliminar dominios
+  VIEW_DOMAINS:        'view_domains',            // ver listado de dominios
+  EXECUTE_SCANS:       'execute_scans',           // ejecutar servicios de seguridad
+  MANAGE_SERVICES:     'manage_services',         // configurar servicios
+  GENERATE_REPORTS:    'generate_reports',        // crear reportes con IA
+  VIEW_REPORTS:        'view_reports',            // visualizar reportes
+  MANAGE_NOTIFICATIONS:'manage_notifications',    // gestionar notificaciones
+
+  // Administrador — auditoría
+  VIEW_AUDIT_LOGS:     'view_audit_logs',         // ver registro de auditoría
 } as const
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS]
 
 // =====================================================
 // Role Permissions Mapping
+// Roles: admin | coordinator | analyst | viewer
 // =====================================================
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
-  admin: Object.values(PERMISSIONS),
-  manager: [
-    PERMISSIONS.MANAGE_ORGANIZATION,
-    PERMISSIONS.MANAGE_USERS,
+  // Administrador: acceso completo
+  admin: Object.values(PERMISSIONS) as Permission[],
+
+  // Coordinador: gestión de dominios, servicios y reportes
+  coordinator: [
     PERMISSIONS.MANAGE_DOMAINS,
     PERMISSIONS.VIEW_DOMAINS,
     PERMISSIONS.EXECUTE_SCANS,
     PERMISSIONS.MANAGE_SERVICES,
     PERMISSIONS.GENERATE_REPORTS,
     PERMISSIONS.VIEW_REPORTS,
-    PERMISSIONS.MANAGE_NOTIFICATIONS
+    PERMISSIONS.MANAGE_NOTIFICATIONS,
   ],
+
+  // Analista: ejecutar escaneos y generar reportes
   analyst: [
     PERMISSIONS.VIEW_DOMAINS,
     PERMISSIONS.EXECUTE_SCANS,
     PERMISSIONS.GENERATE_REPORTS,
-    PERMISSIONS.VIEW_REPORTS
+    PERMISSIONS.VIEW_REPORTS,
   ],
+
+  // Visualizador: solo lectura
   viewer: [
     PERMISSIONS.VIEW_DOMAINS,
-    PERMISSIONS.VIEW_REPORTS
-  ]
+    PERMISSIONS.VIEW_REPORTS,
+  ],
+}
+
+// Etiquetas legibles por rol
+export const ROLE_LABELS: Record<UserRole, string> = {
+  admin:       'Administrador',
+  coordinator: 'Coordinador',
+  analyst:     'Analista',
+  viewer:      'Visualizador',
+}
+
+export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
+  admin:       'Acceso completo. Gestiona organización, equipo y facturación.',
+  coordinator: 'Gestiona dominios, ejecuta servicios y genera reportes.',
+  analyst:     'Ejecuta escaneos sobre dominios registrados y genera reportes.',
+  viewer:      'Solo lectura de reportes e historial de ejecuciones.',
 }

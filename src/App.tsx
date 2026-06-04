@@ -2,6 +2,8 @@ import { Suspense, lazy, useCallback, useState } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import HomePage from './components/HomePage';
 import LoginPage from './components/LoginPage';
+import { RoleDashboard } from './components/Dashboard/RoleDashboard';
+import { AuthProvider } from './contexts/AuthContext';
 import type { CSaaSInfo, ProcessInfo, View } from './types/app';
 
 const ServiceRequestForm = lazy(() => import('./components/ServiceRequestForm'));
@@ -53,6 +55,14 @@ function App() {
   if (!isAuthenticated) {
     return <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} />;
   }
+
+  // Mostrar dashboard según rol del usuario
+  return (
+    <AuthProvider>
+      <RoleDashboard />
+      <Analytics />
+    </AuthProvider>
+  );
 
   if (currentView === 'control-panel') {
     return (
