@@ -14,14 +14,9 @@ import {
   User, Clock, Globe, ChevronDown, ChevronUp,
   CheckCircle, XCircle, Ban,
 } from 'lucide-react'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { PermissionGate } from '../Common/PermissionGate'
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || '',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-)
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface AuditLogEntry {

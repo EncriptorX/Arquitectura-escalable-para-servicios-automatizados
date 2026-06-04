@@ -25,14 +25,8 @@
  */
 
 import { useCallback } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-
-// ─── Supabase client ──────────────────────────────────────────────────────────
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || '',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-)
 
 // ─── Tipos de acciones auditables ─────────────────────────────────────────────
 export type AuditAction =

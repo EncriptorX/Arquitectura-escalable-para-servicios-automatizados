@@ -3,7 +3,7 @@
 // =====================================================
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import {
   AppContextType,
@@ -14,11 +14,6 @@ import {
   Notification,
   DashboardStats
 } from '../types/cas'
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || '',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-)
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
 
