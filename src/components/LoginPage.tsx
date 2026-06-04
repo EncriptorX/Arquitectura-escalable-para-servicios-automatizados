@@ -143,13 +143,14 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
       return;
     }
     setLoading(true);
-    setFeedback({ type: null, message: '' });
+    setFeedback({ type: 'error', message: '' });
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email: form.email.trim().toLowerCase(),
         password: form.password,
       });
       if (error) throw error;
+      // El AuthContext detecta el cambio de sesión automáticamente
       onLoginSuccess();
     } catch (err: any) {
       const msg = err?.message === 'Invalid login credentials'
