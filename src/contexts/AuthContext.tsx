@@ -33,18 +33,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
+    let mounted = true
+
+    // Leer sesión inicial de localStorage
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return
       if (session?.user) {
         loadUserData(session.user.id)
       } else {
         setLoading(false)
       }
+    }).catch(() => {
+      if (mounted) setLoading(false)
     })
 
-    // Listen for auth changes
+    // Escuchar cambios de sesión
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return
         if (event === 'SIGNED_IN' && session?.user) {
           await loadUserData(session.user.id)
         } else if (event === 'SIGNED_OUT') {
@@ -53,45 +59,54 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setMembership(null)
           setSubscription(null)
           setLoading(false)
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          // Sesión renovada automáticamente — no recargar datos
+          setLoading(false)
         }
       }
     )
 
-    return () => authSubscription.unsubscribe()
+    return () => {
+      mounted = false
+      authSubscription.unsubscribe()
+    }
   }, [])
 
   const loadUserData = async (userId: string) => {
     try {
       setLoading(true)
 
-      // Get user profile
+      // Perfil de usuario
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single()
 
-      if (profileError) {
-        console.error('Error loading user profile:', profileError)
+      if (profileError || !profile) {
+        // Si no existe el perfil, igual dejamos pasar con datos mínimos
+        // El trigger debería haberlo creado, pero puede fallar en primera carga
+        console.warn('Profile not found, using fallback:', profileError?.message)
+        const { data: authUser } = await supabase.auth.getUser()
+        if (authUser?.user) {
+          setUser({ id: authUser.user.id, full_name: authUser.user.email ?? '', two_factor_enabled: false, security_notifications: true, created_at: '', updated_at: '' })
+        }
         setLoading(false)
         return
       }
 
       setUser(profile)
 
-      // Get user's organization membership (using the new multi-tenant model)
+      // Membresía en organización
       const { data: membershipData, error: membershipError } = await supabase
         .from('organization_members')
-        .select(`
-          *,
-          organization:organizations(*)
-        `)
+        .select('*, organization:organizations(*)')
         .eq('user_id', userId)
         .eq('status', 'active')
         .single()
 
-      if (membershipError) {
-        console.error('Error loading organization membership:', membershipError)
+      if (membershipError || !membershipData) {
+        console.warn('Membership not found:', membershipError?.message)
         setLoading(false)
         return
       }
@@ -99,26 +114,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setMembership(membershipData)
       setOrganization(membershipData.organization)
 
-      // Get active subscription if organization exists
+      // Suscripción activa (opcional — no bloquea si no existe)
       if (membershipData.organization?.id) {
         const { data: sub } = await supabase
           .from('subscriptions')
-          .select(`
-            *,
-            plan:plans(*)
-          `)
+          .select('*, plan:plans(*)')
           .eq('organization_id', membershipData.organization.id)
           .eq('status', 'active')
-          .single()
+          .maybeSingle()  // maybeSingle no falla si no hay resultado
 
-        setSubscription(sub)
+        setSubscription(sub ?? null)
       }
 
-      // Update last login
-      await supabase
+      // Actualizar last_login sin bloquear
+      supabase
         .from('user_profiles')
         .update({ last_login_at: new Date().toISOString() })
         .eq('id', userId)
+        .then(() => {})
 
     } catch (error) {
       console.error('Error loading user data:', error)
