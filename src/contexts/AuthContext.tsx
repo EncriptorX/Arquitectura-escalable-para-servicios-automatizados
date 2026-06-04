@@ -28,46 +28,43 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    let mounted = true
-
-    // Leer sesión inicial de localStorage
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return
-      if (session?.user) {
-        loadUserData(session.user.id)
-      } else {
-        setLoading(false)
-      }
-    }).catch(() => {
-      if (mounted) setLoading(false)
-    })
-
-    // Escuchar cambios de sesión
+    // Patrón oficial Supabase: onAuthStateChange dispara INITIAL_SESSION
+    // al arrancar con la sesión guardada en localStorage.
+    // NO usar getSession() + onAuthStateChange juntos — causa race condition.
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!mounted) return
-        if (event === 'SIGNED_IN' && session?.user) {
-          await loadUserData(session.user.id)
+        if (event === 'INITIAL_SESSION') {
+          // Primera carga: sesión desde localStorage (puede ser null si no hay sesión)
+          if (session?.user) {
+            await loadUserData(session.user.id)
+          } else {
+            setLoading(false)
+          }
+        } else if (event === 'SIGNED_IN') {
+          await loadUserData(session!.user.id)
         } else if (event === 'SIGNED_OUT') {
           setUser(null)
           setOrganization(null)
           setMembership(null)
           setSubscription(null)
           setLoading(false)
-        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          // Sesión renovada automáticamente — no recargar datos
+        } else if (event === 'TOKEN_REFRESHED') {
+          // Token renovado silenciosamente — no recargar datos del perfil
           setLoading(false)
         }
       }
     )
 
-    return () => {
-      mounted = false
-      authSubscription.unsubscribe()
-    }
+    return () => authSubscription.unsubscribe()
   }, [])
 
   const loadUserData = async (userId: string) => {
+    // Timeout de seguridad: si tarda más de 10s, desbloquear la UI
+    const timeout = setTimeout(() => {
+      console.warn('[auth] loadUserData timeout — unblocking UI')
+      setLoading(false)
+    }, 10000)
+
     try {
       setLoading(true)
 
@@ -79,14 +76,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
         .single()
 
       if (profileError || !profile) {
-        // Si no existe el perfil, igual dejamos pasar con datos mínimos
-        // El trigger debería haberlo creado, pero puede fallar en primera carga
-        console.warn('Profile not found, using fallback:', profileError?.message)
+        console.warn('Profile not found, using auth fallback:', profileError?.message)
         const { data: authUser } = await supabase.auth.getUser()
         if (authUser?.user) {
-          setUser({ id: authUser.user.id, full_name: authUser.user.email ?? '', two_factor_enabled: false, security_notifications: true, created_at: '', updated_at: '' })
+          setUser({
+            id: authUser.user.id,
+            full_name: authUser.user.email ?? 'Usuario',
+            two_factor_enabled: false,
+            security_notifications: true,
+            created_at: '',
+            updated_at: '',
+          })
         }
-        setLoading(false)
         return
       }
 
@@ -102,26 +103,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (membershipError || !membershipData) {
         console.warn('Membership not found:', membershipError?.message)
-        setLoading(false)
         return
       }
 
       setMembership(membershipData)
       setOrganization(membershipData.organization)
 
-      // Suscripción activa (opcional — no bloquea si no existe)
+      // Suscripción (opcional)
       if (membershipData.organization?.id) {
         const { data: sub } = await supabase
           .from('subscriptions')
           .select('*, plan:plans(*)')
           .eq('organization_id', membershipData.organization.id)
           .eq('status', 'active')
-          .maybeSingle()  // maybeSingle no falla si no hay resultado
-
+          .maybeSingle()
         setSubscription(sub ?? null)
       }
 
-      // Actualizar last_login sin bloquear
+      // last_login en background
       supabase
         .from('user_profiles')
         .update({ last_login_at: new Date().toISOString() })
@@ -131,6 +130,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (error) {
       console.error('Error loading user data:', error)
     } finally {
+      clearTimeout(timeout)
       setLoading(false)
     }
   }
