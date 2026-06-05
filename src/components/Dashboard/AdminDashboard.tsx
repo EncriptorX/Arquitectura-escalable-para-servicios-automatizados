@@ -7,22 +7,24 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Shield, Users, CreditCard, Settings,
+  Shield, Users, CreditCard, Settings, Globe,
   BarChart3, Bell, Key, AlertTriangle,
   ChevronRight, Building2, LogOut, Save, X, Loader2,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { AuditLogViewer } from './AuditLogViewer'
 import { TeamManager } from './TeamManager'
+import { DomainManager } from './DomainManager'
 import { ROLE_LABELS } from '../../types/cas'
 import { supabase } from '../../lib/supabase'
 
-type AdminTab = 'overview' | 'organization' | 'team' | 'billing' | 'audit'
+type AdminTab = 'overview' | 'organization' | 'team' | 'domains' | 'billing' | 'audit'
 
 const TABS = [
   { id: 'overview',      label: 'Resumen',        icon: BarChart3   },
   { id: 'organization',  label: 'Organización',   icon: Building2   },
   { id: 'team',          label: 'Equipo',          icon: Users       },
+  { id: 'domains',       label: 'Dominios',        icon: Globe       },
   { id: 'billing',       label: 'Facturación',     icon: CreditCard  },
   { id: 'audit',         label: 'Auditoría',       icon: Shield      },
 ] as const
@@ -223,9 +225,10 @@ export function AdminDashboard() {
               <h2 className="text-white font-semibold mb-4">Acciones de Administrador</h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
-                  { label: 'Gestionar organización', icon: Building2, tab: 'organization' },
-                  { label: 'Administrar equipo',     icon: Users,     tab: 'team'         },
-                  { label: 'Gestionar facturación',  icon: CreditCard,tab: 'billing'      },
+                  { label: 'Gestionar organización', icon: Building2,  tab: 'organization' },
+                  { label: 'Administrar equipo',     icon: Users,      tab: 'team'         },
+                  { label: 'Gestionar dominios',     icon: Globe,      tab: 'domains'      },
+                  { label: 'Gestionar facturación',  icon: CreditCard, tab: 'billing'      },
                 ].map(a => (
                   <button
                     key={a.label}
@@ -249,6 +252,13 @@ export function AdminDashboard() {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <h1 className="text-2xl font-bold text-white">Organización</h1>
             <OrgEditor />
+          </motion.div>
+        )}
+
+        {/* Dominios */}
+        {tab === 'domains' && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <DomainManager />
           </motion.div>
         )}
 

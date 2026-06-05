@@ -6,11 +6,12 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Shield, Globe, Play, FileText, Bell,
-  Plus, RefreshCw, ChevronRight, LogOut, BarChart3,
+  Shield, Globe, Play, FileText,
+  Plus, ChevronRight, LogOut, BarChart3,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { ROLE_LABELS } from '../../types/cas'
+import { DomainManager } from './DomainManager'
 
 type CoordTab = 'overview' | 'domains' | 'services' | 'reports'
 
@@ -118,24 +119,8 @@ export function CoordinatorDashboard() {
         )}
 
         {tab === 'domains' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-white">Dominios</h1>
-              <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-500/20 border border-purple-500/30 text-purple-400 text-sm hover:bg-purple-500/30 transition-colors">
-                <Plus className="w-4 h-4" />
-                Agregar dominio
-              </button>
-            </div>
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <p className="text-gray-400 text-sm">Gestiona los dominios de tu organización. Puedes agregar, editar y configurar la protección de cada dominio.</p>
-              <div className="mt-6 flex items-center justify-center py-12 text-gray-600">
-                <div className="text-center">
-                  <Globe className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No hay dominios registrados</p>
-                  <p className="text-xs mt-1">Agrega tu primer dominio para comenzar</p>
-                </div>
-              </div>
-            </div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <DomainManager />
           </motion.div>
         )}
 
