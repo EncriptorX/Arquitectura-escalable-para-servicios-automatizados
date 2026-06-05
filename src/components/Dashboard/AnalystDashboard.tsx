@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { ROLE_LABELS } from '../../types/cas'
+import { ReportManager } from './ReportManager'
 
 type AnalystTab = 'overview' | 'scans' | 'reports'
 
@@ -158,31 +159,8 @@ export function AnalystDashboard() {
         )}
 
         {tab === 'reports' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <h1 className="text-2xl font-bold text-white">Reportes</h1>
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Dominio</label>
-                  <select className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500/50">
-                    <option value="">-- Selecciona dominio --</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Tipo de reporte</label>
-                  <select className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500/50">
-                    <option value="security">Seguridad</option>
-                    <option value="vulnerability">Vulnerabilidades</option>
-                    <option value="performance">Rendimiento</option>
-                    <option value="comprehensive">Completo</option>
-                  </select>
-                </div>
-              </div>
-              <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-400 text-sm hover:bg-blue-500/30 transition-colors">
-                <FileText className="w-4 h-4" />
-                Generar con IA
-              </button>
-            </div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <ReportManager />
           </motion.div>
         )}
       </main>

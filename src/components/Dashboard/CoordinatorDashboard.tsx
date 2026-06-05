@@ -12,6 +12,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext'
 import { ROLE_LABELS } from '../../types/cas'
 import { DomainManager } from './DomainManager'
+import { ReportManager } from './ReportManager'
 
 type CoordTab = 'overview' | 'domains' | 'services' | 'reports'
 
@@ -152,23 +153,8 @@ export function CoordinatorDashboard() {
         )}
 
         {tab === 'reports' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-white">Reportes</h1>
-              <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-400 text-sm hover:bg-blue-500/30 transition-colors">
-                <Plus className="w-4 h-4" />
-                Generar reporte con IA
-              </button>
-            </div>
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <div className="flex items-center justify-center py-12 text-gray-600">
-                <div className="text-center">
-                  <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No hay reportes generados</p>
-                  <p className="text-xs mt-1">Selecciona un dominio y tipo de reporte para comenzar</p>
-                </div>
-              </div>
-            </div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <ReportManager />
           </motion.div>
         )}
       </main>
