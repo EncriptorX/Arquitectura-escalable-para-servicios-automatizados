@@ -6,6 +6,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { AuthContextType, UserProfile, Organization, Subscription, OrganizationMember } from '../types/cas'
 
+// ─── Contexto ─────────────────────────────────────────────────────────────────
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function useAuth() {
@@ -21,114 +22,119 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<UserProfile | null>(null)
+  const [user,         setUser]         = useState<UserProfile | null>(null)
   const [organization, setOrganization] = useState<Organization | null>(null)
-  const [membership, setMembership] = useState<OrganizationMember | null>(null)
+  const [membership,   setMembership]   = useState<OrganizationMember | null>(null)
   const [subscription, setSubscription] = useState<Subscription | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading,      setLoading]      = useState(true)
+  // Guardar el auth user de Supabase para saber si hay sesión activa
+  const [authUserId,   setAuthUserId]   = useState<string | null>(null)
 
   useEffect(() => {
-    // Patrón oficial Supabase: onAuthStateChange dispara INITIAL_SESSION
-    // al arrancar con la sesión guardada en localStorage.
-    // NO usar getSession() + onAuthStateChange juntos — causa race condition.
-    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'INITIAL_SESSION') {
-          // Primera carga: sesión desde localStorage (puede ser null si no hay sesión)
           if (session?.user) {
+            setAuthUserId(session.user.id)
             await loadUserData(session.user.id)
           } else {
+            setAuthUserId(null)
             setLoading(false)
           }
         } else if (event === 'SIGNED_IN') {
+          setAuthUserId(session!.user.id)
           await loadUserData(session!.user.id)
         } else if (event === 'SIGNED_OUT') {
+          setAuthUserId(null)
           setUser(null)
           setOrganization(null)
           setMembership(null)
           setSubscription(null)
           setLoading(false)
         } else if (event === 'TOKEN_REFRESHED') {
-          // Token renovado silenciosamente — no recargar datos del perfil
           setLoading(false)
         }
       }
     )
-
-    return () => authSubscription.unsubscribe()
+    return () => authSub.unsubscribe()
   }, [])
 
   const loadUserData = async (userId: string) => {
-    // Timeout de seguridad: si tarda más de 10s, desbloquear la UI
     const timeout = setTimeout(() => {
-      console.warn('[auth] loadUserData timeout — unblocking UI')
+      console.warn('[auth] timeout — unblocking UI, authUserId preserved')
+      // NO limpiar authUserId — el usuario sigue autenticado
       setLoading(false)
-    }, 10000)
+    }, 8000)
 
     try {
       setLoading(true)
 
       // Perfil de usuario
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
 
-      if (profileError || !profile) {
-        console.warn('Profile not found, using auth fallback:', profileError?.message)
-        const { data: authUser } = await supabase.auth.getUser()
-        if (authUser?.user) {
-          setUser({
-            id: authUser.user.id,
-            full_name: authUser.user.email ?? 'Usuario',
-            two_factor_enabled: false,
-            security_notifications: true,
-            created_at: '',
-            updated_at: '',
-          })
+      // Si no existe perfil, crear uno mínimo con datos de auth
+      if (!profile) {
+        const { data: authData } = await supabase.auth.getUser()
+        const email = authData?.user?.email ?? ''
+        const minProfile: UserProfile = {
+          id: userId,
+          full_name: email.split('@')[0],
+          two_factor_enabled: false,
+          security_notifications: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         }
-        return
+        // Intentar insertar el perfil faltante
+        await supabase.from('user_profiles').upsert({
+          id: userId, full_name: minProfile.full_name, email,
+          two_factor_enabled: false, security_notifications: true,
+          created_at: minProfile.created_at, updated_at: minProfile.updated_at,
+        })
+        setUser(minProfile)
+      } else {
+        setUser(profile)
       }
 
-      setUser(profile)
-
-      // Membresía en organización
-      const { data: membershipData, error: membershipError } = await supabase
+      // Membresía
+      const { data: membershipData } = await supabase
         .from('organization_members')
         .select('*, organization:organizations(*)')
         .eq('user_id', userId)
         .eq('status', 'active')
-        .single()
+        .maybeSingle()
 
-      if (membershipError || !membershipData) {
-        console.warn('Membership not found:', membershipError?.message)
-        return
-      }
+      if (membershipData) {
+        setMembership(membershipData)
+        setOrganization(membershipData.organization)
 
-      setMembership(membershipData)
-      setOrganization(membershipData.organization)
-
-      // Suscripción (opcional)
-      if (membershipData.organization?.id) {
-        const { data: sub } = await supabase
-          .from('subscriptions')
-          .select('*, plan:plans(*)')
-          .eq('organization_id', membershipData.organization.id)
-          .eq('status', 'active')
-          .maybeSingle()
-        setSubscription(sub ?? null)
+        // Suscripción (opcional)
+        if (membershipData.organization?.id) {
+          const { data: sub } = await supabase
+            .from('subscriptions')
+            .select('*, plan:plans(*)')
+            .eq('organization_id', membershipData.organization.id)
+            .eq('status', 'active')
+            .maybeSingle()
+          setSubscription(sub ?? null)
+        }
+      } else {
+        // Sin membresía — el AppWithAuth mostrará el Onboarding
+        setMembership(null)
+        setOrganization(null)
       }
 
       // last_login en background
-      supabase
-        .from('user_profiles')
+      supabase.from('user_profiles')
         .update({ last_login_at: new Date().toISOString() })
         .eq('id', userId)
         .then(() => {})
 
-    } catch (error) {
-      console.error('Error loading user data:', error)
+    } catch (err) {
+      console.error('[auth] loadUserData error:', err)
     } finally {
       clearTimeout(timeout)
       setLoading(false)
@@ -194,6 +200,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value: AuthContextType = {
     user,
+    authUserId,
     organization,
     membership,
     subscription,

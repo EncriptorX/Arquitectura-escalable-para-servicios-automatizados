@@ -24,7 +24,7 @@ const CSaaSResultPage    = lazy(() => import('./components/CSaaSResultPage'));
 const CSaaSClientsPage   = lazy(() => import('./components/CSaaSClientsPage'));
 
 export function AppWithAuth() {
-  const { user, membership, loading } = useAuth();
+  const { user, authUserId, membership, loading } = useAuth();
   const [showLogin, setShowLogin]      = useState(false);
   const [currentView, setCurrentView]  = useState<View>('home');
   const [processInfo, setProcessInfo]  = useState<ProcessInfo | null>(null);
@@ -59,15 +59,14 @@ export function AppWithAuth() {
   }
 
   // ── 2. Con sesión + organización → Dashboard del rol ─────────────────────
-  if (user && membership) {
+  if (authUserId && membership) {
     return <RoleDashboard />;
   }
 
   // ── 3. Con sesión pero sin organización → Onboarding ─────────────────────
-  if (user && !membership) {
+  if (authUserId && !membership) {
     return <OnboardingPage />;
   }
-
   // ── 4. Sin sesión → mostrar login si el usuario lo pidió ──────────────────
   if (showLogin) {
     return <LoginPage onLoginSuccess={() => setShowLogin(false)} />;

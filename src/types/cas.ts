@@ -379,6 +379,7 @@ export interface DashboardStats {
 
 export interface AuthContextType {
   user: UserProfile | null
+  authUserId: string | null   // ID de Supabase Auth — siempre disponible si hay sesión
   organization: Organization | null
   membership: OrganizationMember | null
   subscription: Subscription | null
