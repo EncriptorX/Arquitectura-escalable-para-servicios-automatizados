@@ -7,12 +7,13 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Shield, Users, CreditCard, Settings, Globe,
-  BarChart3, Bell, FileText, Key, AlertTriangle,
+  Shield, Users, CreditCard, Settings,
+  BarChart3, Bell, Key, AlertTriangle,
   ChevronRight, Building2, LogOut,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { AuditLogViewer } from './AuditLogViewer'
+import { TeamManager } from './TeamManager'
 import { ROLE_LABELS } from '../../types/cas'
 
 type AdminTab = 'overview' | 'organization' | 'team' | 'billing' | 'audit'
@@ -163,32 +164,8 @@ export function AdminDashboard() {
 
         {/* Equipo */}
         {tab === 'team' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-white">Equipo</h1>
-              <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-sm hover:bg-cyan-500/30 transition-colors">
-                <Users className="w-4 h-4" />
-                Invitar miembro
-              </button>
-            </div>
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <p className="text-sm text-gray-400 mb-4">Roles disponibles y sus capacidades:</p>
-              <div className="space-y-3">
-                {([
-                  { role: 'admin',       color: 'red',    desc: 'Acceso completo — organización, equipo y facturación'      },
-                  { role: 'coordinator', color: 'purple', desc: 'Gestiona dominios, ejecuta servicios y genera reportes'    },
-                  { role: 'analyst',     color: 'blue',   desc: 'Ejecuta escaneos y genera reportes sobre dominios'         },
-                  { role: 'viewer',      color: 'gray',   desc: 'Solo lectura de reportes e historial de ejecuciones'       },
-                ] as const).map(r => (
-                  <div key={r.role} className={`flex items-center gap-4 p-3 rounded-xl bg-${r.color}-500/10 border border-${r.color}-500/20`}>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full bg-${r.color}-500/20 text-${r.color}-400`}>
-                      {ROLE_LABELS[r.role]}
-                    </span>
-                    <span className="text-sm text-gray-300">{r.desc}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <TeamManager />
           </motion.div>
         )}
 
