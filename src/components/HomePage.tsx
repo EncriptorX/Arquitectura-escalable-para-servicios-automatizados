@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Globe, Lock, Server, Settings, Shield, Sparkles } from 'lucide-react';
+import { CheckCircle, Globe, Lock, Server, Settings, Shield, Sparkles, LogIn } from 'lucide-react';
 import {
   csaasModeHighlights,
   directModeHighlights,
@@ -16,6 +16,7 @@ type HomePageProps = {
   onOpenClients: () => void;
   onOpenCSaaSForm: () => void;
   onOpenDirectForm: () => void;
+  onOpenLogin?: () => void;
 };
 
 function HomePage({
@@ -23,6 +24,7 @@ function HomePage({
   onOpenClients,
   onOpenCSaaSForm,
   onOpenDirectForm,
+  onOpenLogin,
 }: HomePageProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900">
@@ -76,6 +78,18 @@ function HomePage({
                 <Globe className="inline-block mr-2 w-4 h-4 text-purple-400" />
                 <span className="gradient-text hidden sm:inline">CSaaS</span>
               </motion.button>
+
+              {onOpenLogin && (
+                <motion.button
+                  onClick={onOpenLogin}
+                  className="glass glass-hover px-4 py-2.5 rounded-full font-medium text-sm group border border-cyan-500/30"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <LogIn className="inline-block mr-2 w-4 h-4 text-cyan-400" />
+                  <span className="gradient-text hidden sm:inline">Iniciar sesión</span>
+                </motion.button>
+              )}
 
               <motion.button
                 onClick={onOpenDirectForm}

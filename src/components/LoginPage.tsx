@@ -144,7 +144,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
         password: form.password,
       });
       if (error) throw error;
-      // El AuthContext detecta el cambio de sesión automáticamente
+      // AuthContext detecta el cambio — AppWithAuth re-renderiza automáticamente
       onLoginSuccess();
     } catch (err: any) {
       const msg = err?.message === 'Invalid login credentials'
