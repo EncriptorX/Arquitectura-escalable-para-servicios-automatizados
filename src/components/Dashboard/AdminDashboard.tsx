@@ -49,8 +49,9 @@ function OrgEditor() {
         .eq('id', organization.id)
       if (err) throw err
       setEditing(false)
-      // Recargar para reflejar cambios
-      window.location.reload()
+      // Actualizar el nombre visible sin recargar la página
+      organization.name   = form.name.trim()
+      organization.domain = form.domain.trim() || undefined
     } catch (e: any) {
       setError(e.message)
     } finally {
