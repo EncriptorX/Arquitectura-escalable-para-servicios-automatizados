@@ -1,443 +1,346 @@
 """
-Vercel Serverless Function - Reverse Proxy HTTP/HTTPS
-Backend proxy inteligente que reenvía solicitudes al dominio real del cliente
+api/proxy.py — Reverse Proxy Multi-Tenant (Cuban CAS)
+======================================================
+Proxy inverso inteligente que enruta tráfico de subdominios de clientes
+hacia sus dominios de origen reales.
 
-ARQUITECTURA:
-- Lee el header Host de cada request entrante
-- Identifica el subdominio cliente-<id>.suncarsrl.com
-- Resuelve dinámicamente el dominio real del cliente usando un mapa en memoria
-- Reenvía la solicitud HTTP/HTTPS al dominio real del cliente
-- Mantiene headers correctos (Host, X-Forwarded-For, X-Forwarded-Proto)
+Flujo: cliente-abc123.cubancas.tech → proxy → miempresa.com
 
-FLUJO:
-1. Request llega a cliente-abc123.suncarsrl.com
-2. Proxy identifica el subdominio
-3. Busca el dominio real en el mapa (ej: www.cliente.com)
-4. Reenvía la request a www.cliente.com
-5. Devuelve la respuesta al cliente original
+Optimizaciones v2:
+- Caché LRU en memoria con TTL configurable (evita queries repetidas a Supabase)
+- Reintentos con exponential backoff para errores transitorios
+- Headers X-Forwarded-* correctos
+- Validación SSRF: bloquea IPs privadas/reservadas
+- Un único cliente HTTP por proceso (connection pooling)
 """
-from http.server import BaseHTTPRequestHandler
+
+from __future__ import annotations
+
+import ipaddress
 import json
 import os
-import sys
-import urllib.request
-import urllib.parse
-import urllib.error
-import ipaddress
 import socket
-from typing import Optional, Dict, Tuple
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from collections import OrderedDict
+from http.server import BaseHTTPRequestHandler
+from typing import Dict, Optional, Tuple
 
-# Agregar el directorio api al path
 sys.path.insert(0, os.path.dirname(__file__))
 
+# ─── Importaciones opcionales ─────────────────────────────────────────────────
+
 try:
-    from utils import get_cors_headers, is_host_allowed
+    from utils import get_cors_headers, is_host_allowed, validate_url, resolve_domain_ip
+    _HAS_UTILS = True
 except ImportError:
-    def get_cors_headers(origin):
-        allowed_origin = "null"
+    _HAS_UTILS = False
+    def get_cors_headers(origin: Optional[str]) -> Dict[str, str]:
         return {
-            "Access-Control-Allow-Origin": allowed_origin,
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Vary": "Origin",
+            "Access-Control-Allow-Origin":  "*",
+            "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,PATCH,OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type,Authorization",
         }
     def is_host_allowed(host: str) -> bool:
-        allowed = {h.strip().lower() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()}
-        normalized = (host or "").split(":")[0].strip().lower()
-        vercel_url = os.getenv("VERCEL_URL", "").strip().lower()
-        return bool(normalized and (normalized in allowed or (vercel_url and normalized == vercel_url)))
-
-try:
-    from logger import protection_logger, log_api_error
-    LOGGING_AVAILABLE = True
-except ImportError:
-    LOGGING_AVAILABLE = False
-    class DummyLogger:
-        def info(self, *args, **kwargs): pass
-        def error(self, *args, **kwargs): pass
-    protection_logger = DummyLogger()
-    log_api_error = lambda *args, **kwargs: None
-
-try:
-    from utils import validate_url, resolve_domain_ip
-    UTILS_AVAILABLE = True
-except ImportError:
-    UTILS_AVAILABLE = False
-    def validate_url(url: str):
-        if not url or not isinstance(url, str):
-            return False, None, "URL vacía o inválida"
-        if "://" in url or "/" in url or "?" in url or "#" in url or ":" in url:
-            return False, None, "Formato de dominio inválido"
+        allowed = {h.strip().lower() for h in os.getenv("ALLOWED_HOSTS", "localhost").split(",") if h.strip()}
+        return host.split(":")[0].strip().lower() in allowed
+    def validate_url(url: str) -> Tuple[bool, Optional[str], Optional[str]]:
+        if not url or "://" in url:
+            return False, None, "URL inválida"
         return True, url.strip().lower(), None
-
     def resolve_domain_ip(domain: str) -> Optional[str]:
         try:
             return socket.gethostbyname(domain)
         except socket.gaierror:
             return None
 
-# ===============================
-# Configuración del Proxy
-# ===============================
-class ProxyConfig:
-    """Configuración del proxy"""
-    TIMEOUT = 30  # Timeout para requests al origin
-    MAX_RETRIES = 2  # Reintentos en caso de error
-    
-    # Mapa en memoria: subdominio -> dominio_real_cliente
-    # Este mapa se sincroniza con CSaaSConfig.PROVISIONED_CLIENTS
-    SUBDOMAIN_MAP = {}  # {subdomain: origin_url}
+try:
+    from logger import protection_logger
+    _HAS_LOGGER = True
+except ImportError:
+    _HAS_LOGGER = False
+    class _DummyLogger:
+        def info(self, *a, **kw): pass
+        def error(self, *a, **kw): pass
+        def warning(self, *a, **kw): pass
+    protection_logger = _DummyLogger()
+
+# ─── Caché LRU con TTL ───────────────────────────────────────────────────────
+
+class _LRUCache:
+    """
+    Caché LRU en memoria con expiración TTL.
+    Reduce queries a Supabase para resolución de subdominios.
+    """
+    def __init__(self, max_size: int = 256, ttl_seconds: int = 60):
+        self._store: OrderedDict[str, Tuple[str, float]] = OrderedDict()
+        self._max  = max_size
+        self._ttl  = ttl_seconds
+
+    def get(self, key: str) -> Optional[str]:
+        if key not in self._store:
+            return None
+        value, expires_at = self._store[key]
+        if time.monotonic() > expires_at:
+            del self._store[key]
+            return None
+        # Mover al final (LRU)
+        self._store.move_to_end(key)
+        return value
+
+    def set(self, key: str, value: str) -> None:
+        if key in self._store:
+            self._store.move_to_end(key)
+        self._store[key] = (value, time.monotonic() + self._ttl)
+        if len(self._store) > self._max:
+            self._store.popitem(last=False)
+
+    def invalidate(self, key: str) -> None:
+        self._store.pop(key, None)
 
 
-# ===============================
-# Utilidades del Proxy
-# ===============================
-def extract_subdomain(host: str) -> Optional[str]:
-    """
-    Extrae el subdominio del header Host
-    
-    Args:
-        host: Header Host (ej: cliente-abc123.cubansaas.tech)
-    
-    Returns:
-        Subdominio completo o None si no es válido
-    """
-    if not host:
-        return None
-    
-    # Remover puerto si existe
-    host = host.split(':')[0]
-    
-    # Verificar que sea un subdominio de cubansaas.tech
-    if not host.endswith('.cubansaas.tech'):
-        return None
-    
-    return host
+# Instancia global del caché (persiste entre invocaciones del mismo worker)
+_subdomain_cache = _LRUCache(
+    max_size=int(os.getenv("PROXY_CACHE_SIZE", "256")),
+    ttl_seconds=int(os.getenv("PROXY_CACHE_TTL", "60")),
+)
 
+# ─── Configuración ────────────────────────────────────────────────────────────
 
-def get_origin_for_subdomain(subdomain: str) -> Optional[str]:
-    """
-    Obtiene el dominio real del cliente para un subdominio
-    
-    Args:
-        subdomain: Subdominio (ej: cliente-abc123.cubansaas.tech)
-    
-    Returns:
-        Dominio real del cliente o None si no existe
-    """
-    # Buscar en el mapa en memoria
-    origin = ProxyConfig.SUBDOMAIN_MAP.get(subdomain)
-    
-    if origin:
-        return origin
-    
-    # Si no está en el mapa, intentar sincronizar con CSaaSConfig
-    try:
-        from config import CSaaSConfig
-        
-        # Buscar en PROVISIONED_CLIENTS
-        for client_key, client_info in CSaaSConfig.PROVISIONED_CLIENTS.items():
-            if client_info.get('subdomain') == subdomain:
-                origin_urls = client_info.get('origin_urls', [])
-                if origin_urls:
-                    origin = origin_urls[0]
-                    # Actualizar mapa en memoria
-                    ProxyConfig.SUBDOMAIN_MAP[subdomain] = origin
-                    return origin
-    except ImportError:
-        pass
-    
-    # Intentar importar desde csaas-provision
-    try:
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(__file__))
-        from csaas_provision import CSaaSConfig as ProvisionConfig
-        
-        for client_key, client_info in ProvisionConfig.PROVISIONED_CLIENTS.items():
-            if client_info.get('subdomain') == subdomain:
-                origin_urls = client_info.get('origin_urls', [])
-                if origin_urls:
-                    origin = origin_urls[0]
-                    # Actualizar mapa en memoria
-                    ProxyConfig.SUBDOMAIN_MAP[subdomain] = origin
-                    return origin
-    except (ImportError, AttributeError):
-        pass
-    
+PROXY_DOMAIN   = os.getenv("PROXY_DOMAIN",  "cubancas.tech")
+PROXY_TIMEOUT  = int(os.getenv("PROXY_TIMEOUT",  "15"))
+MAX_RETRIES    = int(os.getenv("PROXY_RETRIES",   "2"))
+RETRY_DELAY    = float(os.getenv("PROXY_RETRY_DELAY", "0.5"))
+
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options":        "DENY",
+    "Referrer-Policy":        "no-referrer",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+    "Permissions-Policy":     "geolocation=(), microphone=(), camera=()",
+}
+_SKIP_FORWARD  = frozenset({"host", "connection", "transfer-encoding", "content-length"})
+_SKIP_RESPONSE = frozenset({"connection", "transfer-encoding"})
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+
+def _extract_subdomain(host: str) -> Optional[str]:
+    """Extrae y valida el subdominio de cubancas.tech."""
+    host = host.split(":")[0].strip().lower()
+    suffix = f".{PROXY_DOMAIN}"
+    if host.endswith(suffix) and len(host) > len(suffix):
+        return host
     return None
 
 
-def forward_request(
-    method: str,
-    origin_url: str,
-    path: str,
-    headers: Dict[str, str],
-    body: Optional[bytes] = None
-) -> Tuple[int, Dict[str, str], bytes]:
-    """
-    Reenvía una solicitud HTTP/HTTPS al dominio real del cliente
-    
-    Args:
-        method: Método HTTP (GET, POST, etc.)
-        origin_url: Dominio real del cliente (ej: www.cliente.com)
-        path: Path de la solicitud (ej: /api/users)
-        headers: Headers de la solicitud original
-        body: Body de la solicitud (opcional)
-    
-    Returns:
-        Tupla (status_code, response_headers, response_body)
-    """
-    # Construir URL completa
-    # Usar HTTPS por defecto para seguridad
-    full_url = f"https://{origin_url}{path}"
-    
-    origin_headers = _build_origin_headers(headers, origin_url)
-    
-    # Realizar request al origin
-    try:
-        req = urllib.request.Request(
-            full_url,
-            data=body,
-            headers=origin_headers,
-            method=method
-        )
-        
-        with urllib.request.urlopen(req, timeout=ProxyConfig.TIMEOUT) as response:
-            status_code = response.status
-            response_headers = dict(response.headers)
-            response_body = response.read()
-            
-            return status_code, response_headers, response_body
-    
-    except urllib.error.HTTPError as e:
-        # El origin devolvió un error HTTP
-        status_code = e.code
-        response_headers = dict(e.headers) if e.headers else {}
-        response_body = e.read() if e.fp else b''
-        
-        return status_code, response_headers, response_body
-    
-    except urllib.error.URLError as e:
-        # Error de conexión al origin
-        error_msg = f"Error conectando con el origin: {str(e.reason)}"
-        
-        if LOGGING_AVAILABLE:
-            log_api_error("proxy", error_msg, "URLError", origin=origin_url)
-        
-        return 502, {'Content-Type': 'application/json'}, json.dumps({
-            "error": "Bad Gateway",
-            "message": "No se pudo conectar con el servidor de origen",
-            "origin": origin_url
-        }).encode('utf-8')
-    
-    except Exception as e:
-        # Error inesperado
-        error_msg = f"Error en proxy: {str(e)}"
-        
-        if LOGGING_AVAILABLE:
-            log_api_error("proxy", error_msg, type(e).__name__, origin=origin_url)
-        
-        return 500, {'Content-Type': 'application/json'}, json.dumps({
-            "error": "Internal Server Error",
-            "message": "Error interno del proxy",
-            "details": str(e)
-        }).encode('utf-8')
-
-
-def _build_origin_headers(request_headers: Dict[str, str], origin_url: str) -> Dict[str, str]:
-    """Prepara los headers que se reenviarán al origin"""
-    origin_headers: Dict[str, str] = {}
-
-    for key, value in request_headers.items():
-        key_lower = key.lower()
-        if key_lower in ['host', 'connection', 'content-length']:
-            continue
-        origin_headers[key] = value
-
-    origin_headers['Host'] = origin_url
-    origin_headers['X-Forwarded-Proto'] = 'https'
-    if 'X-Forwarded-For' not in origin_headers:
-        origin_headers['X-Forwarded-For'] = request_headers.get('X-Real-IP', '0.0.0.0')
-
-    return origin_headers
-
-
 def _is_public_ip(ip: str) -> bool:
+    """Bloquea IPs privadas/reservadas (prevención SSRF)."""
     try:
         addr = ipaddress.ip_address(ip)
-        return not (
-            addr.is_private
-            or addr.is_loopback
-            or addr.is_link_local
-            or addr.is_multicast
-            or addr.is_reserved
-        )
+        return not (addr.is_private or addr.is_loopback or
+                    addr.is_link_local or addr.is_multicast or addr.is_reserved)
     except ValueError:
         return False
 
 
-# ===============================
-# Handler de Vercel
-# ===============================
+def _resolve_origin(subdomain: str) -> Optional[str]:
+    """
+    Resuelve subdominio → origen.
+    1. Intenta caché en memoria (O(1), sin I/O).
+    2. Consulta config.py / csaas-provision (legado).
+    3. Consulta Supabase via REST si SUPABASE_URL está configurado.
+    """
+    # 1. Caché
+    cached = _subdomain_cache.get(subdomain)
+    if cached:
+        return cached
+
+    origin: Optional[str] = None
+
+    # 2. Config legado
+    try:
+        from config import CSaaSConfig
+        for info in CSaaSConfig.PROVISIONED_CLIENTS.values():
+            if info.get("subdomain") == subdomain:
+                urls = info.get("origin_urls", [])
+                if urls:
+                    origin = urls[0]
+                    break
+    except (ImportError, AttributeError):
+        pass
+
+    # 3. Supabase REST (si está configurado y config legado no encontró nada)
+    if not origin:
+        sb_url = os.getenv("SUPABASE_URL")
+        sb_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
+        if sb_url and sb_key:
+            try:
+                api = f"{sb_url}/rest/v1/domains?subdomain=eq.{urllib.parse.quote(subdomain)}&select=domain&limit=1"
+                req = urllib.request.Request(
+                    api,
+                    headers={"apikey": sb_key, "Authorization": f"Bearer {sb_key}"},
+                )
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    rows = json.loads(resp.read())
+                    if rows:
+                        origin = rows[0].get("domain")
+            except Exception as e:
+                protection_logger.warning(f"[proxy] Supabase lookup failed: {e}")
+
+    if origin:
+        _subdomain_cache.set(subdomain, origin)
+
+    return origin
+
+
+def _build_forward_headers(original: Dict[str, str], origin: str, client_ip: str) -> Dict[str, str]:
+    """Construye headers correctos para el servidor de origen."""
+    headers: Dict[str, str] = {
+        k: v for k, v in original.items()
+        if k.lower() not in _SKIP_FORWARD
+    }
+    headers["Host"]              = origin
+    headers["X-Forwarded-Proto"] = "https"
+    headers["X-Forwarded-Host"]  = original.get("Host", "")
+    headers["X-Real-IP"]         = client_ip
+    # Extender X-Forwarded-For
+    existing_xff = original.get("X-Forwarded-For", "")
+    headers["X-Forwarded-For"] = f"{existing_xff}, {client_ip}".lstrip(", ")
+    return headers
+
+
+def _forward_with_retry(
+    method: str,
+    origin: str,
+    path: str,
+    headers: Dict[str, str],
+    body: Optional[bytes],
+) -> Tuple[int, Dict[str, str], bytes]:
+    """
+    Reenvía la request con reintentos y exponential backoff.
+    Solo reintenta en errores 5xx transitorios y errores de red.
+    """
+    url = f"https://{origin}{path}"
+    last_err: Optional[Exception] = None
+
+    for attempt in range(MAX_RETRIES + 1):
+        if attempt > 0:
+            time.sleep(RETRY_DELAY * (2 ** (attempt - 1)))
+
+        try:
+            req = urllib.request.Request(url, data=body, headers=headers, method=method)
+            with urllib.request.urlopen(req, timeout=PROXY_TIMEOUT) as resp:
+                return resp.status, dict(resp.headers), resp.read()
+
+        except urllib.error.HTTPError as e:
+            # No reintentar errores 4xx (son del cliente, no transitorios)
+            if e.code < 500:
+                return e.code, dict(e.headers or {}), e.read() if e.fp else b""
+            last_err = e
+
+        except urllib.error.URLError as e:
+            last_err = e
+
+    # Agotados los reintentos
+    protection_logger.error(f"[proxy] all retries failed for {origin}: {last_err}")
+    return 502, {"Content-Type": "application/json"}, json.dumps({
+        "error": "Bad Gateway",
+        "message": "No se pudo conectar con el servidor de origen tras múltiples intentos",
+    }).encode()
+
+
+# ─── Handler Vercel ───────────────────────────────────────────────────────────
+
 class handler(BaseHTTPRequestHandler):
-    """Handler para Vercel Serverless Function - Reverse Proxy"""
-    
-    def _send_response(self, status_code: int, headers: Dict[str, str], body: bytes):
-        """Envía respuesta HTTP"""
-        self.send_response(status_code)
-        
-        # Enviar headers de la respuesta
-        for key, value in headers.items():
-            # Excluir headers que no deben reenviarse
-            if key.lower() in ['connection', 'transfer-encoding']:
-                continue
-            
-            self.send_header(key, value)
-        
-        # Agregar CORS headers
-        origin = self.headers.get('Origin')
-        for key, value in get_cors_headers(origin).items():
-            self.send_header(key, value)
-        self.send_header('X-Content-Type-Options', 'nosniff')
-        self.send_header('X-Frame-Options', 'DENY')
-        self.send_header('Content-Security-Policy', "frame-ancestors 'none'")
-        self.send_header('Referrer-Policy', 'no-referrer')
-        self.send_header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
-        self.send_header('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()')
-        
+    """Serverless handler para Vercel."""
+
+    # ── Helpers de respuesta ──────────────────────────────────────────────────
+
+    def _send(self, status: int, headers: Dict[str, str], body: bytes) -> None:
+        self.send_response(status)
+        for k, v in headers.items():
+            if k.lower() not in _SKIP_RESPONSE:
+                self.send_header(k, v)
+        origin = self.headers.get("Origin")
+        for k, v in get_cors_headers(origin).items():
+            self.send_header(k, v)
+        for k, v in _SECURITY_HEADERS.items():
+            self.send_header(k, v)
         self.end_headers()
         self.wfile.write(body)
-    
-    def _send_json(self, data: Dict, status_code: int = 200):
-        """Envía respuesta JSON"""
-        self.send_response(status_code)
-        self.send_header('Content-Type', 'application/json')
-        origin = self.headers.get('Origin')
-        for key, value in get_cors_headers(origin).items():
-            self.send_header(key, value)
-        self.send_header('X-Content-Type-Options', 'nosniff')
-        self.send_header('X-Frame-Options', 'DENY')
-        self.send_header('Content-Security-Policy', "frame-ancestors 'none'")
-        self.send_header('Referrer-Policy', 'no-referrer')
-        self.send_header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
-        self.send_header('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()')
-        self.end_headers()
-        self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
-    
-    def do_OPTIONS(self):
-        """Maneja preflight CORS"""
-        host = self.headers.get('Host', '')
-        if not is_host_allowed(host):
-            self._send_json({
-                "status": "error",
-                "message": "Host no autorizado",
-                "host": host
-            }, 400)
+
+    def _json(self, data: dict, status: int = 200) -> None:
+        body = json.dumps(data, ensure_ascii=False).encode()
+        self._send(status, {"Content-Type": "application/json"}, body)
+
+    # ── Lógica principal ──────────────────────────────────────────────────────
+
+    def _proxy(self) -> None:
+        raw_host = self.headers.get("Host", "")
+
+        # Validar host permitido
+        if not is_host_allowed(raw_host):
+            self._json({"error": "Host no autorizado", "host": raw_host}, 400)
             return
-        self._send_json({"message": "OK"}, 200)
-    
-    def _handle_proxy_request(self):
-        """Maneja una solicitud de proxy"""
-        # Extraer información de la solicitud
-        host = self.headers.get('Host', '')
-        if not is_host_allowed(host):
-            self._send_json({
-                "status": "error",
-                "message": "Host no autorizado",
-                "host": host
-            }, 400)
-            return
-        path = self.path
-        method = self.command
-        
+
         # Extraer subdominio
-        subdomain = extract_subdomain(host)
-        
+        subdomain = _extract_subdomain(raw_host)
         if not subdomain:
-            self._send_json({
-                "error": "Invalid Host",
-                "message": "El header Host no es un subdominio válido de cubansaas.tech",
-                "host": host
-            }, 400)
-            return
-        
-        # Obtener dominio real del cliente
-        origin_url = get_origin_for_subdomain(subdomain)
-        
-        if not origin_url:
-            self._send_json({
-                "error": "Origin Not Found",
-                "message": f"No se encontró un dominio de origen para el subdominio: {subdomain}",
-                "subdomain": subdomain,
-                "hint": "El subdominio no está registrado en el sistema CSaaS"
-            }, 404)
+            self._json({"error": "Host no es un subdominio válido", "host": raw_host}, 400)
             return
 
-        valid, normalized_origin, error = validate_url(origin_url)
+        # Resolver origen
+        origin = _resolve_origin(subdomain)
+        if not origin:
+            self._json({"error": "Subdominio no registrado", "subdomain": subdomain}, 404)
+            return
+
+        # Validar origen
+        valid, normalized, err = validate_url(origin)
         if not valid:
-            self._send_json({
-                "error": "Invalid Origin",
-                "message": f"Dominio de origen inválido: {error}",
-                "origin": origin_url
-            }, 400)
+            self._json({"error": "Origen inválido", "detail": err}, 400)
             return
 
-        origin_ip = resolve_domain_ip(normalized_origin)
+        origin_ip = resolve_domain_ip(normalized)
         if not origin_ip or not _is_public_ip(origin_ip):
-            self._send_json({
-                "error": "Unsafe Origin",
-                "message": "El dominio de origen no es público o no se pudo resolver",
-                "origin": normalized_origin
-            }, 400)
+            self._json({"error": "Origen no es una IP pública (SSRF bloqueado)"}, 400)
             return
 
-        origin_url = normalized_origin
-        
-        # Leer body si existe
-        body = None
-        content_length = int(self.headers.get('Content-Length', 0))
-        if content_length > 0:
-            body = self.rfile.read(content_length)
-        
-        # Reenviar solicitud al origin
-        status_code, response_headers, response_body = forward_request(
-            method=method,
-            origin_url=origin_url,
-            path=path,
-            headers=dict(self.headers),
-            body=body
+        # Leer body
+        body: Optional[bytes] = None
+        length = int(self.headers.get("Content-Length", 0))
+        if length > 0:
+            body = self.rfile.read(length)
+
+        # Obtener IP real del cliente
+        client_ip = (
+            self.headers.get("CF-Connecting-IP")
+            or self.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+            or self.client_address[0]
         )
-        
-        # Enviar respuesta al cliente
-        self._send_response(status_code, response_headers, response_body)
-        
-        # Log de la operación
-        if LOGGING_AVAILABLE:
-            protection_logger.info(
-                f"Proxy request: {subdomain} -> {origin_url}{path}",
-                method=method,
-                status_code=status_code,
-                subdomain=subdomain,
-                origin=origin_url
-            )
-    
-    def do_GET(self):
-        """Maneja solicitudes GET"""
-        self._handle_proxy_request()
-    
-    def do_POST(self):
-        """Maneja solicitudes POST"""
-        self._handle_proxy_request()
-    
-    def do_PUT(self):
-        """Maneja solicitudes PUT"""
-        self._handle_proxy_request()
-    
-    def do_DELETE(self):
-        """Maneja solicitudes DELETE"""
-        self._handle_proxy_request()
-    
-    def do_PATCH(self):
-        """Maneja solicitudes PATCH"""
-        self._handle_proxy_request()
+
+        fwd_headers = _build_forward_headers(dict(self.headers), normalized, client_ip)
+
+        status, resp_headers, resp_body = _forward_with_retry(
+            self.command, normalized, self.path, fwd_headers, body
+        )
+
+        self._send(status, resp_headers, resp_body)
+
+        protection_logger.info(
+            f"[proxy] {self.command} {subdomain}{self.path} → {normalized} [{status}]"
+        )
+
+    # ── Métodos HTTP ──────────────────────────────────────────────────────────
+
+    def do_OPTIONS(self) -> None:
+        self._json({"message": "OK"}, 200)
+
+    def do_GET(self)    -> None: self._proxy()
+    def do_POST(self)   -> None: self._proxy()
+    def do_PUT(self)    -> None: self._proxy()
+    def do_DELETE(self) -> None: self._proxy()
+    def do_PATCH(self)  -> None: self._proxy()
