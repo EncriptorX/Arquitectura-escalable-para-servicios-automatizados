@@ -9,12 +9,13 @@ import { motion } from 'framer-motion'
 import {
   Shield, Users, CreditCard, Settings,
   BarChart3, Bell, Key, AlertTriangle,
-  ChevronRight, Building2, LogOut,
+  ChevronRight, Building2, LogOut, Save, X, Loader2,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { AuditLogViewer } from './AuditLogViewer'
 import { TeamManager } from './TeamManager'
 import { ROLE_LABELS } from '../../types/cas'
+import { supabase } from '../../lib/supabase'
 
 type AdminTab = 'overview' | 'organization' | 'team' | 'billing' | 'audit'
 
@@ -25,6 +26,114 @@ const TABS = [
   { id: 'billing',       label: 'Facturación',     icon: CreditCard  },
   { id: 'audit',         label: 'Auditoría',       icon: Shield      },
 ] as const
+
+// ─── OrgEditor ────────────────────────────────────────────────────────────────
+function OrgEditor() {
+  const { organization } = useAuth()
+  const [editing, setEditing] = useState(false)
+  const [saving,  setSaving]  = useState(false)
+  const [error,   setError]   = useState('')
+  const [form, setForm] = useState({
+    name:   organization?.name   ?? '',
+    domain: organization?.domain ?? '',
+  })
+
+  const handleSave = async () => {
+    if (!organization || !form.name.trim()) return
+    setSaving(true)
+    setError('')
+    try {
+      const { error: err } = await supabase
+        .from('organizations')
+        .update({ name: form.name.trim(), domain: form.domain.trim() || null, updated_at: new Date().toISOString() })
+        .eq('id', organization.id)
+      if (err) throw err
+      setEditing(false)
+      // Recargar para reflejar cambios
+      window.location.reload()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-5">
+      {error && (
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{error}</div>
+      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Nombre */}
+        <div className="space-y-1.5">
+          <p className="text-xs text-gray-500">Nombre de la organización</p>
+          {editing ? (
+            <input
+              value={form.name}
+              onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+            />
+          ) : (
+            <p className="text-white font-medium">{organization?.name ?? '—'}</p>
+          )}
+        </div>
+        {/* Dominio */}
+        <div className="space-y-1.5">
+          <p className="text-xs text-gray-500">Dominio principal</p>
+          {editing ? (
+            <input
+              value={form.domain}
+              onChange={e => setForm(p => ({ ...p, domain: e.target.value }))}
+              placeholder="miempresa.com"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+            />
+          ) : (
+            <p className="text-white font-medium">{organization?.domain ?? '—'}</p>
+          )}
+        </div>
+        {/* Plan (solo lectura) */}
+        <div className="space-y-1.5">
+          <p className="text-xs text-gray-500">Plan</p>
+          <p className="text-white font-medium capitalize">{organization?.plan ?? '—'}</p>
+        </div>
+        {/* Estado (solo lectura) */}
+        <div className="space-y-1.5">
+          <p className="text-xs text-gray-500">Estado</p>
+          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+            organization?.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
+          }`}>{organization?.status ?? '—'}</span>
+        </div>
+      </div>
+      <div className="pt-4 border-t border-white/10 flex gap-3">
+        {editing ? (
+          <>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-sm hover:bg-cyan-500/30 transition-colors disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saving ? 'Guardando...' : 'Guardar cambios'}
+            </button>
+            <button
+              onClick={() => { setEditing(false); setError('') }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-400 text-sm hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" /> Cancelar
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setEditing(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-sm hover:bg-cyan-500/30 transition-colors"
+          >
+            <Settings className="w-4 h-4" /> Editar configuración
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export function AdminDashboard() {
   const { user, organization, membership, subscription, signOut } = useAuth()
@@ -138,27 +247,7 @@ export function AdminDashboard() {
         {tab === 'organization' && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <h1 className="text-2xl font-bold text-white">Organización</h1>
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[
-                  { label: 'Nombre',   value: organization?.name  },
-                  { label: 'Slug',     value: organization?.slug  },
-                  { label: 'Plan',     value: organization?.plan  },
-                  { label: 'Estado',   value: organization?.status },
-                ].map(f => (
-                  <div key={f.label} className="space-y-1">
-                    <p className="text-xs text-gray-500">{f.label}</p>
-                    <p className="text-white font-medium capitalize">{f.value ?? '—'}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="pt-4 border-t border-white/10">
-                <button className="px-4 py-2 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-sm hover:bg-cyan-500/30 transition-colors flex items-center gap-2">
-                  <Settings className="w-4 h-4" />
-                  Editar configuración
-                </button>
-              </div>
-            </div>
+            <OrgEditor />
           </motion.div>
         )}
 

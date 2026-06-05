@@ -61,17 +61,34 @@ export function TeamManager() {
     if (!organization) return
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      // Query 1: miembros de la organización
+      const { data: membersData, error: membersError } = await supabase
         .from('organization_members')
-        .select(`
-          id, user_id, role, status, joined_at, created_at,
-          user_profiles (full_name, email)
-        `)
+        .select('id, user_id, role, status, joined_at, created_at')
         .eq('organization_id', organization.id)
         .order('created_at', { ascending: true })
 
-      if (error) throw error
-      setMembers((data as unknown as Member[]) ?? [])
+      if (membersError) throw membersError
+      if (!membersData?.length) { setMembers([]); return }
+
+      // Query 2: perfiles de esos usuarios
+      const userIds = membersData.map(m => m.user_id)
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, email')
+        .in('id', userIds)
+
+      // Combinar manualmente
+      const profileMap = Object.fromEntries(
+        (profiles ?? []).map(p => [p.id, { full_name: p.full_name, email: p.email }])
+      )
+
+      const combined: Member[] = membersData.map(m => ({
+        ...m,
+        user_profiles: profileMap[m.user_id] ?? null,
+      }))
+
+      setMembers(combined)
     } catch (err: any) {
       setFeedback({ type: 'error', msg: 'Error cargando miembros: ' + err.message })
     } finally {
