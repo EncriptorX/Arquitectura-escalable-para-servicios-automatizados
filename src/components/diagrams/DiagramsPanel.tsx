@@ -5,19 +5,21 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Network, Lock, Server, Cloud } from 'lucide-react'
+import { Network, Lock, Server, Cloud, Database } from 'lucide-react'
 import { ArchitectureDiagram } from '../ArchitectureDiagram'
-import { AuthFlowDiagram }     from './AuthFlowDiagram'
+import { AuthFlowDiagram }      from './AuthFlowDiagram'
 import { ProxySequenceDiagram } from './ProxySequenceDiagram'
-import { DeploymentDiagram }   from './DeploymentDiagram'
+import { DeploymentDiagram }    from './DeploymentDiagram'
+import { ERDiagram }            from './ERDiagram'
 
-type DiagramTab = 'architecture' | 'auth' | 'proxy' | 'deployment'
+type DiagramTab = 'architecture' | 'auth' | 'proxy' | 'deployment' | 'er'
 
 const TABS = [
-  { id: 'architecture', label: 'Componentes',    icon: Network, desc: 'Diagrama de componentes por capas' },
-  { id: 'auth',         label: 'Autenticación',  icon: Lock,    desc: 'Flujo de login y registro'         },
-  { id: 'proxy',        label: 'Proxy Inverso',  icon: Server,  desc: 'Secuencia del proxy multi-tenant'  },
-  { id: 'deployment',   label: 'Despliegue',     icon: Cloud,   desc: 'Infraestructura cloud-native'      },
+  { id: 'architecture', label: 'Componentes',    icon: Network,   desc: 'Diagrama de componentes por capas' },
+  { id: 'auth',         label: 'Autenticación',  icon: Lock,      desc: 'Flujo de login y registro'         },
+  { id: 'proxy',        label: 'Proxy Inverso',  icon: Server,    desc: 'Secuencia del proxy multi-tenant'  },
+  { id: 'deployment',   label: 'Despliegue',     icon: Cloud,     desc: 'Infraestructura cloud-native'      },
+  { id: 'er',           label: 'DER',            icon: Database,  desc: 'Diagrama Entidad-Relación'         },
 ] as const
 
 export function DiagramsPanel() {
@@ -70,6 +72,7 @@ export function DiagramsPanel() {
           {tab === 'auth'         && <AuthFlowDiagram />}
           {tab === 'proxy'        && <ProxySequenceDiagram />}
           {tab === 'deployment'   && <DeploymentDiagram />}
+          {tab === 'er'           && <ERDiagram />}
         </motion.div>
       </AnimatePresence>
     </div>
