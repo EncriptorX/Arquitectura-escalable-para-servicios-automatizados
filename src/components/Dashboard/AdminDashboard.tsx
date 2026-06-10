@@ -17,7 +17,7 @@ import { AuditLogViewer } from './AuditLogViewer'
 import { TeamManager } from './TeamManager'
 import { DomainManager } from './DomainManager'
 import { ReportManager } from './ReportManager'
-import { ArchitectureDiagram } from '../ArchitectureDiagram'
+import { DiagramsPanel } from '../diagrams/DiagramsPanel'
 import { ROLE_LABELS } from '../../types/cas'
 import { supabase } from '../../lib/supabase'
 
@@ -305,8 +305,8 @@ export function AdminDashboard() {
 
         {/* Arquitectura */}
         {tab === 'architecture' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="-m-8">
-            <ArchitectureDiagram />
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <DiagramsPanel />
           </motion.div>
         )}
 
