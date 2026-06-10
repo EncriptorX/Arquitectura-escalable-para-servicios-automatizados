@@ -5,21 +5,23 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Network, Lock, Server, Cloud, Database } from 'lucide-react'
-import { ArchitectureDiagram } from '../ArchitectureDiagram'
-import { AuthFlowDiagram }      from './AuthFlowDiagram'
-import { ProxySequenceDiagram } from './ProxySequenceDiagram'
-import { DeploymentDiagram }    from './DeploymentDiagram'
-import { ERDiagram }            from './ERDiagram'
+import { Network, Lock, Server, Cloud, Database, FlaskConical } from 'lucide-react'
+import { ArchitectureDiagram }   from '../ArchitectureDiagram'
+import { AuthFlowDiagram }       from './AuthFlowDiagram'
+import { ProxySequenceDiagram }  from './ProxySequenceDiagram'
+import { DeploymentDiagram }     from './DeploymentDiagram'
+import { ERDiagram }             from './ERDiagram'
+import { ValidationDashboard }   from './ValidationDashboard'
 
-type DiagramTab = 'architecture' | 'auth' | 'proxy' | 'deployment' | 'er'
+type DiagramTab = 'architecture' | 'auth' | 'proxy' | 'deployment' | 'er' | 'validation'
 
 const TABS = [
-  { id: 'architecture', label: 'Componentes',    icon: Network,   desc: 'Diagrama de componentes por capas' },
-  { id: 'auth',         label: 'Autenticación',  icon: Lock,      desc: 'Flujo de login y registro'         },
-  { id: 'proxy',        label: 'Proxy Inverso',  icon: Server,    desc: 'Secuencia del proxy multi-tenant'  },
-  { id: 'deployment',   label: 'Despliegue',     icon: Cloud,     desc: 'Infraestructura cloud-native'      },
-  { id: 'er',           label: 'DER',            icon: Database,  desc: 'Diagrama Entidad-Relación'         },
+  { id: 'architecture', label: 'Componentes',   icon: Network,       desc: 'Diagrama de componentes por capas' },
+  { id: 'auth',         label: 'Autenticación', icon: Lock,          desc: 'Flujo de login y registro'         },
+  { id: 'proxy',        label: 'Proxy',         icon: Server,        desc: 'Secuencia del proxy multi-tenant'  },
+  { id: 'deployment',   label: 'Despliegue',    icon: Cloud,         desc: 'Infraestructura cloud-native'      },
+  { id: 'er',           label: 'DER',           icon: Database,      desc: 'Diagrama Entidad-Relación'         },
+  { id: 'validation',   label: 'Validación',    icon: FlaskConical,  desc: 'Evidencias de rendimiento y RLS'   },
 ] as const
 
 export function DiagramsPanel() {
@@ -73,6 +75,7 @@ export function DiagramsPanel() {
           {tab === 'proxy'        && <ProxySequenceDiagram />}
           {tab === 'deployment'   && <DeploymentDiagram />}
           {tab === 'er'           && <ERDiagram />}
+          {tab === 'validation'   && <ValidationDashboard />}
         </motion.div>
       </AnimatePresence>
     </div>
