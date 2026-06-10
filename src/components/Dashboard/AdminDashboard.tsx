@@ -10,15 +10,18 @@ import {
   Shield, Users, CreditCard, Settings, Globe,
   BarChart3, Bell, Key, AlertTriangle,
   ChevronRight, Building2, LogOut, Save, X, Loader2,
+  Network,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { AuditLogViewer } from './AuditLogViewer'
 import { TeamManager } from './TeamManager'
 import { DomainManager } from './DomainManager'
+import { ReportManager } from './ReportManager'
+import { ArchitectureDiagram } from '../ArchitectureDiagram'
 import { ROLE_LABELS } from '../../types/cas'
 import { supabase } from '../../lib/supabase'
 
-type AdminTab = 'overview' | 'organization' | 'team' | 'domains' | 'billing' | 'audit'
+type AdminTab = 'overview' | 'organization' | 'team' | 'domains' | 'billing' | 'audit' | 'architecture'
 
 const TABS = [
   { id: 'overview',      label: 'Resumen',        icon: BarChart3   },
@@ -27,6 +30,7 @@ const TABS = [
   { id: 'domains',       label: 'Dominios',        icon: Globe       },
   { id: 'billing',       label: 'Facturación',     icon: CreditCard  },
   { id: 'audit',         label: 'Auditoría',       icon: Shield      },
+  { id: 'architecture',  label: 'Arquitectura',    icon: Network     },
 ] as const
 
 // ─── OrgEditor ────────────────────────────────────────────────────────────────
@@ -296,6 +300,13 @@ export function AdminDashboard() {
                 </button>
               </div>
             </div>
+          </motion.div>
+        )}
+
+        {/* Arquitectura */}
+        {tab === 'architecture' && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="-m-8">
+            <ArchitectureDiagram />
           </motion.div>
         )}
 
